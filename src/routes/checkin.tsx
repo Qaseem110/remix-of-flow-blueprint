@@ -5,7 +5,7 @@ import { CheckCircle2, Stethoscope } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { checkIn, queueInfo, userById, useStore, type Appointment } from "@/lib/store";
+import { kioskCheckIn, queueInfo, userById, useStore, type Appointment } from "@/lib/store";
 
 export const Route = createFileRoute("/checkin")({
   head: () => ({ meta: [{ title: "Clinic check-in — Sahoolat" }, { name: "description", content: "Check in at the clinic with your appointment ID or phone number." }, { property: "og:title", content: "Clinic check-in — Sahoolat" }, { property: "og:description", content: "Arrived at the clinic? Check in here." }] }),
@@ -18,9 +18,13 @@ function CheckIn() {
   const [done, setDone] = useState<Appointment | null>(null);
   const q = useStore(() => (done ? queueInfo(done.id) : null));
 
-  const submit = (method: "appointmentId" | "phone") => (e: React.FormEvent) => {
+  const submit = (method: "appointmentId" | "phone") => async (e: React.FormEvent) => {
     e.preventDefault();
-    try { setDone(checkIn(method, value)); setValue(""); } catch (err) { toast.error((err as Error).message); }
+    try {
+      const r = await kioskCheckIn(method, value);
+      setValue("");
+      if (r.appointment) setDone(r.appointment); else toast.success(`Checked in — ${r.id}. Please wait to be called.`);
+    } catch (err) { toast.error((err as Error).message); }
   };
 
   return (
