@@ -6,6 +6,7 @@ import { Avatar } from "@/components/app/common";
 import { SlotPicker } from "@/components/app/widgets";
 import { nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 
 export const Route = createFileRoute("/patient/doctors/$id")({
   head: () => meta("Doctor profile", "Doctor details, fees, languages and available slots."),
@@ -36,6 +37,7 @@ function DoctorProfile() {
           <div className="flex-1">
             <h1 className="text-3xl font-semibold">{u.name}</h1>
             <p className="opacity-85">{d.specialization}</p>
+            <RatingSummary doctorId={id} className="mt-1" />
             <div className="mt-2 flex gap-4 text-sm">
               <span className="flex items-center gap-1"><Video className="h-4 w-4" />Online: {d.online ? "Available" : "Not offered"}</span>
               <span className="flex items-center gap-1"><Building2 className="h-4 w-4" />In-clinic: {d.clinic ? "Available" : "Not offered"}</span>
@@ -55,6 +57,7 @@ function DoctorProfile() {
             {facts.map((f) => <div key={f.label} className="flex gap-3 text-sm"><f.icon className="mt-0.5 h-4 w-4 text-primary" /><div><p className="text-muted-foreground">{f.label}</p><p className="font-medium">{f.v}</p></div></div>)}
             {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {av.days.sort().map((x) => DAYS[x]).join(", ")} · {av.start}–{av.end} · {av.duration}-min visits</p>}
           </div>
+          <ReviewList doctorId={id} />
         </div>
         <div className="rounded-2xl border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Available slots</h2>

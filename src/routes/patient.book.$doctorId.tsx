@@ -1,13 +1,13 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Building2, Check, Upload, Video } from "lucide-react";
+import { Banknote, Building2, Check, CreditCard, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
 import { SlotPicker } from "@/components/app/widgets";
-import { bookAppointment, makeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile } from "@/lib/store";
+import { bookAppointment, makeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
@@ -39,6 +39,7 @@ function Book() {
   const [time, setTime] = useState(search.time ?? "");
   const [reason, setReason] = useState(search.followUpOf ? `Follow-up for ${search.followUpOf}` : "");
   const [docs, setDocs] = useState<DocFile[]>([]);
+  const [payment, setPayment] = useState<PaymentMethod>("cash");
   if (!u || !d) return <p>Doctor not found.</p>;
 
   const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -47,7 +48,7 @@ function Book() {
   };
   const confirm = () => {
     try {
-      const a = bookAppointment({ doctorId, patientId: user.id, type: type!, date, time, reason, documents: docs, followUpOf: search.followUpOf });
+      const a = bookAppointment({ doctorId, patientId: user.id, type: type!, date, time, reason, documents: docs, followUpOf: search.followUpOf, payment });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
     } catch (err) { toast.error((err as Error).message); setStep(1); }
   };
@@ -94,11 +95,22 @@ function Book() {
           </div>
         )}
         {step === 3 && (
+          <>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {[["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Time", time], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>
+          <p className="mb-2 mt-5 text-sm font-medium">Payment method</p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {([["cash", type === "online" ? "Pay later" : "Pay at clinic", Banknote], ["card", "Card (online)", CreditCard]] as const).map(([v, t, Icon]) => (
+              <button key={v} type="button" onClick={() => setPayment(v)} className={cn("flex items-center gap-3 rounded-xl border-2 p-4 text-left text-sm", payment === v ? "border-primary bg-secondary" : "hover:border-primary/50")}>
+                <Icon className="h-5 w-5 text-primary" /><span className="font-medium">{t}</span>
+              </button>
+            ))}
+          </div>
+          {payment === "card" && <p className="mt-2 text-xs text-muted-foreground">Card payment will be processed once the payment service is connected.</p>}
+          </>
         )}
         <div className="mt-6 flex justify-between">
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>

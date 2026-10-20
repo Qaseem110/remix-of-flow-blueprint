@@ -61,7 +61,7 @@ function Login() {
         <div><Label htmlFor="pw">Password</Label><Input id="pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
         <Button type="submit" className="w-full">Sign in</Button>
       </form>
-      <p className="mt-4 text-sm text-muted-foreground">No account? <Link to="/register" className="font-medium text-primary">Register</Link></p>
+      <p className="mt-4 flex justify-between text-sm text-muted-foreground"><span>No account? <Link to="/register" className="font-medium text-primary">Register</Link></span><Link to="/forgot-password" className="font-medium text-primary">Forgot password?</Link></p>
       <div className="mt-8 rounded-xl border border-dashed p-4">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Demo accounts · password demo123</p>
         <div className="mt-2 flex flex-wrap gap-2">
