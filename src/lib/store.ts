@@ -327,7 +327,7 @@ export function startSync() {
     const { supabase } = await import("./supabase");
     const { data } = await supabase.auth.getSession();
     await hydrate(data.session?.user.id ?? null);
-    supabase.auth.onAuthStateChange((event, session) => {
+    supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, settings: state.settings }; hydrating = false; emit(); }
     });
     setInterval(() => { if (document.visibilityState === "visible") void hydrate(state.sessionUserId); }, 20000);
