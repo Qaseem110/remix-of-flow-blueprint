@@ -302,12 +302,20 @@ async function syncDiff(prev: State, next: State) {
     for (const x of b) {
       const o = old.get(t.id(x));
       if (o === x) continue;
-      if (t.key === "appointments" || t.key === "consultations") await uploadDocs(x as { documents: DocFile[] }, t.id(x));
+      const hasDocs = t.key === "appointments" || t.key === "consultations";
+      // Storage rules need the appointment row to exist, so new rows are written before uploading.
+      if (hasDocs && o !== undefined) await uploadDocs(x as { documents: DocFile[] }, t.id(x));
       const row = t.row(x);
       const { error } = o === undefined
         ? await supabase.from(t.table).insert(row)
         : await supabase.from(t.table).update(row).eq("id", row.id as string);
-      if (error) void reportSyncError(error.message);
+      if (error) { void reportSyncError(error.message); continue; }
+      if (hasDocs && o === undefined && (x as { documents: DocFile[] }).documents?.some((d) => pendingFiles.has(d.id))) {
+        await uploadDocs(x as { documents: DocFile[] }, t.id(x));
+        const r2 = t.row(x);
+        const { error: e2 } = await supabase.from(t.table).update(r2).eq("id", r2.id as string);
+        if (e2) void reportSyncError(e2.message);
+      }
     }
   }
   if (prev.settings !== next.settings) {
