@@ -71,6 +71,8 @@ export interface Availability {
   start: string; // HH:mm
   end: string;
   duration: number; // minutes
+  blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
+  blockedDays?: string[]; // "yyyy-MM-dd" whole days off
 }
 
 export interface DocFile {
@@ -274,19 +276,22 @@ export function slotDateTime(a: { date: string; time: string }) {
 const BLOCKING: AppointmentStatus[] = ["Cancelled", "Rescheduled", "No Show"];
 
 /** Auto-generated slots for a doctor on a date, booked ones excluded. */
-export function getSlots(doctorId: string, date: string, s: State = state): { time: string; available: boolean }[] {
+export function getSlots(doctorId: string, date: string, s: State = state): { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] {
   const av = s.availability.find((a) => a.doctorId === doctorId);
   if (!av) return [];
   const day = parse(date, "yyyy-MM-dd", new Date());
   if (!av.days.includes(day.getDay())) return [];
-  const out: { time: string; available: boolean }[] = [];
+  const dayOff = av.blockedDays?.includes(date) ?? false;
+  const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
   let cur = parse(`${date} ${av.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${av.end}`, "yyyy-MM-dd HH:mm", new Date());
   const taken = new Set(s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !BLOCKING.includes(a.status)).map((a) => a.time));
   const nowD = new Date();
   while (addMinutes(cur, av.duration) <= end) {
     const time = format(cur, "HH:mm");
-    out.push({ time, available: !taken.has(time) && cur > nowD });
+    const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
+    const booked = taken.has(time);
+    out.push({ time, available: !booked && !blocked && cur > nowD, blocked, booked });
     cur = addMinutes(cur, av.duration);
   }
   return out;
@@ -427,7 +432,31 @@ export function updatePatientProfile(id: string, p: Partial<PatientProfile>) {
   set((s) => ({ ...s, patients: s.patients.map((d) => (d.userId === id ? { ...d, ...p } : d)) }));
 }
 export function saveAvailability(av: Availability) {
-  set((s) => ({ ...s, availability: [...s.availability.filter((a) => a.doctorId !== av.doctorId), av] }));
+  set((s) => {
+    const old = s.availability.find((a) => a.doctorId === av.doctorId);
+    const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
+    return { ...s, availability: [...s.availability.filter((a) => a.doctorId !== av.doctorId), next] };
+  });
+}
+function patchAvailability(doctorId: string, fn: (a: Availability) => Availability) {
+  set((s) => ({ ...s, availability: s.availability.map((a) => (a.doctorId === doctorId ? fn(a) : a)) }));
+}
+/** Doctor marks a single slot as unavailable (or available again). Booked slots cannot be blocked. */
+export function toggleBlockedSlot(doctorId: string, date: string, time: string) {
+  const key = `${date} ${time}`;
+  const av = state.availability.find((a) => a.doctorId === doctorId);
+  const isBlocked = av?.blocked?.includes(key);
+  if (!isBlocked && state.appointments.some((a) => a.doctorId === doctorId && a.date === date && a.time === time && !BLOCKING.includes(a.status))) {
+    throw new Error("This slot is already booked — cancel or reschedule the appointment first");
+  }
+  patchAvailability(doctorId, (a) => ({ ...a, blocked: isBlocked ? (a.blocked ?? []).filter((k) => k !== key) : [...(a.blocked ?? []), key] }));
+}
+/** Doctor marks a whole date as unavailable (leave, holiday) or available again. */
+export function toggleBlockedDay(doctorId: string, date: string) {
+  patchAvailability(doctorId, (a) => {
+    const list = a.blockedDays ?? [];
+    return { ...a, blockedDays: list.includes(date) ? list.filter((d) => d !== date) : [...list, date] };
+  });
 }
 
 // ---------- Files ----------
