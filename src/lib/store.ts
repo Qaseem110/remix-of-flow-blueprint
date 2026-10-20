@@ -465,26 +465,55 @@ export function doctorRating(doctorId: string, s: State = state) {
   const list = s.reviews.filter((r) => r.doctorId === doctorId);
   return { count: list.length, avg: list.length ? Math.round((list.reduce((t, r) => t + r.rating, 0) / list.length) * 10) / 10 : 0 };
 }
-export function requestPasswordReset(email: string) {
-  // Mock: real email is sent by the backend later. Never reveal whether the email exists.
-  void email;
+export async function requestPasswordReset(email: string) {
+  // Never reveal whether the email exists.
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+}
+export async function setNewPassword(password: string) {
+  const { supabase } = await import("./supabase");
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
 }
 
-export function login(email: string, password: string): User {
-  const u = state.users.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
-  if (!u || u.password !== password) throw new Error("Invalid email or password");
-  if (!u.active) throw new Error("This account has been deactivated");
-  set((s) => ({ ...s, sessionUserId: u.id }));
+export async function login(email: string, password: string): Promise<User> {
+  if (!SB) {
+    const u = state.users.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
+    if (!u || u.password !== password) throw new Error("Invalid email or password");
+    if (!u.active) throw new Error("This account has been deactivated");
+    set((s) => ({ ...s, sessionUserId: u.id }));
+    return u;
+  }
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error || !data.user) throw new Error(error?.message === "Email not confirmed" ? "Please confirm your email first" : "Invalid email or password");
+  await hydrate(data.user.id);
+  const u = state.users.find((x) => x.id === data.user.id);
+  if (!u) { await supabase.auth.signOut(); throw new Error("Account profile not found"); }
+  if (!u.active) { await supabase.auth.signOut(); throw new Error("This account has been deactivated"); }
   return u;
 }
 export function logout() {
   set((s) => ({ ...s, sessionUserId: null }));
+  if (SB) void import("./supabase").then(({ supabase }) => supabase.auth.signOut());
 }
 
-export function registerPatient(input: { name: string; email: string; phone: string; password: string } & Omit<PatientProfile, "userId">) {
+async function signUp(email: string, password: string, meta: Record<string, unknown>): Promise<string> {
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: meta, emailRedirectTo: `${window.location.origin}/login` } });
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error("Sign up failed");
+  if (!data.session) throw new Error("Account created — please check your email to confirm, then sign in.");
+  await hydrate(data.user.id);
+  return data.user.id;
+}
+
+export async function registerPatient(input: { name: string; email: string; phone: string; password: string } & Omit<PatientProfile, "userId">): Promise<string> {
+  const { name, email, phone, password, ...profile } = input;
+  if (SB) return signUp(email, password, { role: "patient", name, phone, profile });
   if (state.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new Error("Email already registered");
   const id = uid("u");
-  const { name, email, phone, password, ...profile } = input;
   set((s) => ({
     ...s,
     users: [...s.users, { id, role: "patient", name, email, phone, password, active: true, createdAt: now() }],
@@ -494,14 +523,16 @@ export function registerPatient(input: { name: string; email: string; phone: str
   return id;
 }
 
-export function registerDoctor(input: { name: string; email: string; phone: string; password: string; specialization: string; qualification: string; licenseNumber: string; clinicName: string; clinicAddress: string; city: string; online: boolean; clinic: boolean }) {
+export async function registerDoctor(input: { name: string; email: string; phone: string; password: string; specialization: string; qualification: string; licenseNumber: string; clinicName: string; clinicAddress: string; city: string; online: boolean; clinic: boolean }): Promise<string> {
+  const { name, email, phone, password, ...p } = input;
+  const fullName = name.startsWith("Dr") ? name : `Dr. ${name}`;
+  if (SB) return signUp(email, password, { role: "doctor", name: fullName, phone, profile: p });
   if (state.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new Error("Email already registered");
   const id = uid("u");
-  const { name, email, phone, password, ...p } = input;
   const verification: VerificationStatus = state.settings.doctorVerification ? "Pending Verification" : "Approved";
   set((s) => ({
     ...s,
-    users: [...s.users, { id, role: "doctor", name: name.startsWith("Dr") ? name : `Dr. ${name}`, email, phone, password, active: true, createdAt: now() }],
+    users: [...s.users, { id, role: "doctor", name: fullName, email, phone, password, active: true, createdAt: now() }],
     doctors: [...s.doctors, { userId: id, ...p, experience: 0, fee: 0, languages: [], about: "", verification, services: [] }],
     availability: [...s.availability, { doctorId: id, days: [0, 1, 2, 3, 4], start: "09:00", end: "17:00", duration: 30 }],
     sessionUserId: id,
