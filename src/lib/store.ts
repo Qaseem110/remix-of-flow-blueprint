@@ -102,6 +102,7 @@ export interface Appointment {
   rescheduledTo?: string;
   rescheduledFrom?: string;
   followUpOf?: string;
+  payment?: "cash" | "card";
 }
 
 export interface PrescriptionItem {
@@ -145,6 +146,17 @@ export interface Settings {
   turnApproachingAhead: number;
 }
 
+export type PaymentMethod = "cash" | "card";
+export interface Review {
+  id: string;
+  appointmentId: string;
+  doctorId: string;
+  patientId: string;
+  rating: number;
+  comment: string;
+  at: string;
+}
+
 interface State {
   users: User[];
   doctors: DoctorProfile[];
@@ -154,6 +166,7 @@ interface State {
   consultations: Consultation[];
   notifications: Notification[];
   settings: Settings;
+  reviews: Review[];
   sessionUserId: string | null;
 }
 
@@ -218,6 +231,7 @@ function seed(): State {
   return {
     users, doctors, patients, availability, appointments, consultations, notifications,
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
+    reviews: [],
     sessionUserId: null,
   };
 }
@@ -343,6 +357,25 @@ function notifyApproaching(doctorId: string, date: string) {
 }
 
 // ---------- Auth ----------
+export function addReview(input: { appointmentId: string; rating: number; comment: string }) {
+  const a = state.appointments.find((x) => x.id === input.appointmentId);
+  if (!a || a.status !== "Completed") throw new Error("You can only review completed appointments");
+  if (state.reviews.some((r) => r.appointmentId === a.id)) throw new Error("You already reviewed this visit");
+  if (input.rating < 1 || input.rating > 5) throw new Error("Choose 1 to 5 stars");
+  const r: Review = { id: uid("R"), appointmentId: a.id, doctorId: a.doctorId, patientId: a.patientId, rating: input.rating, comment: input.comment.trim(), at: now() };
+  set((s) => ({ ...s, reviews: [r, ...s.reviews] }));
+  notify(a.doctorId, "New review", `${input.rating}★ from ${userById(a.patientId)?.name}.`, "/doctor/profile");
+  return r;
+}
+export function doctorRating(doctorId: string, s: State = state) {
+  const list = s.reviews.filter((r) => r.doctorId === doctorId);
+  return { count: list.length, avg: list.length ? Math.round((list.reduce((t, r) => t + r.rating, 0) / list.length) * 10) / 10 : 0 };
+}
+export function requestPasswordReset(email: string) {
+  // Mock: real email is sent by the backend later. Never reveal whether the email exists.
+  void email;
+}
+
 export function login(email: string, password: string): User {
   const u = state.users.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
   if (!u || u.password !== password) throw new Error("Invalid email or password");
@@ -413,11 +446,11 @@ export function addAppointmentDocs(id: string, docs: DocFile[]) {
 }
 
 // ---------- Appointments ----------
-export function bookAppointment(input: { doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string }): Appointment {
+export function bookAppointment(input: { doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod }): Appointment {
   const slot = getSlots(input.doctorId, input.date).find((x) => x.time === input.time);
   if (!slot?.available) throw new Error("This slot is no longer available");
   const id = "APT-" + Math.floor(2000 + Math.random() * 8000);
-  const a: Appointment = { ...input, id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
+  const a: Appointment = { ...input, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
   // keep queue numbers in time order for the day
   set((s) => {
     const list = [...s.appointments, a];
