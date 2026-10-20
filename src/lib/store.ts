@@ -239,12 +239,101 @@ function seed(): State {
 }
 
 // ---------- Store plumbing ----------
-let state: State = seed();
+/** Supabase is used everywhere except unit tests (which run on the seed data). */
+const SB = import.meta.env.MODE !== "test";
+const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], sessionUserId: null });
+let state: State = SB ? emptyState() : seed();
+let ready = !SB;
+let hydrating = false;
 const listeners = new Set<() => void>();
+function emit() { listeners.forEach((l) => l()); }
 function set(fn: (s: State) => State) {
+  const prev = state;
   state = fn(state);
-  listeners.forEach((l) => l());
+  emit();
+  if (SB && !hydrating) void syncDiff(prev, state);
 }
+
+// ---------- Supabase sync ----------
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
+  { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
+  { key: "doctors", table: "doctors", id: (d) => d.userId, row: (d) => ({ id: d.userId, data: d }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "patients", table: "patients", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "availability", table: "availability", id: (a) => a.doctorId, row: (a) => ({ id: a.doctorId, data: a }), from: (r) => ({ ...r.data, doctorId: r.id }) },
+  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: a }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
+  { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: c }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
+  { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
+  { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
+];
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+async function reportSyncError(msg: string) {
+  console.error("[sync]", msg);
+  const { toast } = await import("sonner");
+  toast.error("Could not save to server: " + msg);
+}
+
+async function syncDiff(prev: State, next: State) {
+  const { supabase } = await import("./supabase");
+  for (const t of TABLES) {
+    const a = prev[t.key] as unknown[], b = next[t.key] as unknown[];
+    if (a === b) continue;
+    const old = new Map(a.map((x) => [t.id(x), x]));
+    for (const x of b) {
+      const o = old.get(t.id(x));
+      if (o === x) continue;
+      const row = t.row(x);
+      const { error } = o === undefined
+        ? await supabase.from(t.table).insert(row)
+        : await supabase.from(t.table).update(row).eq("id", row.id as string);
+      if (error) void reportSyncError(error.message);
+    }
+  }
+  if (prev.settings !== next.settings) {
+    const { error } = await supabase.from("settings").update({ data: next.settings }).eq("id", "global");
+    if (error) void reportSyncError(error.message);
+  }
+}
+
+/** Load everything the signed-in (or anonymous) user may see from Supabase. */
+export async function hydrate(sessionUserId: string | null) {
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  const results = await Promise.all([...TABLES.map((t) => supabase.from(t.table).select("*")), supabase.from("settings").select("*").eq("id", "global").maybeSingle()]);
+  const next = { ...state, sessionUserId } as State;
+  TABLES.forEach((t, i) => {
+    const r = results[i] as { data: unknown[] | null; error: { message: string } | null };
+    if (r.error) console.error("[hydrate]", t.table, r.error.message);
+    (next as unknown as Record<string, unknown>)[t.key] = (r.data ?? []).map(t.from);
+  });
+  const s = results[TABLES.length] as { data: { data: Settings } | null };
+  next.settings = { ...DEFAULT_SETTINGS, ...(s.data?.data ?? {}) };
+  hydrating = true;
+  state = next;
+  ready = true;
+  hydrating = false;
+  emit();
+}
+
+let started = false;
+/** Call once in the browser: restores the session and keeps data fresh. */
+export function startSync() {
+  if (!SB || started || typeof window === "undefined") return;
+  started = true;
+  void (async () => {
+    const { supabase } = await import("./supabase");
+    const { data } = await supabase.auth.getSession();
+    await hydrate(data.session?.user.id ?? null);
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, settings: state.settings }; hydrating = false; emit(); }
+    });
+    setInterval(() => { if (document.visibilityState === "visible") void hydrate(state.sessionUserId); }, 20000);
+  })();
+}
+export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => false);
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 /** Selector hook; result is recomputed only when the store state changes. */
 export function useStore<T>(sel: (s: State) => T): T {
