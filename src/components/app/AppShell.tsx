@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { logout, markAllRead, runReminders, useSession, useStore, type Role } from "@/lib/store";
+import { logout, markAllRead, runReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 
 const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboard }[]> = {
@@ -74,6 +74,7 @@ function SideNav({ role }: { role: Role }) {
 export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
   const user = useSession();
   const navigate = useNavigate();
+  const ready = useReady();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -81,6 +82,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   }, [user?.id, user?.role]);
 
   if (!mounted) return null;
+  if (!ready) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
   if (!user || user.role !== role) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">

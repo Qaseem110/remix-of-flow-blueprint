@@ -31,26 +31,26 @@ function Register() {
   const [online, setOnline] = useState(true);
   const [clinic, setClinic] = useState(true);
 
-  const onPatient = (e: React.FormEvent<HTMLFormElement>) => {
+  const onPatient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
     if (!gender) return toast.error("Please select gender");
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
-      registerPatient({ name: f.name, email: f.email, phone: f.phone, password: f.password, dob: f.dob, gender, bloodGroup: blood || undefined, address: f.address || undefined, emergencyContact: f.emergency || undefined });
+      await registerPatient({ name: f.name, email: f.email, phone: f.phone, password: f.password, dob: f.dob, gender, bloodGroup: blood || undefined, address: f.address || undefined, emergencyContact: f.emergency || undefined });
       toast.success("Account created");
       navigate({ to: "/patient" });
     } catch (err) { toast.error((err as Error).message); }
   };
 
-  const onDoctor = (e: React.FormEvent<HTMLFormElement>) => {
+  const onDoctor = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
     if (!spec) return toast.error("Please select specialization");
     if (!online && !clinic) return toast.error("Choose at least one consultation type");
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
-      registerDoctor({ name: f.name, email: f.email, phone: f.phone, password: f.password, specialization: spec, qualification: f.qualification, licenseNumber: f.license, clinicName: f.clinicName, clinicAddress: f.clinicAddress, city: f.city, online, clinic });
+      await registerDoctor({ name: f.name, email: f.email, phone: f.phone, password: f.password, specialization: spec, qualification: f.qualification, licenseNumber: f.license, clinicName: f.clinicName, clinicAddress: f.clinicAddress, city: f.city, online, clinic });
       toast.success("Account created");
       navigate({ to: "/doctor" });
     } catch (err) { toast.error((err as Error).message); }
