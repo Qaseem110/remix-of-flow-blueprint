@@ -7,6 +7,7 @@ import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, QueueCard, RescheduleDialog } from "@/components/app/widgets";
 import { addAppointmentDocs, canJoin, checkIn, makeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { ReviewForm } from "@/components/app/Reviews";
 
 export const Route = createFileRoute("/patient/appointments/$id")({
   validateSearch: (s: Record<string, unknown>): { confirmed?: boolean } => ({ confirmed: s.confirmed === true || s.confirmed === "true" ? true : undefined }),
@@ -53,6 +54,7 @@ function ApptDetail() {
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{a.type === "online" ? "Consultation link" : "Clinic location"}</dt>
               <dd className="text-right font-medium">{a.type === "online" ? <span className="flex items-center gap-1"><Video className="h-4 w-4" />sahoolat.app/room/{a.id}</span> : <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{dp.clinicName}, {dp.clinicAddress}, {dp.city}</span>}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Reason</dt><dd className="text-right">{a.reason}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Payment</dt><dd>{dp.fee} LYD · {a.payment === "card" ? "Card" : a.type === "online" ? "Pay later" : "Pay at clinic"}</dd></div>
             {a.rescheduledFrom && <div className="flex justify-between"><dt className="text-muted-foreground">Rescheduled from</dt><dd>{a.rescheduledFrom}</dd></div>}
             {a.rescheduledTo && <div className="flex justify-between"><dt className="text-muted-foreground">Moved to</dt><dd><Link className="text-primary" to="/patient/appointments/$id" params={{ id: a.rescheduledTo }}>{a.rescheduledTo}</Link></dd></div>}
             {a.status === "Cancelled" && <div className="flex justify-between"><dt className="text-muted-foreground">Cancelled by</dt><dd className="capitalize">{a.cancelledBy}{a.cancelReason ? ` — ${a.cancelReason}` : ""}</dd></div>}
@@ -72,6 +74,7 @@ function ApptDetail() {
         </section>
         <div className="space-y-4">
           {active && <QueueCard appointmentId={a.id} />}
+          {a.status === "Completed" && <ReviewForm appointmentId={a.id} />}
           <div className="rounded-2xl border bg-card p-5">
             <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">My documents</h2>
               {active && <label className="flex cursor-pointer items-center gap-1 text-sm text-primary"><Upload className="h-4 w-4" />Upload<input type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={upload} /></label>}

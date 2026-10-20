@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CheckinRouteImport } from './routes/checkin'
 import { Route as DoctorRouteImport } from './routes/doctor'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PatientRouteImport } from './routes/patient'
 import { Route as RegisterRouteImport } from './routes/register'
@@ -54,6 +55,11 @@ const CheckinRoute = CheckinRouteImport.update({
 const DoctorRoute = DoctorRouteImport.update({
   id: '/doctor',
   path: '/doctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -173,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/checkin': typeof CheckinRoute
   '/doctor': typeof DoctorRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/patient': typeof PatientRouteWithChildren
   '/register': typeof RegisterRoute
@@ -199,6 +206,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkin': typeof CheckinRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
@@ -227,6 +235,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/checkin': typeof CheckinRoute
   '/doctor': typeof DoctorRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/patient': typeof PatientRouteWithChildren
   '/register': typeof RegisterRoute
@@ -257,6 +266,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkin'
     | '/doctor'
+    | '/forgot-password'
     | '/login'
     | '/patient'
     | '/register'
@@ -283,6 +293,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/checkin'
+    | '/forgot-password'
     | '/login'
     | '/register'
     | '/admin/appointments'
@@ -310,6 +321,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/checkin'
     | '/doctor'
+    | '/forgot-password'
     | '/login'
     | '/patient'
     | '/register'
@@ -339,6 +351,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRouteWithChildren
   CheckinRoute: typeof CheckinRoute
   DoctorRoute: typeof DoctorRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   PatientRoute: typeof PatientRouteWithChildren
   RegisterRoute: typeof RegisterRoute
@@ -372,6 +385,13 @@ declare module '@tanstack/react-router' {
       path: '/doctor'
       fullPath: '/doctor'
       preLoaderRoute: typeof DoctorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -600,6 +620,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRouteWithChildren,
   CheckinRoute: CheckinRoute,
   DoctorRoute: DoctorRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   PatientRoute: PatientRouteWithChildren,
   RegisterRoute: RegisterRoute,
