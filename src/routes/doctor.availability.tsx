@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/app/common";
-import { SlotPicker } from "@/components/app/widgets";
+import { BlockSlots } from "@/components/app/BlockSlots";
 import { saveAvailability, todayStr, updateDoctorProfile, useSession, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { meta } from "@/lib/meta";
@@ -60,9 +60,9 @@ function Availability() {
           </div>
         </div>
         <div className="rounded-2xl border bg-card p-6">
-          <h2 className="mb-1 text-lg font-semibold">Generated slots preview</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Booked slots are crossed out and unavailable to other patients.</p>
-          <SlotPicker doctorId={user.id} date={pDate} time="" onDate={setPDate} onTime={() => {}} />
+          <h2 className="mb-1 text-lg font-semibold">Mark times unavailable</h2>
+          <p className="mb-4 text-sm text-muted-foreground">Busy, on leave or in surgery? Block a time or a whole day so patients can't book it.</p>
+          <BlockSlots doctorId={user.id} date={pDate} onDate={setPDate} />
         </div>
       </div>
     </div>
