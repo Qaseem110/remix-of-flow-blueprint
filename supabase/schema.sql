@@ -56,7 +56,7 @@ create trigger on_auth_user_created after insert on auth.users for each row exec
 -- Non-admins cannot change their own role / active flag, or a doctor's verification.
 create or replace function public.guard_profile() returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if not public.is_admin() then
+  if auth.uid() is not null and not public.is_admin() then
     new.role := old.role;
     new.data := jsonb_set(jsonb_set(new.data, '{role}', to_jsonb(old.role)), '{active}', coalesce(old.data->'active', 'true'));
   end if;
@@ -67,7 +67,7 @@ create trigger guard_profile before update on public.profiles for each row execu
 
 create or replace function public.guard_doctor() returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  if not public.is_admin() then
+  if auth.uid() is not null and not public.is_admin() then
     new.data := jsonb_set(new.data, '{verification}', coalesce(old.data->'verification', '"Pending Verification"'));
   end if;
   return new;
