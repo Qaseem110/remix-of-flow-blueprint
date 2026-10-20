@@ -9,7 +9,7 @@ import { addAppointmentDocs, canJoin, checkIn, makeDocs, slotDateTime, todayStr,
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/appointments/$id")({
-  validateSearch: (s: Record<string, unknown>) => ({ confirmed: s.confirmed === true || s.confirmed === "true" ? true : undefined }),
+  validateSearch: (s: Record<string, unknown>): { confirmed?: boolean } => ({ confirmed: s.confirmed === true || s.confirmed === "true" ? true : undefined }),
   head: () => meta("Appointment details", "Appointment confirmation, queue position and actions."),
   component: ApptDetail,
 });
