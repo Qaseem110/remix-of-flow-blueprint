@@ -234,8 +234,8 @@ const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l
 export function useStore<T>(sel: (s: State) => T): T {
   const cache = useRef<{ s: State; v: T; sel: unknown } | null>(null);
   const get = useCallback(() => {
-    if (!cache.current || cache.current.s !== state || cache.current.sel !== sel.toString()) {
-      cache.current = { s: state, v: sel(state), sel: sel.toString() };
+    if (!cache.current || cache.current.s !== state || cache.current.sel !== sel) {
+      cache.current = { s: state, v: sel(state), sel };
     }
     return cache.current.v;
   }, [sel]);
