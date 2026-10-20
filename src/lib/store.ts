@@ -239,12 +239,101 @@ function seed(): State {
 }
 
 // ---------- Store plumbing ----------
-let state: State = seed();
+/** Supabase is used everywhere except unit tests (which run on the seed data). */
+const SB = import.meta.env.MODE !== "test";
+const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], sessionUserId: null });
+let state: State = SB ? emptyState() : seed();
+let ready = !SB;
+let hydrating = false;
 const listeners = new Set<() => void>();
+function emit() { listeners.forEach((l) => l()); }
 function set(fn: (s: State) => State) {
+  const prev = state;
   state = fn(state);
-  listeners.forEach((l) => l());
+  emit();
+  if (SB && !hydrating) void syncDiff(prev, state);
 }
+
+// ---------- Supabase sync ----------
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
+  { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
+  { key: "doctors", table: "doctors", id: (d) => d.userId, row: (d) => ({ id: d.userId, data: d }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "patients", table: "patients", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "availability", table: "availability", id: (a) => a.doctorId, row: (a) => ({ id: a.doctorId, data: a }), from: (r) => ({ ...r.data, doctorId: r.id }) },
+  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: a }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
+  { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: c }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
+  { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
+  { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
+];
+/* eslint-enable @typescript-eslint/no-explicit-any */
+
+async function reportSyncError(msg: string) {
+  console.error("[sync]", msg);
+  const { toast } = await import("sonner");
+  toast.error("Could not save to server: " + msg);
+}
+
+async function syncDiff(prev: State, next: State) {
+  const { supabase } = await import("./supabase");
+  for (const t of TABLES) {
+    const a = prev[t.key] as unknown[], b = next[t.key] as unknown[];
+    if (a === b) continue;
+    const old = new Map(a.map((x) => [t.id(x), x]));
+    for (const x of b) {
+      const o = old.get(t.id(x));
+      if (o === x) continue;
+      const row = t.row(x);
+      const { error } = o === undefined
+        ? await supabase.from(t.table).insert(row)
+        : await supabase.from(t.table).update(row).eq("id", row.id as string);
+      if (error) void reportSyncError(error.message);
+    }
+  }
+  if (prev.settings !== next.settings) {
+    const { error } = await supabase.from("settings").update({ data: next.settings }).eq("id", "global");
+    if (error) void reportSyncError(error.message);
+  }
+}
+
+/** Load everything the signed-in (or anonymous) user may see from Supabase. */
+export async function hydrate(sessionUserId: string | null) {
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  const results = await Promise.all([...TABLES.map((t) => supabase.from(t.table).select("*")), supabase.from("settings").select("*").eq("id", "global").maybeSingle()]);
+  const next = { ...state, sessionUserId } as State;
+  TABLES.forEach((t, i) => {
+    const r = results[i] as { data: unknown[] | null; error: { message: string } | null };
+    if (r.error) console.error("[hydrate]", t.table, r.error.message);
+    (next as unknown as Record<string, unknown>)[t.key] = (r.data ?? []).map(t.from);
+  });
+  const s = results[TABLES.length] as { data: { data: Settings } | null };
+  next.settings = { ...DEFAULT_SETTINGS, ...(s.data?.data ?? {}) };
+  hydrating = true;
+  state = next;
+  ready = true;
+  hydrating = false;
+  emit();
+}
+
+let started = false;
+/** Call once in the browser: restores the session and keeps data fresh. */
+export function startSync() {
+  if (!SB || started || typeof window === "undefined") return;
+  started = true;
+  void (async () => {
+    const { supabase } = await import("./supabase");
+    const { data } = await supabase.auth.getSession();
+    await hydrate(data.session?.user.id ?? null);
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, settings: state.settings }; hydrating = false; emit(); }
+    });
+    setInterval(() => { if (document.visibilityState === "visible") void hydrate(state.sessionUserId); }, 20000);
+  })();
+}
+export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => false);
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
 /** Selector hook; result is recomputed only when the store state changes. */
 export function useStore<T>(sel: (s: State) => T): T {
@@ -376,26 +465,55 @@ export function doctorRating(doctorId: string, s: State = state) {
   const list = s.reviews.filter((r) => r.doctorId === doctorId);
   return { count: list.length, avg: list.length ? Math.round((list.reduce((t, r) => t + r.rating, 0) / list.length) * 10) / 10 : 0 };
 }
-export function requestPasswordReset(email: string) {
-  // Mock: real email is sent by the backend later. Never reveal whether the email exists.
-  void email;
+export async function requestPasswordReset(email: string) {
+  // Never reveal whether the email exists.
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/reset-password` });
+}
+export async function setNewPassword(password: string) {
+  const { supabase } = await import("./supabase");
+  const { error } = await supabase.auth.updateUser({ password });
+  if (error) throw new Error(error.message);
 }
 
-export function login(email: string, password: string): User {
-  const u = state.users.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
-  if (!u || u.password !== password) throw new Error("Invalid email or password");
-  if (!u.active) throw new Error("This account has been deactivated");
-  set((s) => ({ ...s, sessionUserId: u.id }));
+export async function login(email: string, password: string): Promise<User> {
+  if (!SB) {
+    const u = state.users.find((x) => x.email.toLowerCase() === email.toLowerCase().trim());
+    if (!u || u.password !== password) throw new Error("Invalid email or password");
+    if (!u.active) throw new Error("This account has been deactivated");
+    set((s) => ({ ...s, sessionUserId: u.id }));
+    return u;
+  }
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+  if (error || !data.user) throw new Error(error?.message === "Email not confirmed" ? "Please confirm your email first" : "Invalid email or password");
+  await hydrate(data.user.id);
+  const u = state.users.find((x) => x.id === data.user.id);
+  if (!u) { await supabase.auth.signOut(); throw new Error("Account profile not found"); }
+  if (!u.active) { await supabase.auth.signOut(); throw new Error("This account has been deactivated"); }
   return u;
 }
 export function logout() {
   set((s) => ({ ...s, sessionUserId: null }));
+  if (SB) void import("./supabase").then(({ supabase }) => supabase.auth.signOut());
 }
 
-export function registerPatient(input: { name: string; email: string; phone: string; password: string } & Omit<PatientProfile, "userId">) {
+async function signUp(email: string, password: string, meta: Record<string, unknown>): Promise<string> {
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: meta, emailRedirectTo: `${window.location.origin}/login` } });
+  if (error) throw new Error(error.message);
+  if (!data.user) throw new Error("Sign up failed");
+  if (!data.session) throw new Error("Account created — please check your email to confirm, then sign in.");
+  await hydrate(data.user.id);
+  return data.user.id;
+}
+
+export async function registerPatient(input: { name: string; email: string; phone: string; password: string } & Omit<PatientProfile, "userId">): Promise<string> {
+  const { name, email, phone, password, ...profile } = input;
+  if (SB) return signUp(email, password, { role: "patient", name, phone, profile });
   if (state.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new Error("Email already registered");
   const id = uid("u");
-  const { name, email, phone, password, ...profile } = input;
   set((s) => ({
     ...s,
     users: [...s.users, { id, role: "patient", name, email, phone, password, active: true, createdAt: now() }],
@@ -405,14 +523,16 @@ export function registerPatient(input: { name: string; email: string; phone: str
   return id;
 }
 
-export function registerDoctor(input: { name: string; email: string; phone: string; password: string; specialization: string; qualification: string; licenseNumber: string; clinicName: string; clinicAddress: string; city: string; online: boolean; clinic: boolean }) {
+export async function registerDoctor(input: { name: string; email: string; phone: string; password: string; specialization: string; qualification: string; licenseNumber: string; clinicName: string; clinicAddress: string; city: string; online: boolean; clinic: boolean }): Promise<string> {
+  const { name, email, phone, password, ...p } = input;
+  const fullName = name.startsWith("Dr") ? name : `Dr. ${name}`;
+  if (SB) return signUp(email, password, { role: "doctor", name: fullName, phone, profile: p });
   if (state.users.some((u) => u.email.toLowerCase() === input.email.toLowerCase())) throw new Error("Email already registered");
   const id = uid("u");
-  const { name, email, phone, password, ...p } = input;
   const verification: VerificationStatus = state.settings.doctorVerification ? "Pending Verification" : "Approved";
   set((s) => ({
     ...s,
-    users: [...s.users, { id, role: "doctor", name: name.startsWith("Dr") ? name : `Dr. ${name}`, email, phone, password, active: true, createdAt: now() }],
+    users: [...s.users, { id, role: "doctor", name: fullName, email, phone, password, active: true, createdAt: now() }],
     doctors: [...s.doctors, { userId: id, ...p, experience: 0, fee: 0, languages: [], about: "", verification, services: [] }],
     availability: [...s.availability, { doctorId: id, days: [0, 1, 2, 3, 4], start: "09:00", end: "17:00", duration: 30 }],
     sessionUserId: id,

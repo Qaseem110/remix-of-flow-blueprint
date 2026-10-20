@@ -12,12 +12,6 @@ export const Route = createFileRoute("/login")({
   component: Login,
 });
 
-const demos = [
-  { label: "Patient", email: "patient@demo.com" },
-  { label: "Doctor", email: "doctor@demo.com" },
-  { label: "Admin", email: "admin@demo.com" },
-];
-
 export function AuthFrame({ children, title, subtitle }: { children: React.ReactNode; title: string; subtitle: string }) {
   return (
     <div className="grid min-h-screen md:grid-cols-[1fr_1.1fr]">
@@ -45,29 +39,25 @@ function Login() {
     e.preventDefault();
     doLogin(email, password);
   };
-  const doLogin = (em: string, pw: string) => {
+  const [busy, setBusy] = useState(false);
+  const doLogin = async (em: string, pw: string) => {
+    setBusy(true);
     try {
-      const u = login(em, pw);
+      const u = await login(em, pw);
       toast.success(`Welcome, ${u.name}`);
       navigate({ to: u.role === "patient" ? "/patient" : u.role === "doctor" ? "/doctor" : "/admin" });
     } catch (err) {
       toast.error((err as Error).message);
-    }
+    } finally { setBusy(false); }
   };
   return (
     <AuthFrame title="Sign in" subtitle="Patients, doctors and admins sign in here.">
       <form onSubmit={submit} className="space-y-4">
         <div><Label htmlFor="email">Email</Label><Input id="email" type="email" required value={email} onChange={(e) => setEmail(e.target.value)} /></div>
         <div><Label htmlFor="pw">Password</Label><Input id="pw" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} /></div>
-        <Button type="submit" className="w-full">Sign in</Button>
+        <Button type="submit" className="w-full" disabled={busy}>{busy ? "Signing in…" : "Sign in"}</Button>
       </form>
       <p className="mt-4 flex justify-between text-sm text-muted-foreground"><span>No account? <Link to="/register" className="font-medium text-primary">Register</Link></span><Link to="/forgot-password" className="font-medium text-primary">Forgot password?</Link></p>
-      <div className="mt-8 rounded-xl border border-dashed p-4">
-        <p className="text-xs uppercase tracking-wider text-muted-foreground">Demo accounts · password demo123</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {demos.map((d) => <Button key={d.email} size="sm" variant="secondary" onClick={() => doLogin(d.email, "demo123")}>{d.label}</Button>)}
-        </div>
-      </div>
     </AuthFrame>
   );
 }
