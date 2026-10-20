@@ -22,6 +22,8 @@ import { Route as DoctorProfileRouteImport } from './routes/doctor.profile'
 import { Route as PatientIndexRouteImport } from './routes/patient.index'
 import { Route as PatientProfileRouteImport } from './routes/patient.profile'
 import { Route as PatientRecordsRouteImport } from './routes/patient.records'
+import { Route as DoctorConsultationIdRouteImport } from './routes/doctor.consultation.$id'
+import { Route as DoctorPatientsIdRouteImport } from './routes/doctor.patients.$id'
 import { Route as PatientAppointmentsIndexRouteImport } from './routes/patient.appointments.index'
 import { Route as PatientAppointmentsIdRouteImport } from './routes/patient.appointments.$id'
 import { Route as PatientBookDoctorIdRouteImport } from './routes/patient.book.$doctorId'
@@ -94,6 +96,16 @@ const PatientRecordsRoute = PatientRecordsRouteImport.update({
   path: '/records',
   getParentRoute: () => PatientRoute,
 } as any)
+const DoctorConsultationIdRoute = DoctorConsultationIdRouteImport.update({
+  id: '/consultation/$id',
+  path: '/consultation/$id',
+  getParentRoute: () => DoctorRoute,
+} as any)
+const DoctorPatientsIdRoute = DoctorPatientsIdRouteImport.update({
+  id: '/patients/$id',
+  path: '/patients/$id',
+  getParentRoute: () => DoctorRoute,
+} as any)
 const PatientAppointmentsIndexRoute =
   PatientAppointmentsIndexRouteImport.update({
     id: '/appointments/',
@@ -140,6 +152,8 @@ export interface FileRoutesByFullPath {
   '/patient/records': typeof PatientRecordsRoute
   '/doctor/': typeof DoctorIndexRoute
   '/patient/': typeof PatientIndexRoute
+  '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
+  '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
@@ -159,6 +173,8 @@ export interface FileRoutesByTo {
   '/patient/records': typeof PatientRecordsRoute
   '/doctor': typeof DoctorIndexRoute
   '/patient': typeof PatientIndexRoute
+  '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
+  '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
@@ -181,6 +197,8 @@ export interface FileRoutesById {
   '/patient/records': typeof PatientRecordsRoute
   '/doctor/': typeof DoctorIndexRoute
   '/patient/': typeof PatientIndexRoute
+  '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
+  '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
@@ -204,6 +222,8 @@ export interface FileRouteTypes {
     | '/patient/records'
     | '/doctor/'
     | '/patient/'
+    | '/doctor/consultation/$id'
+    | '/doctor/patients/$id'
     | '/patient/appointments/$id'
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
@@ -223,6 +243,8 @@ export interface FileRouteTypes {
     | '/patient/records'
     | '/doctor'
     | '/patient'
+    | '/doctor/consultation/$id'
+    | '/doctor/patients/$id'
     | '/patient/appointments/$id'
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
@@ -244,6 +266,8 @@ export interface FileRouteTypes {
     | '/patient/records'
     | '/doctor/'
     | '/patient/'
+    | '/doctor/consultation/$id'
+    | '/doctor/patients/$id'
     | '/patient/appointments/$id'
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
@@ -354,6 +378,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientRecordsRouteImport
       parentRoute: typeof PatientRoute
     }
+    '/doctor/consultation/$id': {
+      id: '/doctor/consultation/$id'
+      path: '/consultation/$id'
+      fullPath: '/doctor/consultation/$id'
+      preLoaderRoute: typeof DoctorConsultationIdRouteImport
+      parentRoute: typeof DoctorRoute
+    }
+    '/doctor/patients/$id': {
+      id: '/doctor/patients/$id'
+      path: '/patients/$id'
+      fullPath: '/doctor/patients/$id'
+      preLoaderRoute: typeof DoctorPatientsIdRouteImport
+      parentRoute: typeof DoctorRoute
+    }
     '/patient/appointments/': {
       id: '/patient/appointments/'
       path: '/appointments'
@@ -404,6 +442,8 @@ interface DoctorRouteChildren {
   DoctorAvailabilityRoute: typeof DoctorAvailabilityRoute
   DoctorProfileRoute: typeof DoctorProfileRoute
   DoctorIndexRoute: typeof DoctorIndexRoute
+  DoctorConsultationIdRoute: typeof DoctorConsultationIdRoute
+  DoctorPatientsIdRoute: typeof DoctorPatientsIdRoute
 }
 
 const DoctorRouteChildren: DoctorRouteChildren = {
@@ -411,6 +451,8 @@ const DoctorRouteChildren: DoctorRouteChildren = {
   DoctorAvailabilityRoute: DoctorAvailabilityRoute,
   DoctorProfileRoute: DoctorProfileRoute,
   DoctorIndexRoute: DoctorIndexRoute,
+  DoctorConsultationIdRoute: DoctorConsultationIdRoute,
+  DoctorPatientsIdRoute: DoctorPatientsIdRoute,
 }
 
 const DoctorRouteWithChildren =
