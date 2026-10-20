@@ -2,7 +2,7 @@
  * Mock data layer (in-memory). Every exported function mirrors a future
  * backend call so it can be swapped for self-hosted Supabase later.
  */
-import { useSyncExternalStore } from "react";
+import { useCallback, useRef, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 
 export type Role = "patient" | "doctor" | "admin";
@@ -230,8 +230,16 @@ function set(fn: (s: State) => State) {
   listeners.forEach((l) => l());
 }
 const subscribe = (l: () => void) => (listeners.add(l), () => listeners.delete(l));
+/** Selector hook; result is recomputed only when the store state changes. */
 export function useStore<T>(sel: (s: State) => T): T {
-  return useSyncExternalStore(subscribe, () => sel(state), () => sel(state));
+  const cache = useRef<{ s: State; v: T; sel: unknown } | null>(null);
+  const get = useCallback(() => {
+    if (!cache.current || cache.current.s !== state || cache.current.sel !== sel.toString()) {
+      cache.current = { s: state, v: sel(state), sel: sel.toString() };
+    }
+    return cache.current.v;
+  }, [sel]);
+  return useSyncExternalStore(subscribe, get, get);
 }
 export const getState = () => state;
 
