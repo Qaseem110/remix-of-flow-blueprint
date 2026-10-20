@@ -103,27 +103,98 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
 }
 
 /** Appointment-linked consultation room (local camera preview; remote video is a placeholder until backend/WebRTC). */
+const ICE: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+
+/**
+ * Free 1:1 video call: browser-to-browser (WebRTC). Supabase Realtime is only used
+ * to exchange connection details; audio/video never pass through any server.
+ */
 export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
-  const ref = useRef<HTMLVideoElement>(null);
+  const localRef = useRef<HTMLVideoElement>(null);
+  const remoteRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [connected, setConnected] = useState(false);
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
+
   useEffect(() => {
-    let s: MediaStream | null = null;
-    navigator.mediaDevices?.getUserMedia({ video: true, audio: true }).then((m) => { s = m; setStream(m); if (ref.current) ref.current.srcObject = m; }).catch(() => toast.info("Camera unavailable — continuing with audio placeholder"));
-    return () => s?.getTracks().forEach((t) => t.stop());
-  }, []);
+    let cancelled = false;
+    let local: MediaStream | null = null;
+    let pc: RTCPeerConnection | null = null;
+    let channel: { send: (m: unknown) => unknown; unsubscribe: () => unknown } | null = null;
+    let sb: { removeChannel: (c: never) => unknown } | null = null;
+    const me = Math.random().toString(36).slice(2);
+    let repliedHello = false;
+    const send = (event: string, payload: Record<string, unknown> = {}) => channel?.send({ type: "broadcast", event, payload: { ...payload, from: me } });
+
+    const newPeer = () => {
+      pc?.close();
+      const p = new RTCPeerConnection(ICE);
+      local?.getTracks().forEach((t) => p.addTrack(t, local!));
+      if (!local) { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
+      p.onicecandidate = (e) => { if (e.candidate) send("ice", { candidate: e.candidate.toJSON() }); };
+      p.ontrack = (e) => { if (remoteRef.current) remoteRef.current.srcObject = e.streams[0] ?? new MediaStream([e.track]); setConnected(true); };
+      p.onconnectionstatechange = () => { if (["failed", "closed", "disconnected"].includes(p.connectionState)) setConnected(false); };
+      pc = p;
+      return p;
+    };
+    const makeOffer = async () => {
+      const p = newPeer();
+      await p.setLocalDescription(await p.createOffer());
+      send("offer", { sdp: p.localDescription });
+    };
+
+    (async () => {
+      try { local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); }
+      catch { toast.info("Camera/mic unavailable — you can still see and hear the other person"); }
+      if (cancelled) { local?.getTracks().forEach((t) => t.stop()); return; }
+      setStream(local);
+      if (localRef.current && local) localRef.current.srcObject = local;
+
+      const { supabase } = await import("@/lib/supabase");
+      if (cancelled) return;
+      sb = supabase as never;
+      const ch = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false } } });
+      ch.on("broadcast", { event: "hello" }, ({ payload }) => {
+        if (payload.from > me) return void (repliedHello ? null : ((repliedHello = true), send("hello")));
+        void makeOffer();
+      });
+      ch.on("broadcast", { event: "offer" }, async ({ payload }) => {
+        const p = newPeer();
+        await p.setRemoteDescription(payload.sdp);
+        await p.setLocalDescription(await p.createAnswer());
+        send("answer", { sdp: p.localDescription });
+      });
+      ch.on("broadcast", { event: "answer" }, async ({ payload }) => { if (pc && pc.signalingState === "have-local-offer") await pc.setRemoteDescription(payload.sdp); });
+      ch.on("broadcast", { event: "ice" }, async ({ payload }) => { try { await pc?.addIceCandidate(payload.candidate); } catch { /* stale candidate */ } });
+      ch.on("broadcast", { event: "bye" }, () => { pc?.close(); pc = null; setConnected(false); repliedHello = false; });
+      ch.subscribe((status) => { if (status === "SUBSCRIBED") send("hello"); });
+      channel = ch as never;
+    })();
+
+    return () => {
+      cancelled = true;
+      send("bye");
+      pc?.close();
+      local?.getTracks().forEach((t) => t.stop());
+      if (channel && sb) sb.removeChannel(channel as never);
+    };
+  }, [roomId]);
+
   useEffect(() => { stream?.getAudioTracks().forEach((t) => (t.enabled = mic)); }, [mic, stream]);
   useEffect(() => { stream?.getVideoTracks().forEach((t) => (t.enabled = cam)); }, [cam, stream]);
+
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-sidebar-foreground">
-        <div className="flex h-24 w-24 items-center justify-center rounded-full bg-sidebar-accent font-display text-3xl">{otherName.replace(/^Dr\.?\s*/, "")[0]}</div>
-        <p className="mt-3 font-medium">{otherName}</p>
-        <p className="text-xs opacity-60">Room {roomId}</p>
-      </div>
-      <video ref={ref} autoPlay muted playsInline className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", !cam && "opacity-0")} />
-      <span className="absolute bottom-4 right-4 hidden text-xs">{selfName}</span>
+      <video ref={remoteRef} autoPlay playsInline className={cn("absolute inset-0 h-full w-full object-cover", !connected && "hidden")} />
+      {!connected && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center text-sidebar-foreground">
+          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-sidebar-accent font-display text-3xl">{otherName.replace(/^Dr\.?\s*/, "")[0]}</div>
+          <p className="mt-3 font-medium">{otherName}</p>
+          <p className="text-xs opacity-60">Waiting for {otherName} to join…</p>
+        </div>
+      )}
+      <video ref={localRef} autoPlay muted playsInline aria-label={selfName} className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", (!cam || !stream) && "opacity-0")} />
       <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
         <Button size="icon" variant="secondary" onClick={() => setMic(!mic)} aria-label="Toggle mic">{mic ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Button>
         <Button size="icon" variant="secondary" onClick={() => setCam(!cam)} aria-label="Toggle camera">{cam ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Button>
