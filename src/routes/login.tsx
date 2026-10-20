@@ -43,8 +43,11 @@ function Login() {
   const [password, setPassword] = useState("");
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
+    doLogin(email, password);
+  };
+  const doLogin = (em: string, pw: string) => {
     try {
-      const u = login(email, password);
+      const u = login(em, pw);
       toast.success(`Welcome, ${u.name}`);
       navigate({ to: u.role === "patient" ? "/patient" : u.role === "doctor" ? "/doctor" : "/admin" });
     } catch (err) {
@@ -62,7 +65,7 @@ function Login() {
       <div className="mt-8 rounded-xl border border-dashed p-4">
         <p className="text-xs uppercase tracking-wider text-muted-foreground">Demo accounts · password demo123</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          {demos.map((d) => <Button key={d.email} size="sm" variant="secondary" onClick={() => { setEmail(d.email); setPassword("demo123"); }}>{d.label}</Button>)}
+          {demos.map((d) => <Button key={d.email} size="sm" variant="secondary" onClick={() => doLogin(d.email, "demo123")}>{d.label}</Button>)}
         </div>
       </div>
     </AuthFrame>
