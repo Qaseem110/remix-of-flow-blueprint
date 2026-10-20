@@ -10,5 +10,6 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
-- All data access goes through `src/lib/store.ts` (in-memory mock); its exported functions are the API surface to swap for the user's self-hosted Supabase later — UI must not mutate state directly. Why: frontend-first build, backend to be connected later; do not enable Lovable Cloud.
+- All data access goes through `src/lib/store.ts`: an in-memory cache hydrated from the user's self-hosted Supabase (`src/lib/supabase.ts`) and written through by diffing state after each mutation; UI must not mutate state directly. Schema lives in `supabase/schema.sql` (run manually by the user). Why: keeps UI synchronous while backed by Supabase; never enable Lovable Cloud.
+- Unit tests (MODE=test) run the store on seed data with Supabase disabled. Why: tests stay offline and deterministic.
 - Role areas are layout routes (`/patient`, `/doctor`, `/admin`) wrapped in `AppShell`, which guards by session role. Why: one shell + nav per role.
