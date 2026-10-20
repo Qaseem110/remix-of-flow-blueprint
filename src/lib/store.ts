@@ -84,6 +84,7 @@ export interface DocFile {
   kind: string; // Report, Prescription, Summary, Referral, Other
   uploadedBy: Role;
   uploadedAt: string;
+  path?: string; // server storage path once uploaded
 }
 
 export interface Appointment {
@@ -263,8 +264,8 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "doctors", table: "doctors", id: (d) => d.userId, row: (d) => ({ id: d.userId, data: d }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "patients", table: "patients", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "availability", table: "availability", id: (a) => a.doctorId, row: (a) => ({ id: a.doctorId, data: a }), from: (r) => ({ ...r.data, doctorId: r.id }) },
-  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: a }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
-  { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: c }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
+  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: { ...a, documents: stripDocs(a.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
+  { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: { ...c, documents: stripDocs(c.documents) } }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
   { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
@@ -276,6 +277,22 @@ async function reportSyncError(msg: string) {
   toast.error("Could not save to server: " + msg);
 }
 
+/** Files picked in the browser, waiting to be uploaded to storage (by doc id). */
+const pendingFiles = new Map<string, File>();
+async function uploadDocs(x: { documents: DocFile[] }, appointmentId: string) {
+  const { supabase } = await import("./supabase");
+  for (const d of x.documents ?? []) {
+    const f = pendingFiles.get(d.id);
+    if (!f || d.path) continue;
+    const path = `${appointmentId}/${d.id}-${d.name.replace(/[^\w.-]/g, "_")}`;
+    const { error } = await supabase.storage.from("documents").upload(path, f, { contentType: f.type, upsert: true });
+    if (error) { void reportSyncError(`${d.name}: ${error.message}`); continue; }
+    d.path = path;
+    pendingFiles.delete(d.id);
+  }
+}
+const stripDocs = (docs: DocFile[] = []) => docs.map((d) => (d.path ? { ...d, url: "" } : d));
+
 async function syncDiff(prev: State, next: State) {
   const { supabase } = await import("./supabase");
   for (const t of TABLES) {
@@ -285,11 +302,20 @@ async function syncDiff(prev: State, next: State) {
     for (const x of b) {
       const o = old.get(t.id(x));
       if (o === x) continue;
+      const hasDocs = t.key === "appointments" || t.key === "consultations";
+      // Storage rules need the appointment row to exist, so new rows are written before uploading.
+      if (hasDocs && o !== undefined) await uploadDocs(x as { documents: DocFile[] }, t.id(x));
       const row = t.row(x);
       const { error } = o === undefined
         ? await supabase.from(t.table).insert(row)
         : await supabase.from(t.table).update(row).eq("id", row.id as string);
-      if (error) void reportSyncError(error.message);
+      if (error) { void reportSyncError(error.message); continue; }
+      if (hasDocs && o === undefined && (x as { documents: DocFile[] }).documents?.some((d) => pendingFiles.has(d.id))) {
+        await uploadDocs(x as { documents: DocFile[] }, t.id(x));
+        const r2 = t.row(x);
+        const { error: e2 } = await supabase.from(t.table).update(r2).eq("id", r2.id as string);
+        if (e2) void reportSyncError(e2.message);
+      }
     }
   }
   if (prev.settings !== next.settings) {
@@ -309,6 +335,17 @@ export async function hydrate(sessionUserId: string | null) {
     if (r.error) console.error("[hydrate]", t.table, r.error.message);
     (next as unknown as Record<string, unknown>)[t.key] = (r.data ?? []).map(t.from);
   });
+  const notes = await supabase.from("private_notes").select("id, notes");
+  const noteMap = new Map((notes.data ?? []).map((n: { id: string; notes: string }) => [n.id, n.notes]));
+  next.consultations = next.consultations.map((c) => ({ ...c, privateNotes: noteMap.get(c.appointmentId) ?? "" }));
+  const paths = [...next.appointments, ...next.consultations].flatMap((x) => x.documents.map((d) => d.path)).filter((p): p is string => !!p);
+  if (paths.length) {
+    const { data: signed } = await supabase.storage.from("documents").createSignedUrls(paths, 60 * 60 * 6);
+    const urls = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
+    const sign = (docs: DocFile[]) => docs.map((d) => (d.path && urls.get(d.path) ? { ...d, url: urls.get(d.path)! } : d));
+    next.appointments = next.appointments.map((a) => ({ ...a, documents: sign(a.documents) }));
+    next.consultations = next.consultations.map((c) => ({ ...c, documents: sign(c.documents) }));
+  }
   const s = results[TABLES.length] as { data: { data: Settings } | null };
   next.settings = { ...DEFAULT_SETTINGS, ...(s.data?.data ?? {}) };
   hydrating = true;
@@ -330,7 +367,12 @@ export function startSync() {
     supabase.auth.onAuthStateChange((event) => {
       if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, settings: state.settings }; hydrating = false; emit(); }
     });
-    setInterval(() => { if (document.visibilityState === "visible") void hydrate(state.sessionUserId); }, 20000);
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const refresh = () => { clearTimeout(t); t = setTimeout(() => void hydrate(state.sessionUserId), 400); };
+    const ch = supabase.channel("sahoolat-live");
+    for (const table of ["appointments", "notifications", "consultations", "availability"]) ch.on("postgres_changes", { event: "*", schema: "public", table }, refresh);
+    ch.subscribe();
+    setInterval(() => { if (document.visibilityState === "visible") void hydrate(state.sessionUserId); }, 60000);
   })();
 }
 export const useReady = () => useSyncExternalStore(subscribe, () => ready, () => false);
@@ -585,7 +627,10 @@ export function makeDocs(files: FileList | File[], uploadedBy: Role, kind = "Rep
   return Array.from(files).map((f) => {
     const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
     if (!allowed.includes(ext)) throw new Error(`${f.name}: only ${allowed.join(", ").toUpperCase()} allowed`);
-    return { id: uid("F"), name: f.name, mime: f.type, size: f.size, url: URL.createObjectURL(f), kind, uploadedBy, uploadedAt: now() };
+    const id = uid("F");
+    if (f.size > 10 * 1024 * 1024) throw new Error(`${f.name}: max 10 MB`);
+    pendingFiles.set(id, f);
+    return { id, name: f.name, mime: f.type, size: f.size, url: URL.createObjectURL(f), kind, uploadedBy, uploadedAt: now() };
   });
 }
 export function addAppointmentDocs(id: string, docs: DocFile[]) {
@@ -653,6 +698,17 @@ export function checkIn(method: "appointmentId" | "phone", value: string): Appoi
   const q = queueInfo(a.id)!;
   notify(a.patientId, "Checked in", `You're #${a.queueNumber} in the queue. ${q.ahead} patient(s) ahead.`, `/patient/appointments/${a.id}`);
   return state.appointments.find((x) => x.id === a!.id)!;
+}
+
+/** Clinic kiosk check-in; works without signing in (server function). */
+export async function kioskCheckIn(method: "appointmentId" | "phone", value: string): Promise<{ id: string; appointment?: Appointment }> {
+  if (!SB) { const a = checkIn(method, value); return { id: a.id, appointment: a }; }
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.rpc("kiosk_check_in", { method, value });
+  if (error) throw new Error(error.message);
+  const id = data as string;
+  await hydrate(state.sessionUserId);
+  return { id, appointment: state.appointments.find((x) => x.id === id) };
 }
 
 export function markWaiting(id: string) {
