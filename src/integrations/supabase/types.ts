@@ -14,13 +14,217 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          data: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Insert: {
+          data?: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Update: {
+          data?: Json
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      availability: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "availability_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      consultations: {
+        Row: {
+          data: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Insert: {
+          data?: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Update: {
+          data?: Json
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          data: Json
+          id: string
+          user_id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          user_id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      patients: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      private_notes: {
+        Row: {
+          doctor_id: string
+          id: string
+          notes: string
+        }
+        Insert: {
+          doctor_id: string
+          id: string
+          notes?: string
+        }
+        Update: {
+          doctor_id?: string
+          id?: string
+          notes?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          data: Json
+          id: string
+          role: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          role?: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          role?: string
+        }
+        Relationships: []
+      }
+      reviews: {
+        Row: {
+          data: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Insert: {
+          data?: Json
+          doctor_id: string
+          id: string
+          patient_id: string
+        }
+        Update: {
+          data?: Json
+          doctor_id?: string
+          id?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
+      settings: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin: { Args: never; Returns: boolean }
+      kiosk_check_in: {
+        Args: { method: string; value: string }
+        Returns: string
+      }
     }
     Enums: {
       [_ in never]: never
