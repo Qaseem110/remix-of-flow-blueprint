@@ -3,4 +3,4 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase as cloud } from "@/integrations/supabase/client";
 
-export const supabase = cloud as unknown as SupabaseClient;
+export const supabase = cloud as unknown as SupabaseClient<any, "public", any>; // eslint-disable-line @typescript-eslint/no-explicit-any
