@@ -94,6 +94,8 @@ export interface DocFile {
   uploadedBy: Role;
   uploadedAt: string;
   path?: string; // server storage path once uploaded
+  title?: string; // report name read from the document
+  reportDate?: string; // date printed on the report (yyyy-MM-dd)
 }
 
 export interface Appointment {
@@ -858,4 +860,19 @@ export function ensureFamilyMember(userId: string, name: string, relation = "Oth
   const p = state.patients.find((x) => x.userId === userId);
   const hit = p?.members?.find((m) => m.name.trim().toLowerCase() === name.trim().toLowerCase());
   return hit ?? addFamilyMember(userId, { name, relation });
+}
+
+/** Pick files and read each one with AI to fill in report name, date and type. Falls back silently. */
+export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role): Promise<DocFile[]> {
+  const list = Array.from(files);
+  const docs = makeDocs(list, uploadedBy);
+  if (import.meta.env.MODE === "test") return docs;
+  const { readReport } = await import("@/lib/read-report.functions");
+  return Promise.all(docs.map(async (d, i) => {
+    try {
+      const dataUrl = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(list[i]); });
+      const info = await readReport({ data: { dataUrl, fileName: d.name } });
+      return info ? { ...d, title: info.title || undefined, reportDate: info.reportDate || undefined, kind: info.kind || d.kind } : d;
+    } catch { return d; }
+  }));
 }
