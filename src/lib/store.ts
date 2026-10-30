@@ -872,7 +872,9 @@ export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role
     try {
       const dataUrl = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(list[i]); });
       const info = await readReport({ data: { dataUrl, fileName: d.name } });
-      return info ? { ...d, title: info.title || undefined, reportDate: info.reportDate || undefined, kind: info.kind || d.kind } : d;
+      const ext = d.name.includes(".") ? d.name.slice(d.name.lastIndexOf(".")) : "";
+      const nm = info?.title ? `${info.title.replace(/[\\/:*?"<>|]/g, "-")}${info.reportDate ? " " + info.reportDate : ""}${ext}` : d.name;
+      return info ? { ...d, name: nm, title: info.title || undefined, reportDate: info.reportDate || undefined, kind: info.kind || d.kind } : d;
     } catch { return d; }
   }));
 }

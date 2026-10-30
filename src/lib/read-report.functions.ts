@@ -26,8 +26,8 @@ export const readReport = createServerFn({ method: "POST" })
         stream: true,
         store: false,
         reasoning: { effort: "low" },
-        instructions: "You read medical documents. Extract the report name (short, e.g. 'Complete Blood Count (CBC)' or 'Prescription'), the date printed on the report as YYYY-MM-DD (empty string if none), and its type.",
-        input: [{ role: "user", content: [{ type: "input_text", text: `File name: ${data.fileName}` }, filepart] }],
+        instructions: "You read medical documents. Look ONLY at the content printed inside the document and IGNORE the uploaded file name. Extract the report name from the document's own heading/test name (short, e.g. 'MRI Brain', 'Complete Blood Count (CBC)', 'X-Ray Chest', 'Prescription'), the date printed on the report as YYYY-MM-DD (empty string if none), and its type.",
+        input: [{ role: "user", content: [{ type: "input_text", text: "Read this medical document and name it by what is written inside it." }, filepart] }],
         text: { format: { type: "json_schema", name: "report_info", strict: true, schema: {
           type: "object", additionalProperties: false, required: ["title", "reportDate", "kind"],
           properties: { title: { type: "string" }, reportDate: { type: "string" }, kind: { type: "string", enum: ["Lab Report", "Prescription", "Radiology", "Referral", "Other"] } },
