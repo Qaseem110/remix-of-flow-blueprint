@@ -4,7 +4,7 @@ import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
-import { slotDateTime, useSession, useStore } from "@/lib/store";
+import { slotDateTime, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/records")({
@@ -23,6 +23,19 @@ function Records() {
     ...records.flatMap((r) => r.c.documents.map((d) => ({ d, r }))),
     ...s.appointments.filter((a) => a.patientId === user.id).flatMap((a) => a.documents.map((d) => ({ d, r: null }))),
   ];
+  // Group all uploads by calendar day so same-date reports land in one box.
+  const byDay = new Map<string, DocFile[]>();
+  for (const { d } of allDocs) {
+    const day = (d.uploadedAt || "").slice(0, 10) || "unknown";
+    byDay.set(day, [...(byDay.get(day) ?? []), d]);
+  }
+  const docGroups = [...byDay.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, docs]) => ({
+      date,
+      label: date === "unknown" ? "Unknown date" : format(new Date(date + "T00:00:00"), "d MMMM yyyy"),
+      docs: docs.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    }));
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -73,7 +86,18 @@ function Records() {
           </div>
         </TabsContent>
 
-        <TabsContent value="docs"><DocList docs={allDocs.map((x) => x.d)} empty="No documents yet." /></TabsContent>
+        <TabsContent value="docs" className="space-y-4">
+          {docGroups.length === 0 && <p className="text-muted-foreground">No documents yet.</p>}
+          {docGroups.map((g) => (
+            <div key={g.date} className="rounded-2xl border bg-card p-5 shadow-soft">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="font-display text-lg font-semibold">{g.label}</p>
+                <p className="text-xs text-muted-foreground">{g.docs.length} file{g.docs.length > 1 ? "s" : ""}</p>
+              </div>
+              <DocList docs={g.docs} empty="No documents." />
+            </div>
+          ))}
+        </TabsContent>
       </Tabs>
     </div>
   );
