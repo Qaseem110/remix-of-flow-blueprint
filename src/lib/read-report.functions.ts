@@ -16,26 +16,40 @@ export const readReport = createServerFn({ method: "POST" })
     if (!key) return null;
     const isPdf = data.dataUrl.startsWith("data:application/pdf");
     const filepart = isPdf
-      ? { type: "file", file: { filename: data.fileName || "report.pdf", file_data: data.dataUrl } }
-      : { type: "image_url", image_url: { url: data.dataUrl } };
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      ? { type: "input_file", filename: data.fileName || "report.pdf", file_data: data.dataUrl }
+      : { type: "input_image", image_url: data.dataUrl };
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: { "Lovable-API-Key": key, Authorization: `Bearer ${key}`, "Content-Type": "application/json", "X-Lovable-AIG-SDK": "fetch" },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        response_format: { type: "json_object" },
-        messages: [
-          { role: "system", content: 'You read medical documents. Reply ONLY with JSON: {"title": short report name e.g. "Complete Blood Count (CBC)" or "Prescription", "reportDate": date printed on the report as YYYY-MM-DD or "" if none, "kind": one of "Lab Report","Prescription","Radiology","Referral","Other"}.' },
-          { role: "user", content: [{ type: "text", text: `File name: ${data.fileName}` }, filepart] },
-        ],
+        model: "openai/gpt-6-astra",
+        stream: true,
+        store: false,
+        reasoning: { effort: "low" },
+        instructions: "You read medical documents. Extract the report name (short, e.g. 'Complete Blood Count (CBC)' or 'Prescription'), the date printed on the report as YYYY-MM-DD (empty string if none), and its type.",
+        input: [{ role: "user", content: [{ type: "input_text", text: `File name: ${data.fileName}` }, filepart] }],
+        text: { format: { type: "json_schema", name: "report_info", strict: true, schema: {
+          type: "object", additionalProperties: false, required: ["title", "reportDate", "kind"],
+          properties: { title: { type: "string" }, reportDate: { type: "string" }, kind: { type: "string", enum: ["Lab Report", "Prescription", "Radiology", "Referral", "Other"] } },
+        } } },
       }),
     });
     if (!res.ok) { console.error("readReport AI error", res.status, await res.text()); return null; }
     try {
-      const j = await res.json();
-      const txt: string = j.choices?.[0]?.message?.content ?? "";
-      const o = JSON.parse(txt.replace(/^```(json)?|```$/g, "").trim());
+      // Read the SSE stream and collect the output text.
+      const reader = res.body!.getReader(); const dec = new TextDecoder(); let buf = "", txt = "";
+      for (;;) {
+        const { done, value } = await reader.read(); if (done) break;
+        buf += dec.decode(value, { stream: true });
+        const lines = buf.split("\n"); buf = lines.pop() ?? "";
+        for (const l of lines) {
+          if (!l.startsWith("data:")) continue;
+          const p = l.slice(5).trim(); if (!p || p === "[DONE]") continue;
+          try { const ev = JSON.parse(p); if (ev.type === "response.output_text.delta") txt += ev.delta; } catch { /* skip */ }
+        }
+      }
+      const o = JSON.parse(txt);
       const date = /^\d{4}-\d{2}-\d{2}$/.test(o.reportDate) ? o.reportDate : "";
-      return { title: String(o.title ?? "").slice(0, 120), reportDate: date, kind: String(o.kind ?? "Other").slice(0, 30) };
+      return { title: String(o.title ?? "").slice(0, 120), reportDate: date, kind: String(o.kind ?? "Other") };
     } catch { return null; }
   });
