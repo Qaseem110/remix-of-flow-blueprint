@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, RescheduleDialog } from "@/components/app/widgets";
-import { slotDateTime, useSession, useStore, type Appointment } from "@/lib/store";
+import { memberOf, slotDateTime, useActiveMember, useSession, useStore, type Appointment } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/appointments/")({
@@ -16,6 +16,7 @@ const UPCOMING = ["Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Joi
 
 function MyAppointments() {
   const user = useSession()!;
+  const member = useActiveMember();
   const s = useStore((s) => s);
   const mine = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member).sort((a, b) => slotDateTime(b).getTime() - slotDateTime(a).getTime());
   const upcoming = mine.filter((a) => UPCOMING.includes(a.status)).reverse();

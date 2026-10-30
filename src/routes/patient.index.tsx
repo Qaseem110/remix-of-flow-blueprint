@@ -3,7 +3,7 @@ import { CalendarDays, ClipboardList, MapPin, Search, Video } from "lucide-react
 import { Button } from "@/components/ui/button";
 import { PageHeader, StatusBadge, TypeBadge, Avatar } from "@/components/app/common";
 import { QueueCard } from "@/components/app/widgets";
-import { canJoin, slotDateTime, useSession, useStore } from "@/lib/store";
+import { canJoin, memberOf, slotDateTime, useActiveMember, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { format } from "date-fns";
 
@@ -16,6 +16,7 @@ const ACTIVE = ["Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Join"
 
 function PatientDashboard() {
   const user = useSession()!;
+  const member = useActiveMember();
   const s = useStore((s) => s);
   const upcoming = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member && ACTIVE.includes(a.status)).sort((a, b) => slotDateTime(a).getTime() - slotDateTime(b).getTime());
   const next = upcoming[0];

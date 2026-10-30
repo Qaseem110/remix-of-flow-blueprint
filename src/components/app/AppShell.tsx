@@ -4,8 +4,24 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { logout, markAllRead, runReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
+import { setActiveMember, useActiveMember, logout, markAllRead, runReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
+  const members = useStore((s) => s.patients.find((p) => p.userId === userId)?.members) ?? [];
+  const active = useActiveMember();
+  return (
+    <Select value={active ?? "main"} onValueChange={(v) => setActiveMember(v === "main" ? null : v)}>
+      <SelectTrigger className="h-9 w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-primary" /><SelectValue /></SelectTrigger>
+      <SelectContent>
+        <SelectItem value="main">{name} (Me)</SelectItem>
+        {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.relation})</SelectItem>)}
+        {members.length === 0 && <div className="px-2 py-1.5 text-xs text-muted-foreground">Add family in Profile</div>}
+      </SelectContent>
+    </Select>
+  );
+}
 
 const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboard }[]> = {
   patient: [
@@ -121,7 +137,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
             <SheetContent side="left" className="flex w-64 flex-col gap-6 bg-sidebar p-4">{brand}<SideNav role={role} />{footer}</SheetContent>
           </Sheet>
           <div className="hidden text-sm text-muted-foreground md:block">Welcome back, <span className="font-medium text-foreground">{user.name}</span></div>
-          <Notifications userId={user.id} />
+          <div className="flex items-center gap-2">{role === "patient" && <AccountSwitcher userId={user.id} name={user.name} />}<Notifications userId={user.id} /></div>
         </header>
         <main className="flex-1 p-4 md:p-8">{children}</main>
       </div>

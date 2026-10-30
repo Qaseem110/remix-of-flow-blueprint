@@ -4,10 +4,11 @@ import { toast } from "sonner";
 import { Banknote, Building2, Check, CreditCard, Upload, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
 import { SlotPicker } from "@/components/app/widgets";
-import { bookAppointment, makeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
+import { bookAppointment, ensureFamilyMember, useActiveMember, makeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
@@ -40,6 +41,11 @@ function Book() {
   const [reason, setReason] = useState(search.followUpOf ? `Follow-up for ${search.followUpOf}` : "");
   const [docs, setDocs] = useState<DocFile[]>([]);
   const [payment, setPayment] = useState<PaymentMethod>("cash");
+  const activeMember = useActiveMember();
+  const members = useStore((s) => s.patients.find((p) => p.userId === user.id)?.members) ?? [];
+  const [forWho, setForWho] = useState<string>(activeMember ?? "main"); // "main" | member id | "new"
+  const [newName, setNewName] = useState("");
+  const [newRel, setNewRel] = useState("");
   if (!u || !d) return <p>Doctor not found.</p>;
 
   const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -48,11 +54,18 @@ function Book() {
   };
   const confirm = () => {
     try {
-      const a = bookAppointment({ doctorId, patientId: user.id, type: type!, date, time, reason, documents: docs, followUpOf: search.followUpOf, payment });
+      let memberId: string | undefined, memberName: string | undefined;
+      if (forWho === "new" || (forWho === "main" && false)) {
+        const m = ensureFamilyMember(user.id, newName, newRel.trim() || "Other");
+        memberId = m.id; memberName = m.name;
+      } else if (forWho !== "main") {
+        const m = members.find((x) => x.id === forWho); memberId = m?.id; memberName = m?.name;
+      }
+      const a = bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type: type!, date, time, reason, documents: docs, followUpOf: search.followUpOf, payment });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
     } catch (err) { toast.error((err as Error).message); setStep(1); }
   };
-  const canNext = [!!type, !!time, reason.trim().length > 2, true][step];
+  const canNext = [!!type, !!time, reason.trim().length > 2 && (forWho !== "new" || newName.trim().length > 1), true][step];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -83,6 +96,21 @@ function Book() {
         {step === 1 && <SlotPicker doctorId={doctorId} date={date} time={time} onDate={setDate} onTime={setTime} />}
         {step === 2 && (
           <div className="space-y-4">
+            <div>
+              <Label>Who is this appointment for?</Label>
+              <div className="mt-1 flex flex-wrap gap-2">
+                {[["main", `${user.name} (Me)`], ...members.map((m) => [m.id, `${m.name} (${m.relation})`]), ["new", "+ Someone else"]].map(([v, l]) => (
+                  <button key={v} type="button" onClick={() => setForWho(v)} className={cn("rounded-full border-2 px-3 py-1.5 text-sm", forWho === v ? "border-primary bg-secondary" : "hover:border-primary/50")}>{l}</button>
+                ))}
+              </div>
+              {forWho === "new" && (
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <Input placeholder="Full name" value={newName} onChange={(e) => setNewName(e.target.value)} />
+                  <Input placeholder="Relation (e.g. Sister, Friend)" value={newRel} onChange={(e) => setNewRel(e.target.value)} />
+                  <p className="text-xs text-muted-foreground sm:col-span-2">A linked account will be created automatically for this person.</p>
+                </div>
+              )}
+            </div>
             <div><Label htmlFor="reason">Reason for visit</Label><Textarea id="reason" rows={4} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Describe your symptoms or the reason for this visit" /></div>
             <div>
               <Label>Previous reports / documents (optional)</Label>
@@ -97,7 +125,7 @@ function Book() {
         {step === 3 && (
           <>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            {[["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Time", time], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
+            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Time", time], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>

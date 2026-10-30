@@ -12,6 +12,7 @@ export function PatientHistory({ patientId, excludeId, memberId }: { patientId: 
   if (!u || !p) return null;
   return (
     <div className="space-y-4">
+      {memberId && (() => { const m = p.members?.find((x) => x.id === memberId); return m ? <p className="rounded-xl bg-accent/20 p-3 text-sm"><b>{m.name}</b> ({m.relation}{m.gender ? `, ${m.gender}` : ""}{m.dob ? `, DOB ${m.dob}` : ""}) — linked to {u.name}'s account</p> : null; })()}
       <div className="grid grid-cols-2 gap-2 rounded-xl bg-muted p-3 text-sm">
         <span className="text-muted-foreground">DOB</span><span>{p.dob}</span>
         <span className="text-muted-foreground">Gender</span><span>{p.gender}</span>
