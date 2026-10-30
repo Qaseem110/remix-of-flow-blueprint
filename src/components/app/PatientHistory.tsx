@@ -1,3 +1,4 @@
+import { PinGate } from "@/components/app/ReportPin";
 import { Pill } from "lucide-react";
 import { DocList } from "@/components/app/common";
 import { useStore } from "@/lib/store";
@@ -29,11 +30,11 @@ export function PatientHistory({ patientId, excludeId, memberId }: { patientId: 
             <p className="text-muted-foreground">{c.symptoms}</p>
             {c.privateNotes && <p className="mt-1 rounded bg-warning/15 p-1.5 text-xs"><b>Private note:</b> {c.privateNotes}</p>}
             {c.prescription.map((rx, i) => <p key={i} className="mt-1 flex gap-1 text-xs"><Pill className="h-3 w-3 text-primary" />{rx.medicine} — {rx.dosage}, {rx.frequency}</p>)}
-            {c.documents.length > 0 && <div className="mt-2"><DocList docs={c.documents} /></div>}
+            {c.documents.length > 0 && <div className="mt-2"><PinGate patientId={patientId}><DocList docs={c.documents} /></PinGate></div>}
           </div>
         ))}
       </div>
-      <div><p className="mb-2 text-xs uppercase text-muted-foreground">Other patient uploads</p><DocList docs={uploads} empty="None" /></div>
+      <div><p className="mb-2 text-xs uppercase text-muted-foreground">Other patient uploads</p><PinGate patientId={patientId}><DocList docs={uploads} empty="None" /></PinGate></div>
     </div>
   );
 }
