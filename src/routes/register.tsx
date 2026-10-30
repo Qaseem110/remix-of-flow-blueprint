@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { registerDoctor, registerPatient } from "@/lib/store";
+import { registerDoctor, registerPatient, registerPharmacy } from "@/lib/store";
 import { AuthFrame } from "./login";
 
 export const Route = createFileRoute("/register")({
-  validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" ? "doctor" : undefined }) as { role?: "doctor" },
-  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient or doctor on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }] }),
+  validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" || s.role === "pharmacy" ? s.role : undefined }) as { role?: "doctor" | "pharmacy" },
+  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor or medical store on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }] }),
   component: Register,
 });
 
@@ -56,10 +56,21 @@ function Register() {
     } catch (err) { toast.error((err as Error).message); }
   };
 
+  const onPharmacy = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
+    try {
+      await registerPharmacy({ name: f.name, email: f.email, phone: f.phone, password: f.password, storeName: f.storeName, address: f.address, city: f.city });
+      toast.success("Account created");
+      navigate({ to: "/pharmacy" });
+    } catch (err) { toast.error((err as Error).message); }
+  };
+
   return (
     <AuthFrame title="Create your account" subtitle="Choose how you'll use Sahoolat.">
       <Tabs defaultValue={role ?? "patient"}>
-        <TabsList className="mb-4 grid w-full grid-cols-2"><TabsTrigger value="patient">Patient</TabsTrigger><TabsTrigger value="doctor">Doctor</TabsTrigger></TabsList>
+        <TabsList className="mb-4 grid w-full grid-cols-3"><TabsTrigger value="patient">Patient</TabsTrigger><TabsTrigger value="doctor">Doctor</TabsTrigger><TabsTrigger value="pharmacy">Medical store</TabsTrigger></TabsList>
         <TabsContent value="patient">
           <form onSubmit={onPatient} className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2"><F id="name" label="Full name" required /></div>
@@ -91,6 +102,18 @@ function Register() {
               <label className="flex items-center gap-2 text-sm"><Checkbox checked={clinic} onCheckedChange={(v) => setClinic(!!v)} /> In-clinic consultation</label>
             </div>
             <Button type="submit" className="sm:col-span-2">Create doctor account</Button>
+          </form>
+        </TabsContent>
+        <TabsContent value="pharmacy">
+          <form onSubmit={onPharmacy} className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2"><F id="storeName" label="Medical store name" required /></div>
+            <F id="name" label="Owner name" required />
+            <F id="phone" label="Phone / WhatsApp" type="tel" required />
+            <F id="email" label="Email" type="email" required />
+            <F id="password" label="Password" type="password" required />
+            <F id="city" label="City" required />
+            <F id="address" label="Store address" required />
+            <Button type="submit" className="sm:col-span-2">Create medical store account</Button>
           </form>
         </TabsContent>
       </Tabs>

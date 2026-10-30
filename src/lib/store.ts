@@ -5,7 +5,31 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 
-export type Role = "patient" | "doctor" | "admin";
+export type Role = "patient" | "doctor" | "admin" | "pharmacy";
+
+export interface Pharmacy {
+  userId: string;
+  storeName: string;
+  phone: string;
+  address: string;
+  city: string;
+  lat?: number;
+  lng?: number;
+  hours?: string;
+}
+export interface Medicine {
+  id: string;
+  pharmacyId: string;
+  name: string;
+  formula?: string;
+  strength: string;
+  form: string;
+  packSize?: string;
+  price: number;
+  inStock: boolean;
+  image?: string;
+  updatedAt: string;
+}
 export type ConsultType = "online" | "clinic";
 export type AppointmentStatus =
   | "Pending"
@@ -183,6 +207,8 @@ interface State {
   notifications: Notification[];
   settings: Settings;
   reviews: Review[];
+  pharmacies: Pharmacy[];
+  medicines: Medicine[];
   sessionUserId: string | null;
 }
 
@@ -248,6 +274,7 @@ function seed(): State {
     users, doctors, patients, availability, appointments, consultations, notifications,
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
+    pharmacies: [], medicines: [],
     sessionUserId: null,
   };
 }
@@ -256,7 +283,7 @@ function seed(): State {
 /** Supabase is used everywhere except unit tests (which run on the seed data). */
 const SB = import.meta.env.MODE !== "test";
 const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
-const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], sessionUserId: null });
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], sessionUserId: null });
 let state: State = SB ? emptyState() : seed();
 let ready = !SB;
 let hydrating = false;
@@ -270,7 +297,7 @@ function set(fn: (s: State) => State) {
 }
 
 // ---------- Supabase sync ----------
-type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews";
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
   { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
@@ -280,6 +307,8 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: { ...a, documents: stripDocs(a.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
   { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: { ...c, documents: stripDocs(c.documents) } }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
   { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
+  { key: "pharmacies", table: "pharmacies", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "medicines", table: "medicines", id: (m) => m.id, row: (m) => ({ id: m.id, pharmacy_id: m.pharmacyId, data: m }), from: (r) => ({ ...r.data, id: r.id, pharmacyId: r.pharmacy_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -312,6 +341,10 @@ async function syncDiff(prev: State, next: State) {
     const a = prev[t.key] as unknown[], b = next[t.key] as unknown[];
     if (a === b) continue;
     const old = new Map(a.map((x) => [t.id(x), x]));
+    if (t.key === "medicines") {
+      const keep = new Set(b.map((x) => t.id(x)));
+      for (const id of old.keys()) if (!keep.has(id)) { const { error } = await supabase.from(t.table).delete().eq("id", id); if (error) void reportSyncError(error.message); }
+    }
     for (const x of b) {
       const o = old.get(t.id(x));
       if (o === x) continue;
@@ -378,7 +411,7 @@ export function startSync() {
     const { data } = await supabase.auth.getSession();
     await hydrate(data.session?.user.id ?? null);
     supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, settings: state.settings }; hydrating = false; emit(); }
+      if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, pharmacies: state.pharmacies, medicines: state.medicines, settings: state.settings }; hydrating = false; emit(); }
     });
     let t: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => { clearTimeout(t); t = setTimeout(() => void hydrate(state.sessionUserId), 400); };
@@ -594,6 +627,38 @@ export async function registerDoctor(input: { name: string; email: string; phone
   }));
   state.users.filter((u) => u.role === "admin").forEach((a) => notify(a.id, "New doctor registration", `${name} is awaiting verification.`, "/admin"));
   return id;
+}
+
+export async function registerPharmacy(input: { name: string; email: string; phone: string; password: string; storeName: string; address: string; city: string }): Promise<string> {
+  const { name, email, phone, password, ...p } = input;
+  if (SB) return signUp(email, password, { role: "pharmacy", name, phone, profile: p });
+  if (state.users.some((u) => u.email.toLowerCase() === email.toLowerCase())) throw new Error("Email already registered");
+  const id = uid("u");
+  set((s) => ({ ...s, users: [...s.users, { id, role: "pharmacy", name, email, phone, password, active: true, createdAt: now() }], pharmacies: [...s.pharmacies, { userId: id, phone, ...p }], sessionUserId: id }));
+  return id;
+}
+export function updatePharmacy(id: string, p: Partial<Pharmacy>) {
+  set((s) => ({ ...s, pharmacies: s.pharmacies.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
+}
+export function saveMedicine(m: Omit<Medicine, "id" | "updatedAt"> & { id?: string }): Medicine {
+  if (!m.name.trim()) throw new Error("Medicine name is required");
+  if (!(m.price >= 0)) throw new Error("Price must be a number");
+  const full: Medicine = { ...m, id: m.id ?? uid("MED"), name: m.name.trim(), updatedAt: now() };
+  set((s) => ({ ...s, medicines: m.id ? s.medicines.map((x) => (x.id === m.id ? full : x)) : [full, ...s.medicines] }));
+  return full;
+}
+export function deleteMedicine(id: string) {
+  set((s) => ({ ...s, medicines: s.medicines.filter((x) => x.id !== id) }));
+}
+/** Search in-stock medicines across all pharmacies by name or formula. */
+export function searchMedicines(st: { medicines: Medicine[]; pharmacies: Pharmacy[] }, q: string, city = "") {
+  const t = q.trim().toLowerCase();
+  if (t.length < 2) return [];
+  return st.medicines
+    .filter((m) => m.inStock && (m.name.toLowerCase().includes(t) || (m.formula ?? "").toLowerCase().includes(t)))
+    .map((m) => ({ m, p: st.pharmacies.find((p) => p.userId === m.pharmacyId)! }))
+    .filter((x) => x.p && (!city || x.p.city.toLowerCase().includes(city.trim().toLowerCase())))
+    .sort((a, b) => a.m.price - b.m.price);
 }
 
 // ---------- Profiles ----------

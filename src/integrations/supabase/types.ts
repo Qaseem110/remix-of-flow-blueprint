@@ -102,6 +102,32 @@ export type Database = {
           },
         ]
       }
+      medicines: {
+        Row: {
+          data: Json
+          id: string
+          pharmacy_id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+          pharmacy_id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+          pharmacy_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medicines_pharmacy_id_fkey"
+            columns: ["pharmacy_id"]
+            isOneToOne: false
+            referencedRelation: "pharmacies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           data: Json
@@ -136,6 +162,29 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "patients_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pharmacies: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pharmacies_id_fkey"
             columns: ["id"]
             isOneToOne: true
             referencedRelation: "profiles"
