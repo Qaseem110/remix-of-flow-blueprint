@@ -64,7 +64,9 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
             <li key={d.id} className="flex items-start gap-3 rounded-lg border bg-card p-3 text-sm">
               <FileText className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
               <div className="min-w-0 flex-1 space-y-0.5">
-                <p className="truncate font-medium">{d.name}</p>
+                <p className="truncate font-medium">{d.title || d.name}</p>
+                {d.title && <p className="truncate text-xs text-muted-foreground">{d.name}</p>}
+                {d.reportDate && <p className="text-xs"><span className="text-muted-foreground">Report date:</span> {format(new Date(d.reportDate + "T00:00:00"), "d MMM yyyy")}</p>}
                 <p className="text-xs text-muted-foreground">
                   <Badge variant="outline" className="mr-1 px-1.5 py-0 text-[10px]">{d.kind}</Badge>
                   Uploaded by {d.uploadedBy === "patient" ? "patient" : d.uploadedBy === "doctor" ? "doctor" : d.uploadedBy}

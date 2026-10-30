@@ -5,7 +5,7 @@ import { CalendarDays, CheckCircle2, MapPin, Upload, Video } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, QueueCard, RescheduleDialog } from "@/components/app/widgets";
-import { addAppointmentDocs, canJoin, checkIn, makeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
+import { addAppointmentDocs, canJoin, checkIn, readAndMakeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { ReviewForm } from "@/components/app/Reviews";
 
@@ -29,8 +29,9 @@ function ApptDetail() {
   const active = !["Completed", "Cancelled", "No Show", "Rescheduled"].includes(a.status);
 
   const upload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    try { addAppointmentDocs(a.id, makeDocs(e.target.files ?? [], "patient")); toast.success("Uploaded"); } catch (err) { toast.error((err as Error).message); }
-    e.target.value = "";
+    const files = Array.from(e.target.files ?? []); e.target.value = "";
+    const t = toast.loading("Reading report…");
+    readAndMakeDocs(files, "patient").then((d) => { addAppointmentDocs(a.id, d); toast.success("Uploaded", { id: t }); }).catch((err) => toast.error((err as Error).message, { id: t }));
   };
 
   return (

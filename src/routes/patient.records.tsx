@@ -1,10 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { format } from "date-fns";
-import { Pill } from "lucide-react";
+import { Pill, Upload } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
-import { memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
+import { addAppointmentDocs, readAndMakeDocs, memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/records")({
@@ -16,19 +21,30 @@ function Records() {
   const user = useSession()!;
   const s = useStore((s) => s);
   const member = useActiveMember();
+  const allowed = s.settings.allowedFileTypes;
   const mine = (apptId: string) => memberOf(s.appointments.find((a) => a.id === apptId)) === member;
   const records = s.consultations
     .filter((c) => c.patientId === user.id && c.completedAt && mine(c.appointmentId))
     .map((c) => ({ c, a: s.appointments.find((a) => a.id === c.appointmentId)!, doc: s.users.find((u) => u.id === c.doctorId)! }))
     .sort((x, y) => slotDateTime(y.a).getTime() - slotDateTime(x.a).getTime());
+  const myAppts = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member);
   const allDocs = [
-    ...records.flatMap((r) => r.c.documents.map((d) => ({ d, r }))),
-    ...s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member).flatMap((a) => a.documents.map((d) => ({ d, r: null }))),
+    ...records.flatMap((r) => r.c.documents.map((d) => ({ d, doctorId: r.c.doctorId }))),
+    ...myAppts.flatMap((a) => a.documents.map((d) => ({ d, doctorId: a.doctorId }))),
   ];
-  // Group all uploads by calendar day so same-date reports land in one box.
+  const myDoctors = [...new Set(myAppts.map((a) => a.doctorId))].map((id) => s.users.find((u) => u.id === id)).filter(Boolean) as { id: string; name: string }[];
+  const kinds = [...new Set(allDocs.map((x) => x.d.kind))];
+  const [q, setQ] = useState(""); const [fDoc, setFDoc] = useState("all"); const [fKind, setFKind] = useState("all");
+  const [from, setFrom] = useState(""); const [to, setTo] = useState("");
+  const docDay = (d: DocFile) => d.reportDate || (d.uploadedAt || "").slice(0, 10);
+  const filtered = allDocs.filter(({ d, doctorId }) =>
+    (fDoc === "all" || doctorId === fDoc) && (fKind === "all" || d.kind === fKind) &&
+    (!from || docDay(d) >= from) && (!to || docDay(d) <= to) &&
+    (!q || `${d.title ?? ""} ${d.name}`.toLowerCase().includes(q.toLowerCase())));
+  // Group by report date (or upload date) so same-date reports land in one box.
   const byDay = new Map<string, DocFile[]>();
-  for (const { d } of allDocs) {
-    const day = (d.uploadedAt || "").slice(0, 10) || "unknown";
+  for (const { d } of filtered) {
+    const day = docDay(d) || "unknown";
     byDay.set(day, [...(byDay.get(day) ?? []), d]);
   }
   const docGroups = [...byDay.entries()]
@@ -38,6 +54,19 @@ function Records() {
       label: date === "unknown" ? "Unknown date" : format(new Date(date + "T00:00:00"), "d MMMM yyyy"),
       docs: docs.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
     }));
+  // Upload: doctor is required; the file is attached to the latest appointment with that doctor.
+  const [upDoc, setUpDoc] = useState("");
+  const [busy, setBusy] = useState(false);
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []); e.target.value = "";
+    if (!upDoc) { toast.error("Please select the doctor first"); return; }
+    const appt = myAppts.filter((a) => a.doctorId === upDoc && a.status !== "Cancelled").sort((x, y) => slotDateTime(y).getTime() - slotDateTime(x).getTime())[0]
+      ?? myAppts.filter((a) => a.doctorId === upDoc)[0];
+    if (!appt) { toast.error("No appointment with this doctor"); return; }
+    setBusy(true); const t = toast.loading("Reading report…");
+    try { addAppointmentDocs(appt.id, await readAndMakeDocs(files, "patient")); toast.success("Report saved", { id: t }); }
+    catch (err) { toast.error((err as Error).message, { id: t }); } finally { setBusy(false); }
+  };
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -89,7 +118,30 @@ function Records() {
         </TabsContent>
 
         <TabsContent value="docs" className="space-y-4">
-          {docGroups.length === 0 && <p className="text-muted-foreground">No documents yet.</p>}
+          <div className="rounded-2xl border bg-card p-5 shadow-soft">
+            <p className="mb-2 font-semibold">Upload a report</p>
+            <div className="flex flex-wrap items-end gap-3">
+              <div className="min-w-56 flex-1"><Label>Doctor <span className="text-destructive">*</span></Label>
+                <Select value={upDoc} onValueChange={setUpDoc}><SelectTrigger><SelectValue placeholder={myDoctors.length ? "Select doctor" : "Book an appointment first"} /></SelectTrigger>
+                  <SelectContent>{myDoctors.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select>
+              </div>
+              <label className={`flex items-center gap-2 rounded-md border px-4 py-2 text-sm ${upDoc && !busy ? "cursor-pointer text-primary hover:border-primary" : "pointer-events-none opacity-50"}`}>
+                <Upload className="h-4 w-4" />{busy ? "Reading…" : "Choose files"}
+                <input type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={onUpload} disabled={!upDoc || busy} />
+              </label>
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">The report name and date are read from the document automatically.</p>
+          </div>
+          <div className="grid gap-2 rounded-2xl border bg-card p-4 sm:grid-cols-5">
+            <Input placeholder="Search report name" value={q} onChange={(e) => setQ(e.target.value)} className="sm:col-span-2" />
+            <Select value={fDoc} onValueChange={setFDoc}><SelectTrigger aria-label="Filter by doctor"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All doctors</SelectItem>{myDoctors.map((d) => <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>)}</SelectContent></Select>
+            <Select value={fKind} onValueChange={setFKind}><SelectTrigger aria-label="Filter by type"><SelectValue /></SelectTrigger>
+              <SelectContent><SelectItem value="all">All types</SelectItem>{kinds.map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent></Select>
+            <Button variant="ghost" onClick={() => { setQ(""); setFDoc("all"); setFKind("all"); setFrom(""); setTo(""); }}>Clear</Button>
+            <div className="flex items-center gap-2 sm:col-span-5 text-sm"><span className="text-muted-foreground">From</span><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="w-44" /><span className="text-muted-foreground">To</span><Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="w-44" /></div>
+          </div>
+          {docGroups.length === 0 && <p className="text-muted-foreground">{allDocs.length ? "No reports match the filter." : "No documents yet."}</p>}
           {docGroups.map((g) => (
             <div key={g.date} className="rounded-2xl border bg-card p-5 shadow-soft">
               <div className="mb-3 flex items-center justify-between">
