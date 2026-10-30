@@ -19,7 +19,7 @@ function DoctorDashboard() {
   const current = today.find((a) => a.status === "In Consultation" || a.status === "Ready to Join");
   const queue = today.filter(inActiveQueue).filter((a) => a !== current);
   const awaitingCheckIn = today.filter((a) => a.type === "clinic" && a.status === "Confirmed");
-  const name = (id: string) => s.users.find((u) => u.id === id)?.name ?? "";
+  const name = (id: string, apptId?: string) => s.appointments.find((a) => a.id === apptId)?.memberName ?? s.users.find((u) => u.id === id)?.name ?? "";
   const followUps = s.consultations.filter((c) => c.doctorId === user.id && c.followUpRequired && c.completedAt);
 
   const start = (id: string) => { callPatient(id); navigate({ to: "/doctor/consultation/$id", params: { id } }); };
@@ -46,7 +46,7 @@ function DoctorDashboard() {
           {current ? (
             <>
               <p className="mt-2 font-display text-5xl font-semibold">#{current.queueNumber}</p>
-              <p className="mt-1 text-lg">{name(current.patientId)}</p>
+              <p className="mt-1 text-lg">{name(current.patientId, current.id)}</p>
               <p className="text-sm opacity-80">{current.reason} · {current.type === "online" ? "Online" : "In-clinic"} · {current.status}</p>
               <Button variant="secondary" className="mt-4" asChild><Link to="/doctor/consultation/$id" params={{ id: current.id }}><Play className="mr-1 h-4 w-4" />Open consultation</Link></Button>
             </>
@@ -55,7 +55,7 @@ function DoctorDashboard() {
             <p className="text-xs uppercase tracking-widest opacity-75">Next patients</p>
             {queue.slice(0, 3).map((a, i) => (
               <div key={a.id} className="mt-2 flex items-center justify-between rounded-lg bg-primary-foreground/10 p-2 text-sm">
-                <span>#{a.queueNumber} · {name(a.patientId)} · {a.type === "online" ? "Online" : "Clinic"}</span>
+                <span>#{a.queueNumber} · {name(a.patientId, a.id)} · {a.type === "online" ? "Online" : "Clinic"}</span>
                 {i === 0 && !current && <Button size="sm" variant="secondary" onClick={() => start(a.id)}><PhoneCall className="mr-1 h-3.5 w-3.5" />Call next</Button>}
               </div>
             ))}
@@ -70,9 +70,9 @@ function DoctorDashboard() {
             {today.map((a) => (
               <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border p-3">
                 <span className="w-12 font-display text-lg">{a.time}</span>
-                <Initials name={name(a.patientId)} className="h-9 w-9 text-sm" />
+                <Initials name={name(a.patientId, a.id)} className="h-9 w-9 text-sm" />
                 <div className="min-w-0 flex-1">
-                  <Link to="/doctor/patients/$id" params={{ id: a.patientId }} className="font-medium hover:text-primary">{name(a.patientId)}</Link>
+                  <Link to="/doctor/patients/$id" params={{ id: a.patientId }} className="font-medium hover:text-primary">{name(a.patientId, a.id)}</Link>
                   <p className="text-xs text-muted-foreground">#{a.queueNumber} · {a.id} · <TypeBadge type={a.type} /></p>
                 </div>
                 <StatusBadge status={a.status} />
@@ -92,7 +92,7 @@ function DoctorDashboard() {
               const booked = s.appointments.find((a) => a.followUpOf === c.appointmentId && a.status !== "Cancelled");
               return (
                 <div key={c.appointmentId} className="flex justify-between rounded-lg bg-muted p-3">
-                  <span><b>{name(c.patientId)}</b> — {c.followUpTiming} (from {c.appointmentId})</span>
+                  <span><b>{name(c.patientId, c.appointmentId)}</b> — {c.followUpTiming} (from {c.appointmentId})</span>
                   <span className={booked ? "text-success" : "text-muted-foreground"}>{booked ? `Booked ${booked.date} ${booked.time}` : "Not booked yet"}</span>
                 </div>
               );

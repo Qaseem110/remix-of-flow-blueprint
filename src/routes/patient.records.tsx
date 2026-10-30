@@ -4,7 +4,7 @@ import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
-import { slotDateTime, useSession, useStore, type DocFile } from "@/lib/store";
+import { memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/records")({
@@ -15,13 +15,15 @@ export const Route = createFileRoute("/patient/records")({
 function Records() {
   const user = useSession()!;
   const s = useStore((s) => s);
+  const member = useActiveMember();
+  const mine = (apptId: string) => memberOf(s.appointments.find((a) => a.id === apptId)) === member;
   const records = s.consultations
-    .filter((c) => c.patientId === user.id && c.completedAt)
+    .filter((c) => c.patientId === user.id && c.completedAt && mine(c.appointmentId))
     .map((c) => ({ c, a: s.appointments.find((a) => a.id === c.appointmentId)!, doc: s.users.find((u) => u.id === c.doctorId)! }))
     .sort((x, y) => slotDateTime(y.a).getTime() - slotDateTime(x.a).getTime());
   const allDocs = [
     ...records.flatMap((r) => r.c.documents.map((d) => ({ d, r }))),
-    ...s.appointments.filter((a) => a.patientId === user.id).flatMap((a) => a.documents.map((d) => ({ d, r: null }))),
+    ...s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member).flatMap((a) => a.documents.map((d) => ({ d, r: null }))),
   ];
   // Group all uploads by calendar day so same-date reports land in one box.
   const byDay = new Map<string, DocFile[]>();
