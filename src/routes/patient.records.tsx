@@ -73,7 +73,18 @@ function Records() {
           </div>
         </TabsContent>
 
-        <TabsContent value="docs"><DocList docs={allDocs.map((x) => x.d)} empty="No documents yet." /></TabsContent>
+        <TabsContent value="docs" className="space-y-4">
+          {docGroups.length === 0 && <p className="text-muted-foreground">No documents yet.</p>}
+          {docGroups.map((g) => (
+            <div key={g.date} className="rounded-2xl border bg-card p-5 shadow-soft">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="font-display text-lg font-semibold">{g.label}</p>
+                <p className="text-xs text-muted-foreground">{g.docs.length} file{g.docs.length > 1 ? "s" : ""}</p>
+              </div>
+              <DocList docs={g.docs} empty="No documents." />
+            </div>
+          ))}
+        </TabsContent>
       </Tabs>
     </div>
   );
