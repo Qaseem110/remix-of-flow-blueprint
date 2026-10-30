@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
 import { SlotPicker } from "@/components/app/widgets";
-import { bookAppointment, ensureFamilyMember, useActiveMember, makeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
+import { bookAppointment, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
@@ -49,8 +49,9 @@ function Book() {
   if (!u || !d) return <p>Doctor not found.</p>;
 
   const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
-    try { setDocs([...docs, ...makeDocs(e.target.files ?? [], "patient")]); } catch (err) { toast.error((err as Error).message); }
-    e.target.value = "";
+    const files = Array.from(e.target.files ?? []); e.target.value = "";
+    const t = toast.loading("Reading report…");
+    readAndMakeDocs(files, "patient").then((d) => { setDocs((prev) => [...prev, ...d]); toast.dismiss(t); }).catch((err) => toast.error((err as Error).message, { id: t }));
   };
   const confirm = () => {
     try {

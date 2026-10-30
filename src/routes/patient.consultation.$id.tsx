@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Upload } from "lucide-react";
 import { DocList, StatusBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
-import { addAppointmentDocs, canJoin, joinOnline, makeDocs, useSession, useStore } from "@/lib/store";
+import { addAppointmentDocs, canJoin, joinOnline, readAndMakeDocs, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/consultation/$id")({
@@ -30,7 +30,7 @@ function PatientRoom() {
       <VideoRoom roomId={a.id} selfName={user.name} otherName={doc.name} onLeave={() => navigate({ to: "/patient/appointments/$id", params: { id: a.id } })} />
       <div className="mt-4 rounded-2xl border bg-card p-5">
         <div className="mb-3 flex items-center justify-between"><h2 className="font-semibold">Share reports with the doctor</h2>
-          <label className="flex cursor-pointer items-center gap-1 text-sm text-primary"><Upload className="h-4 w-4" />Upload<input type="file" multiple className="hidden" onChange={(e) => { try { addAppointmentDocs(a.id, makeDocs(e.target.files ?? [], "patient")); } catch (err) { toast.error((err as Error).message); } }} /></label>
+          <label className="flex cursor-pointer items-center gap-1 text-sm text-primary"><Upload className="h-4 w-4" />Upload<input type="file" multiple className="hidden" onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; const t = toast.loading("Reading report…"); readAndMakeDocs(f, "patient").then((d) => { addAppointmentDocs(a.id, d); toast.success("Uploaded", { id: t }); }).catch((err) => toast.error((err as Error).message, { id: t })); }} /></label>
         </div>
         <DocList docs={a.documents} />
       </div>
