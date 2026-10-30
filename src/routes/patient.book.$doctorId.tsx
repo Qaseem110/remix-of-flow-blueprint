@@ -55,7 +55,7 @@ function Book() {
   const confirm = () => {
     try {
       let memberId: string | undefined, memberName: string | undefined;
-      if (forWho === "new" || (forWho === "main" && false)) {
+      if (forWho === "new") {
         const m = ensureFamilyMember(user.id, newName, newRel.trim() || "Other");
         memberId = m.id; memberName = m.name;
       } else if (forWho !== "main") {
