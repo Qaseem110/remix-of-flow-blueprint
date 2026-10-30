@@ -12,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
 import { PatientHistory } from "@/components/app/PatientHistory";
+import { MedicineInput } from "@/components/app/MedicineInput";
 import { callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
@@ -73,7 +74,8 @@ function Console() {
               {c.prescription.length === 0 && <p className="text-sm text-muted-foreground">No medicines added.</p>}
               {c.prescription.map((r, i) => (
                 <div key={i} className="mb-2 grid gap-2 rounded-xl border p-3 sm:grid-cols-5">
-                  {(["medicine", "dosage", "frequency", "duration"] as const).map((k) => <Input key={k} disabled={done} placeholder={k[0].toUpperCase() + k.slice(1)} value={r[k]} onChange={(e) => setRx(i, { [k]: e.target.value })} />)}
+                  <MedicineInput disabled={done} value={r.medicine} onChange={(v) => setRx(i, { medicine: v })} />
+                  {(["dosage", "frequency", "duration"] as const).map((k) => <Input key={k} disabled={done} placeholder={k[0].toUpperCase() + k.slice(1)} value={r[k]} onChange={(e) => setRx(i, { [k]: e.target.value })} />)}
                   <div className="flex gap-1"><Input disabled={done} placeholder="Instructions" value={r.instructions} onChange={(e) => setRx(i, { instructions: e.target.value })} />{!done && <Button size="icon" variant="ghost" onClick={() => upd({ prescription: c.prescription.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></Button>}</div>
                 </div>
               ))}
