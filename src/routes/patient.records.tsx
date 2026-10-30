@@ -4,7 +4,7 @@ import { Pill } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
-import { slotDateTime, useSession, useStore } from "@/lib/store";
+import { slotDateTime, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/patient/records")({
