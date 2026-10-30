@@ -23,6 +23,19 @@ function Records() {
     ...records.flatMap((r) => r.c.documents.map((d) => ({ d, r }))),
     ...s.appointments.filter((a) => a.patientId === user.id).flatMap((a) => a.documents.map((d) => ({ d, r: null }))),
   ];
+  // Group all uploads by calendar day so same-date reports land in one box.
+  const byDay = new Map<string, DocFile[]>();
+  for (const { d } of allDocs) {
+    const day = (d.uploadedAt || "").slice(0, 10) || "unknown";
+    byDay.set(day, [...(byDay.get(day) ?? []), d]);
+  }
+  const docGroups = [...byDay.entries()]
+    .sort((a, b) => b[0].localeCompare(a[0]))
+    .map(([date, docs]) => ({
+      date,
+      label: date === "unknown" ? "Unknown date" : format(new Date(date + "T00:00:00"), "d MMMM yyyy"),
+      docs: docs.sort((a, b) => b.uploadedAt.localeCompare(a.uploadedAt)),
+    }));
 
   return (
     <div className="mx-auto max-w-5xl">
