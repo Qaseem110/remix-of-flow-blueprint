@@ -1,11 +1,12 @@
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import type { AppointmentStatus, DocFile } from "@/lib/store";
-import { FileText, Download, Video, Building2, Eye } from "lucide-react";
+import { FileText, Download, Video, Building2, Eye, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { useStore } from "@/lib/store";
+import { useStore, deleteDocument } from "@/lib/store";
+import { toast } from "sonner";
 
 const statusStyle: Record<AppointmentStatus, string> = {
   Pending: "bg-muted text-muted-foreground",
@@ -53,6 +54,11 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
     const doctor = s.users.find((u) => u.id === (c?.doctorId ?? a?.doctorId));
     return { a, doctor, diagnosis: c?.diagnosis };
   };
+  const me = s.users.find((u) => u.id === s.sessionUserId);
+  const del = (d: DocFile) => {
+    if (!confirm(`Delete "${d.title || d.name}"? This cannot be undone.`)) return;
+    try { deleteDocument(d.id); toast.success("Report deleted"); } catch (e) { toast.error((e as Error).message); }
+  };
   const isImg = (d: DocFile) => d.mime.startsWith("image/");
   const isPdf = (d: DocFile) => d.mime === "application/pdf" || d.name.toLowerCase().endsWith(".pdf");
   return (
@@ -79,6 +85,7 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
               <div className="flex shrink-0 gap-2">
                 <button type="button" onClick={() => setPreview(d)} className="text-primary hover:text-primary-glow" aria-label={`Preview ${d.name}`}><Eye className="h-4 w-4" /></button>
                 <a href={d.url} download={d.name} target="_blank" rel="noreferrer" className="text-primary hover:text-primary-glow" aria-label={`Download ${d.name}`}><Download className="h-4 w-4" /></a>
+                {me?.role === d.uploadedBy && <button type="button" onClick={() => del(d)} className="text-destructive hover:opacity-80" aria-label={`Delete ${d.name}`}><Trash2 className="h-4 w-4" /></button>}
               </div>
             </li>
           );

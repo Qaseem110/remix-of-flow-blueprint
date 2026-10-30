@@ -652,6 +652,22 @@ export function addAppointmentDocs(id: string, docs: DocFile[]) {
   if (a) notify(a.doctorId, "Patient uploaded documents", `${docs.length} file(s) added to ${id}.`, `/doctor/consultation/${id}`);
 }
 
+/** Delete a document. Only the role that uploaded it (patient or doctor) may delete it. */
+export function deleteDocument(docId: string) {
+  const all = [...state.appointments, ...state.consultations].flatMap((x) => x.documents);
+  const d = all.find((x) => x.id === docId);
+  if (!d) return;
+  const me = state.users.find((u) => u.id === state.sessionUserId);
+  if (!me || me.role !== d.uploadedBy) throw new Error("You can only delete documents you uploaded");
+  set((s) => ({
+    ...s,
+    appointments: s.appointments.map((a) => ({ ...a, documents: a.documents.filter((x) => x.id !== docId) })),
+    consultations: s.consultations.map((c) => ({ ...c, documents: c.documents.filter((x) => x.id !== docId) })),
+  }));
+  pendingFiles.delete(docId);
+  if (d.path && import.meta.env.MODE !== "test") void import("./supabase").then(({ supabase }) => supabase.storage.from("documents").remove([d.path!]));
+}
+
 // ---------- Appointments ----------
 export function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod }): Appointment {
   const slot = getSlots(input.doctorId, input.date).find((x) => x.time === input.time);
