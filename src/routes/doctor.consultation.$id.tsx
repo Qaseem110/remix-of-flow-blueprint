@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PinGate } from "@/components/app/ReportPin";
 import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
 import { PatientHistory } from "@/components/app/PatientHistory";
@@ -110,7 +111,7 @@ function Console() {
             <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="current">This visit</TabsTrigger><TabsTrigger value="history">History</TabsTrigger></TabsList>
             <TabsContent value="current" className="space-y-3">
               <div><p className="text-xs uppercase text-muted-foreground">Reason for visit</p><p className="text-sm">{a.reason}</p></div>
-              <div><p className="mb-2 text-xs uppercase text-muted-foreground">Patient uploaded documents</p><DocList docs={a.documents} empty="No uploads for this visit." /></div>
+              <div><p className="mb-2 text-xs uppercase text-muted-foreground">Patient uploaded documents</p><PinGate patientId={a.patientId}><DocList docs={a.documents} empty="No uploads for this visit." /></PinGate></div>
             </TabsContent>
             <TabsContent value="history"><PatientHistory patientId={a.patientId} memberId={a.memberId ?? null} excludeId={a.id} /></TabsContent>
           </Tabs>

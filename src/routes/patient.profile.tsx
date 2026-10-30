@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/common";
+import { ReportPinSettings } from "@/components/app/ReportPin";
 import { FamilyMembers } from "@/components/app/FamilyMembers";
 import { updatePatientProfile, updateUser, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
@@ -35,6 +36,7 @@ function PatientProfile() {
         {fields.map(([n, l, v, t]) => <div key={n}><Label htmlFor={n}>{l}</Label><Input id={n} name={n} type={t ?? "text"} defaultValue={v} /></div>)}
         <Button className="sm:col-span-2">Save changes</Button>
       </form>
+      <ReportPinSettings userId={user.id} />
       <FamilyMembers userId={user.id} />
     </div>
   );

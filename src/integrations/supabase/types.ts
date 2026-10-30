@@ -179,6 +179,24 @@ export type Database = {
         }
         Relationships: []
       }
+      report_pins: {
+        Row: {
+          patient_id: string
+          pin_hash: string
+          updated_at: string
+        }
+        Insert: {
+          patient_id: string
+          pin_hash: string
+          updated_at?: string
+        }
+        Update: {
+          patient_id?: string
+          pin_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       reviews: {
         Row: {
           data: Json
@@ -220,10 +238,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_report_pin: { Args: { patient: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       kiosk_check_in: {
         Args: { method: string; value: string }
         Returns: string
+      }
+      set_report_pin: { Args: { pin: string }; Returns: undefined }
+      verify_report_pin: {
+        Args: { patient: string; pin: string }
+        Returns: boolean
       }
     }
     Enums: {
