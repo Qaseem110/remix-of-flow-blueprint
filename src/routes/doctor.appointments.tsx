@@ -21,7 +21,7 @@ function DoctorAppointments() {
   const list = s.appointments
     .filter((a) => a.doctorId === user.id && (!date || a.date === date) && (status === "all" || a.status === status))
     .sort((a, b) => slotDateTime(a).getTime() - slotDateTime(b).getTime());
-  const name = (id: string) => s.users.find((u) => u.id === id)?.name;
+  const name = (id: string, apptId?: string) => s.appointments.find((a) => a.id === apptId)?.memberName ?? s.users.find((u) => u.id === id)?.name;
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Appointments" actions={
@@ -36,7 +36,7 @@ function DoctorAppointments() {
             {list.map((a) => (
               <tr key={a.id} className="border-t">
                 <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{a.time}</td><td className="p-3">#{a.queueNumber}</td>
-                <td className="p-3"><Link className="text-primary" to="/doctor/patients/$id" params={{ id: a.patientId }}>{name(a.patientId)}</Link></td>
+                <td className="p-3"><Link className="text-primary" to="/doctor/patients/$id" params={{ id: a.patientId }}>{name(a.patientId, a.id)}</Link></td>
                 <td className="p-3"><TypeBadge type={a.type} /></td><td className="max-w-48 truncate p-3">{a.reason}</td><td className="p-3"><StatusBadge status={a.status} /></td>
                 <td className="whitespace-nowrap p-3 text-right">
                   {!["Cancelled", "Rescheduled", "No Show"].includes(a.status) && <Button size="sm" variant="outline" asChild><Link to="/doctor/consultation/$id" params={{ id: a.id }}>{a.status === "Completed" ? "Record" : "Open"}</Link></Button>}

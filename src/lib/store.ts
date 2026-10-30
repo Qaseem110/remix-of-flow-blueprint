@@ -2,7 +2,7 @@
  * Mock data layer (in-memory). Every exported function mirrors a future
  * backend call so it can be swapped for self-hosted Supabase later.
  */
-import { useCallback, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 
 export type Role = "patient" | "doctor" | "admin";

@@ -17,11 +17,11 @@ const ACTIVE = ["Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Join"
 function PatientDashboard() {
   const user = useSession()!;
   const s = useStore((s) => s);
-  const upcoming = s.appointments.filter((a) => a.patientId === user.id && ACTIVE.includes(a.status)).sort((a, b) => slotDateTime(a).getTime() - slotDateTime(b).getTime());
+  const upcoming = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member && ACTIVE.includes(a.status)).sort((a, b) => slotDateTime(a).getTime() - slotDateTime(b).getTime());
   const next = upcoming[0];
   const doc = next && s.users.find((u) => u.id === next.doctorId);
   const dp = next && s.doctors.find((d) => d.userId === next.doctorId);
-  const followUps = s.consultations.filter((c) => c.patientId === user.id && c.followUpRequired && c.completedAt);
+  const followUps = s.consultations.filter((c) => c.patientId === user.id && memberOf(s.appointments.find((a) => a.id === c.appointmentId)) === member && c.followUpRequired && c.completedAt);
 
   return (
     <div className="mx-auto max-w-5xl">

@@ -3,12 +3,12 @@ import { DocList } from "@/components/app/common";
 import { useStore } from "@/lib/store";
 
 /** Patient info + past consultations, including private notes (doctor-only view). */
-export function PatientHistory({ patientId, excludeId }: { patientId: string; excludeId?: string }) {
+export function PatientHistory({ patientId, excludeId, memberId }: { patientId: string; excludeId?: string; memberId?: string | null }) {
   const s = useStore((s) => s);
   const u = s.users.find((x) => x.id === patientId);
   const p = s.patients.find((x) => x.userId === patientId);
-  const past = s.consultations.filter((c) => c.patientId === patientId && c.completedAt && c.appointmentId !== excludeId).sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
-  const uploads = s.appointments.filter((a) => a.patientId === patientId && a.id !== excludeId).flatMap((a) => a.documents);
+  const past = s.consultations.filter((c) => c.patientId === patientId && (memberId === undefined || (s.appointments.find((a) => a.id === c.appointmentId)?.memberId ?? null) === memberId) && c.completedAt && c.appointmentId !== excludeId).sort((a, b) => (b.completedAt ?? "").localeCompare(a.completedAt ?? ""));
+  const uploads = s.appointments.filter((a) => a.patientId === patientId && (memberId === undefined || (a.memberId ?? null) === memberId) && a.id !== excludeId).flatMap((a) => a.documents);
   if (!u || !p) return null;
   return (
     <div className="space-y-4">

@@ -17,7 +17,7 @@ const UPCOMING = ["Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Joi
 function MyAppointments() {
   const user = useSession()!;
   const s = useStore((s) => s);
-  const mine = s.appointments.filter((a) => a.patientId === user.id).sort((a, b) => slotDateTime(b).getTime() - slotDateTime(a).getTime());
+  const mine = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member).sort((a, b) => slotDateTime(b).getTime() - slotDateTime(a).getTime());
   const upcoming = mine.filter((a) => UPCOMING.includes(a.status)).reverse();
   const past = mine.filter((a) => !UPCOMING.includes(a.status));
   const Row = ({ a }: { a: Appointment }) => {

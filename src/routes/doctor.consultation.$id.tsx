@@ -53,7 +53,7 @@ function Console() {
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">{patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {a.time} · <TypeBadge type={a.type} /></p></div>
+        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {a.time} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
           {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
@@ -61,7 +61,7 @@ function Console() {
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
-          {a.type === "online" && !done && <VideoRoom roomId={a.id} selfName={user.name} otherName={patient.name} onLeave={() => navigate({ to: "/doctor" })} />}
+          {a.type === "online" && !done && <VideoRoom roomId={a.id} selfName={user.name} otherName={a.memberName ?? patient.name} onLeave={() => navigate({ to: "/doctor" })} />}
           <section className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
             <h2 className="text-lg font-semibold">Consultation record</h2>
             <div><Label>Symptoms / chief complaint</Label><Textarea disabled={done} value={c.symptoms} onChange={(e) => upd({ symptoms: e.target.value })} /></div>
@@ -112,7 +112,7 @@ function Console() {
               <div><p className="text-xs uppercase text-muted-foreground">Reason for visit</p><p className="text-sm">{a.reason}</p></div>
               <div><p className="mb-2 text-xs uppercase text-muted-foreground">Patient uploaded documents</p><DocList docs={a.documents} empty="No uploads for this visit." /></div>
             </TabsContent>
-            <TabsContent value="history"><PatientHistory patientId={a.patientId} excludeId={a.id} /></TabsContent>
+            <TabsContent value="history"><PatientHistory patientId={a.patientId} memberId={a.memberId ?? null} excludeId={a.id} /></TabsContent>
           </Tabs>
         </aside>
       </div>
