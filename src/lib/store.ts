@@ -63,6 +63,15 @@ export interface PatientProfile {
   bloodGroup?: string;
   address?: string;
   emergencyContact?: string;
+  members?: FamilyMember[]; // linked family/friend profiles managed by this account
+}
+
+export interface FamilyMember {
+  id: string;
+  name: string;
+  relation: string;
+  dob?: string;
+  gender?: string;
 }
 
 export interface Availability {
@@ -106,6 +115,8 @@ export interface Appointment {
   rescheduledFrom?: string;
   followUpOf?: string;
   payment?: "cash" | "card";
+  memberId?: string; // set when booked for a linked family member
+  memberName?: string;
 }
 
 export interface PrescriptionItem {
@@ -640,7 +651,7 @@ export function addAppointmentDocs(id: string, docs: DocFile[]) {
 }
 
 // ---------- Appointments ----------
-export function bookAppointment(input: { doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod }): Appointment {
+export function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod }): Appointment {
   const slot = getSlots(input.doctorId, input.date).find((x) => x.time === input.time);
   if (!slot?.available) throw new Error("This slot is no longer available");
   const id = "APT-" + Math.floor(2000 + Math.random() * 8000);
@@ -655,7 +666,7 @@ export function bookAppointment(input: { doctorId: string; patientId: string; ty
   const doc = userById(input.doctorId);
   const pat = userById(input.patientId);
   notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${input.date} at ${input.time} (${input.type === "online" ? "Online" : "In-Clinic"}).`, `/patient/appointments/${id}`);
-  notify(input.doctorId, "New appointment", `${pat?.name} booked ${input.date} at ${input.time}.`, `/doctor/appointments`);
+  notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${input.date} at ${input.time}.`, `/doctor/appointments`);
   return state.appointments.find((x) => x.id === id)!;
 }
 
@@ -798,4 +809,53 @@ export function setVerification(doctorId: string, v: VerificationStatus) {
 }
 export function updateSettings(p: Partial<Settings>) {
   set((s) => ({ ...s, settings: { ...s.settings, ...p } }));
+}
+
+
+// ---------- Family / linked accounts ----------
+const MEMBER_KEY = "sahoolat-active-member";
+let activeMember: string | null = null;
+const memberSubs = new Set<() => void>();
+function readMember(userId: string | null) {
+  if (typeof window === "undefined" || !userId) return null;
+  try { return (JSON.parse(localStorage.getItem(MEMBER_KEY) || "{}") as Record<string, string | null>)[userId] ?? null; } catch { return null; }
+}
+/** Switch which profile (main = null, or a member id) the patient area shows. */
+export function setActiveMember(memberId: string | null) {
+  activeMember = memberId;
+  const uid0 = state.sessionUserId;
+  if (typeof window !== "undefined" && uid0) {
+    try { const m = JSON.parse(localStorage.getItem(MEMBER_KEY) || "{}"); m[uid0] = memberId; localStorage.setItem(MEMBER_KEY, JSON.stringify(m)); } catch { /* ignore */ }
+  }
+  memberSubs.forEach((f) => f());
+}
+export function useActiveMember(): string | null {
+  const userId = useStore((s) => s.sessionUserId);
+  const members = useStore((s) => s.patients.find((p) => p.userId === s.sessionUserId)?.members);
+  const [, force] = useState(0);
+  useEffect(() => { activeMember = readMember(userId); force((n) => n + 1); const f = () => force((n) => n + 1); memberSubs.add(f); return () => { memberSubs.delete(f); }; }, [userId]);
+  return activeMember && members?.some((m) => m.id === activeMember) ? activeMember : null;
+}
+export const memberOf = (a: { memberId?: string } | undefined) => a?.memberId ?? null;
+/** Display name of the person the appointment is for. */
+export const patientLabel = (a: Appointment) => a.memberName ?? state.users.find((u) => u.id === a.patientId)?.name ?? "";
+export function addFamilyMember(userId: string, m: Omit<FamilyMember, "id">): FamilyMember {
+  const member: FamilyMember = { ...m, name: m.name.trim(), id: uid("M") };
+  if (!member.name) throw new Error("Name is required");
+  set((s) => ({ ...s, patients: s.patients.map((p) => (p.userId === userId ? { ...p, members: [...(p.members ?? []), member] } : p)) }));
+  return member;
+}
+export function updateFamilyMember(userId: string, id: string, patch: Partial<FamilyMember>) {
+  set((s) => ({ ...s, patients: s.patients.map((p) => (p.userId === userId ? { ...p, members: (p.members ?? []).map((m) => (m.id === id ? { ...m, ...patch } : m)) } : p)) }));
+}
+export function removeFamilyMember(userId: string, id: string) {
+  if (state.appointments.some((a) => a.patientId === userId && a.memberId === id)) throw new Error("This person has appointments and cannot be removed");
+  set((s) => ({ ...s, patients: s.patients.map((p) => (p.userId === userId ? { ...p, members: (p.members ?? []).filter((m) => m.id !== id) } : p)) }));
+  if (activeMember === id) setActiveMember(null);
+}
+/** Find a member by name (case-insensitive) or create one — used when booking for someone else. */
+export function ensureFamilyMember(userId: string, name: string, relation = "Other"): FamilyMember {
+  const p = state.patients.find((x) => x.userId === userId);
+  const hit = p?.members?.find((m) => m.name.trim().toLowerCase() === name.trim().toLowerCase());
+  return hit ?? addFamilyMember(userId, { name, relation });
 }
