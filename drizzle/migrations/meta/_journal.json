@@ -22,6 +22,13 @@
       "when": 1793388600806,
       "tag": "0002_pharmacies",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793388997969,
+      "tag": "0003_allow_pharmacy_role",
+      "breakpoints": true
     }
   ]
 }

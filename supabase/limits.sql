@@ -157,4 +157,5 @@ begin
     insert into public.patients (id, data) values (uid, coalesce(m->'profile', '{}') || jsonb_build_object('userId', uid));
   end if;
   return new;
-end $function$;
+end $function$;ALTER TABLE public.profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+ALTER TABLE public.profiles ADD CONSTRAINT profiles_role_check CHECK (role IN ('patient','doctor','admin','pharmacy'));
