@@ -1,7 +1,7 @@
 -- Sahoolat schema for self-hosted Supabase. Run once in the SQL Editor.
 -- Each table keeps the app object in `data` (jsonb) plus key columns used by security rules.
 
-create table if not exists public.profiles (id text primary key, role text not null default 'patient' check (role in ('patient','doctor','admin')), data jsonb not null default '{}');
+create table if not exists public.profiles (id text primary key, role text not null default 'patient' check (role in ('patient','doctor','admin','pharmacy')), data jsonb not null default '{}');
 create table if not exists public.doctors (id text primary key references public.profiles(id) on delete cascade, data jsonb not null default '{}');
 create table if not exists public.patients (id text primary key references public.profiles(id) on delete cascade, data jsonb not null default '{}');
 create table if not exists public.availability (id text primary key references public.profiles(id) on delete cascade, data jsonb not null default '{}');
