@@ -665,7 +665,7 @@ export function deleteDocument(docId: string) {
     consultations: s.consultations.map((c) => ({ ...c, documents: c.documents.filter((x) => x.id !== docId) })),
   }));
   pendingFiles.delete(docId);
-  if (d.path && import.meta.env.MODE !== "test") void supabase.storage.from("documents").remove([d.path]);
+  if (d.path && import.meta.env.MODE !== "test") void import("./supabase").then(({ supabase }) => supabase.storage.from("documents").remove([d.path!]));
 }
 
 // ---------- Appointments ----------
