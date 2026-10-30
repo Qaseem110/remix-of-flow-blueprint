@@ -15,6 +15,13 @@
       "when": 1793388090796,
       "tag": "0001_report_pins",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793388600806,
+      "tag": "0002_pharmacies",
+      "breakpoints": true
     }
   ]
 }
