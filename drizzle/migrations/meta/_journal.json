@@ -29,6 +29,13 @@
       "when": 1793388997969,
       "tag": "0003_allow_pharmacy_role",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1793645214252,
+      "tag": "0004_pin_report_access",
+      "breakpoints": true
     }
   ]
 }

@@ -228,6 +228,24 @@ export type Database = {
         }
         Relationships: []
       }
+      report_access: {
+        Row: {
+          doctor_id: string
+          expires_at: string
+          patient_id: string
+        }
+        Insert: {
+          doctor_id: string
+          expires_at: string
+          patient_id: string
+        }
+        Update: {
+          doctor_id?: string
+          expires_at?: string
+          patient_id?: string
+        }
+        Relationships: []
+      }
       report_pins: {
         Row: {
           patient_id: string
@@ -287,6 +305,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      has_report_access: { Args: { patient: string }; Returns: boolean }
       has_report_pin: { Args: { patient: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       kiosk_check_in: {
@@ -294,6 +313,10 @@ export type Database = {
         Returns: string
       }
       set_report_pin: { Args: { pin: string }; Returns: undefined }
+      unlock_patient_reports: {
+        Args: { patient: string; pin: string }
+        Returns: boolean
+      }
       verify_report_pin: {
         Args: { patient: string; pin: string }
         Returns: boolean
