@@ -8,7 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { kioskCheckIn, queueInfo, userById, useStore, type Appointment } from "@/lib/store";
 
 export const Route = createFileRoute("/checkin")({
-  head: () => ({ meta: [{ title: "Clinic check-in — Sahoolat" }, { name: "description", content: "Check in at the clinic with your appointment ID or phone number." }, { property: "og:title", content: "Clinic check-in — Sahoolat" }, { property: "og:description", content: "Arrived at the clinic? Check in here." }] }),
+  head: () => ({ meta: [{ title: "Clinic check-in — Sahoolat" }, { name: "description", content: "Check in at the clinic with your appointment ID or phone number." }, { property: "og:title", content: "Clinic check-in — Sahoolat" }, { property: "og:description", content: "Arrived at the clinic? Check in here." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: CheckIn,
 });
 

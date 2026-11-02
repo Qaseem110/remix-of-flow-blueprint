@@ -105,6 +105,7 @@ export interface Availability {
   start: string; // HH:mm
   end: string;
   duration: number; // minutes
+  dailyLimit?: number; // appointments shared across online and clinic visits
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
   blockedDays?: string[]; // "yyyy-MM-dd" whole days off
 }
@@ -454,6 +455,11 @@ export function slotDateTime(a: { date: string; time: string }) {
 
 const BLOCKING: AppointmentStatus[] = ["Cancelled", "Rescheduled", "No Show"];
 
+export function dailyCapacity(av: Availability): number {
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  return av.dailyLimit ?? Math.max(1, Math.floor((minutes(av.end) - minutes(av.start)) / av.duration));
+}
+
 /** Auto-generated slots for a doctor on a date, booked ones excluded. */
 export function getSlots(doctorId: string, date: string, s: State = state): { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] {
   const av = s.availability.find((a) => a.doctorId === doctorId);
@@ -461,19 +467,29 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   const day = parse(date, "yyyy-MM-dd", new Date());
   if (!av.days.includes(day.getDay())) return [];
   const dayOff = av.blockedDays?.includes(date) ?? false;
+  const capacity = dailyCapacity(av);
+  const bookedToday = s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !["Cancelled", "Rescheduled"].includes(a.status));
   const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
   let cur = parse(`${date} ${av.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${av.end}`, "yyyy-MM-dd HH:mm", new Date());
-  const taken = new Set(s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !BLOCKING.includes(a.status)).map((a) => a.time));
-  const nowD = new Date();
-  while (addMinutes(cur, av.duration) <= end) {
+  const taken = new Set(bookedToday.map((a) => a.time));
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const localNow = `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
+  const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / capacity));
+  for (let i = 0; i < capacity && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
     const booked = taken.has(time);
-    out.push({ time, available: !booked && !blocked && cur > nowD, blocked, booked });
-    cur = addMinutes(cur, av.duration);
+    out.push({ time, available: bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
+    cur = addMinutes(cur, interval);
   }
   return out;
+}
+
+export function nextBooking(doctorId: string, date: string, s: State = state) {
+  const slot = getSlots(doctorId, date, s).find((x) => x.available);
+  return slot ? { time: slot.time, queueNumber: nextQueueNumber(doctorId, date, s) } : null;
 }
 
 export function nextAvailableDate(doctorId: string): string | null {
@@ -681,6 +697,10 @@ export function updatePatientProfile(id: string, p: Partial<PatientProfile>) {
   set((s) => ({ ...s, patients: s.patients.map((d) => (d.userId === id ? { ...d, ...p } : d)) }));
 }
 export function saveAvailability(av: Availability) {
+  const capacity = dailyCapacity(av);
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
+  if (!Number.isInteger(capacity) || capacity < 1 || capacity > minutes(av.end) - minutes(av.start)) throw new Error("Daily limit must be a positive whole number within your working minutes");
+  if (av.start >= av.end || !av.days.length) throw new Error("Select working days and valid working hours");
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
     const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
@@ -743,23 +763,36 @@ export function deleteDocument(docId: string) {
 }
 
 // ---------- Appointments ----------
-export function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod }): Appointment {
-  const slot = getSlots(input.doctorId, input.date).find((x) => x.time === input.time);
-  if (!slot?.available) throw new Error("This slot is no longer available");
-  const id = "APT-" + Math.floor(2000 + Math.random() * 8000);
-  const a: Appointment = { ...input, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
-  // keep queue numbers in time order for the day
-  set((s) => {
-    const list = [...s.appointments, a];
-    const day = list.filter((x) => x.doctorId === a.doctorId && x.date === a.date).sort((x, y) => x.time.localeCompare(y.time));
-    const order = new Map(day.map((x, i) => [x.id, i + 1]));
-    return { ...s, appointments: list.map((x) => (order.has(x.id) ? { ...x, queueNumber: order.get(x.id)! } : x)) };
-  });
+export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string }): Promise<Appointment> {
+  const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
+  const slot = nextBooking(input.doctorId, input.date, previewState);
+  if (!slot) throw new Error("No places available on this day. Choose another date.");
+  const id = "APT-" + crypto.randomUUID();
+  let a: Appointment = { ...input, time: slot.time, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const table = TABLES.find((t) => t.key === "appointments");
+    if (!table) throw new Error("Booking is unavailable");
+    const { data, error } = await supabase.from("appointments").insert(table.row(a)).select("*").single();
+    if (error) throw new Error(error.message);
+    a = table.from(data) as Appointment;
+    a.documents = input.documents;
+    await uploadDocs(a, id);
+    if (a.documents.some((d) => d.path)) {
+      const { error: fileError } = await supabase.from("appointments").update(table.row(a)).eq("id", id);
+      if (fileError) void reportSyncError(fileError.message);
+    }
+  }
+  // Server has already saved the booking; publish its committed allocation without a second insert.
+  const previousHydrating = hydrating;
+  hydrating = true;
+  set((s) => ({ ...s, appointments: [...s.appointments.map((old) => old.id === input.rescheduledFrom ? { ...old, status: "Rescheduled" as const, rescheduledTo: id } : old), a] }));
+  hydrating = previousHydrating;
   const doc = userById(input.doctorId);
   const pat = userById(input.patientId);
-  notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${input.date} at ${fmtTime(input.time)} (${input.type === "online" ? "Online" : "In-Clinic"}).`, `/patient/appointments/${id}`);
-  notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${input.date} at ${fmtTime(input.time)}.`, `/doctor/appointments`);
-  return state.appointments.find((x) => x.id === id)!;
+  notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${a.date} at ${fmtTime(a.time)} — Queue #${a.queueNumber}.`, `/patient/appointments/${id}`);
+  notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${a.date} at ${fmtTime(a.time)} — Queue #${a.queueNumber}.`, `/doctor/appointments`);
+  return a;
 }
 
 export function cancelAppointment(id: string, by: Role, reason = "") {
@@ -771,13 +804,11 @@ export function cancelAppointment(id: string, by: Role, reason = "") {
   if (by !== "doctor") notify(a.doctorId, "Appointment cancelled", msg, `/doctor/appointments`);
 }
 
-export function rescheduleAppointment(id: string, date: string, time: string): Appointment {
+export async function rescheduleAppointment(id: string, date: string): Promise<Appointment> {
   const old = state.appointments.find((x) => x.id === id);
   if (!old) throw new Error("Appointment not found");
-  const fresh = bookAppointment({ doctorId: old.doctorId, patientId: old.patientId, type: old.type, date, time, reason: old.reason, documents: old.documents, followUpOf: old.followUpOf });
-  patchAppt(id, { status: "Rescheduled", rescheduledTo: fresh.id });
-  patchAppt(fresh.id, { rescheduledFrom: id });
-  const msg = `${id} moved to ${date} at ${time} (new ID ${fresh.id}).`;
+  const fresh = await bookAppointment({ doctorId: old.doctorId, patientId: old.patientId, memberId: old.memberId, memberName: old.memberName, type: old.type, date, reason: old.reason, documents: old.documents, followUpOf: old.followUpOf, payment: old.payment, rescheduledFrom: id });
+  const msg = `${id} moved to ${date} at ${fmtTime(fresh.time)} (Queue #${fresh.queueNumber}).`;
   notify(old.patientId, "Appointment rescheduled", msg, `/patient/appointments/${fresh.id}`);
   notify(old.doctorId, "Appointment rescheduled", msg, `/doctor/appointments`);
   return fresh;

@@ -36,6 +36,20 @@
       "when": 1793645214252,
       "tag": "0004_pin_report_access",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793646563470,
+      "tag": "0005_automatic_daily_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793646657647,
+      "tag": "0006_correct_booking_day_time",
+      "breakpoints": true
     }
   ]
 }

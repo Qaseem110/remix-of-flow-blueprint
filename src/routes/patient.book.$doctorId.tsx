@@ -7,53 +7,55 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
-import { SlotPicker } from "@/components/app/widgets";
-import { bookAppointment, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { BookingDatePicker } from "@/components/app/widgets";
+import { bookAppointment, nextBooking, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
+import { cn, fmtTime } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
-type Search = { date?: string; time?: string; followUpOf?: string };
+type Search = { date?: string; followUpOf?: string };
 
 export const Route = createFileRoute("/patient/book/$doctorId")({
   validateSearch: (s: Record<string, unknown>): Search => ({
     date: typeof s.date === "string" ? s.date : undefined,
-    time: typeof s.time === "string" ? s.time : undefined,
     followUpOf: typeof s.followUpOf === "string" ? s.followUpOf : undefined,
   }),
-  head: () => meta("Book appointment", "Choose consultation type, date, time and reason for your visit."),
+  head: () => meta("Book appointment", "Choose your consultation and day, and receive an assigned queue number and estimated time."),
   component: Book,
 });
 
-const STEPS = ["Consultation type", "Date & time", "Reason & reports", "Confirm"];
+const STEPS = ["Consultation type", "Date & queue", "Reason & reports", "Confirm"];
 
 function Book() {
   const { doctorId } = Route.useParams();
   const search = Route.useSearch();
   const navigate = useNavigate();
-  const user = useSession()!;
+  const user = useSession();
   const u = useStore((s) => s.users.find((x) => x.id === doctorId));
   const d = useStore((s) => s.doctors.find((x) => x.userId === doctorId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
   const [step, setStep] = useState(0);
   const [type, setType] = useState<ConsultType | null>(null);
   const [date, setDate] = useState(search.date ?? nextAvailableDate(doctorId) ?? todayStr());
-  const [time, setTime] = useState(search.time ?? "");
+  const allocation = useStore((s) => nextBooking(doctorId, date, s));
+  const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState(search.followUpOf ? `Follow-up for ${search.followUpOf}` : "");
   const [docs, setDocs] = useState<DocFile[]>([]);
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   const activeMember = useActiveMember();
-  const members = useStore((s) => s.patients.find((p) => p.userId === user.id)?.members) ?? [];
+  const members = useStore((s) => s.patients.find((p) => p.userId === user?.id)?.members) ?? [];
   const [forWho, setForWho] = useState<string>(activeMember ?? "main"); // "main" | member id | "new"
   const [newName, setNewName] = useState("");
   const [newRel, setNewRel] = useState("");
-  if (!u || !d) return <p>Doctor not found.</p>;
+  if (!user || !u || !d) return <p>Doctor not found.</p>;
 
   const onFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []); e.target.value = "";
     const t = toast.loading("Reading report…");
     readAndMakeDocs(files, "patient").then((d) => { setDocs((prev) => [...prev, ...d]); toast.dismiss(t); }).catch((err) => toast.error((err as Error).message, { id: t }));
   };
-  const confirm = () => {
+  const confirm = async () => {
+    if (!type || busy) return;
+    setBusy(true);
     try {
       let memberId: string | undefined, memberName: string | undefined;
       if (forWho === "new") {
@@ -62,11 +64,11 @@ function Book() {
       } else if (forWho !== "main") {
         const m = members.find((x) => x.id === forWho); memberId = m?.id; memberName = m?.name;
       }
-      const a = bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type: type!, date, time, reason, documents: docs, followUpOf: search.followUpOf, payment });
+      const a = await bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
-    } catch (err) { toast.error((err as Error).message); setStep(1); }
+    } catch (err) { toast.error((err as Error).message); setStep(1); } finally { setBusy(false); }
   };
-  const canNext = [!!type, !!time, reason.trim().length > 2 && (forWho !== "new" || newName.trim().length > 1), true][step];
+  const canNext = [!!type, !!allocation, reason.trim().length > 2 && (forWho !== "new" || newName.trim().length > 1), true][step];
 
   return (
     <div className="mx-auto max-w-3xl">
@@ -94,7 +96,7 @@ function Book() {
             ))}
           </div>
         )}
-        {step === 1 && <SlotPicker doctorId={doctorId} date={date} time={time} onDate={setDate} onTime={setTime} />}
+        {step === 1 && <BookingDatePicker doctorId={doctorId} date={date} onDate={setDate} />}
         {step === 2 && (
           <div className="space-y-4">
             <div>
@@ -126,7 +128,7 @@ function Book() {
         {step === 3 && (
           <>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Time", time], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
+            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Queue number", allocation ? `#${allocation.queueNumber}` : "Full"], ["Estimated time", allocation ? fmtTime(allocation.time) : "Unavailable"], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>
@@ -143,7 +145,7 @@ function Book() {
         )}
         <div className="mt-6 flex justify-between">
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
-          {step < 3 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Continue</Button> : <Button onClick={confirm}><Check className="mr-1 h-4 w-4" /> Confirm appointment</Button>}
+          {step < 3 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Continue</Button> : <Button disabled={busy || !allocation} onClick={confirm}><Check className="mr-1 h-4 w-4" />{busy ? "Booking…" : "Confirm appointment"}</Button>}
         </div>
       </div>
     </div>

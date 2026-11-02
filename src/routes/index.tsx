@@ -9,13 +9,15 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Find a doctor, book online or in-clinic, follow your live queue and keep every prescription in one place." },
       { property: "og:title", content: "Sahoolat — Book doctors online or in-clinic" },
       { property: "og:description", content: "Find a doctor, book online or in-clinic, follow your live queue and keep every prescription in one place." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Landing,
 });
 
 const features = [
-  { icon: CalendarCheck, title: "Real slots, instantly", body: "Doctors set their hours — you only see times that are actually free." },
+  { icon: CalendarCheck, title: "Book your place", body: "Choose your day and receive your queue number and estimated time." },
   { icon: ListOrdered, title: "Live queue", body: "See your number, who's being seen and how many are ahead of you." },
   { icon: Video, title: "Video consultations", body: "Join from your dashboard when the doctor is ready." },
   { icon: ClipboardList, title: "Health records", body: "Notes, prescriptions and reports saved after every visit." },
