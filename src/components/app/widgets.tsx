@@ -5,7 +5,7 @@ import { Mic, MicOff, PhoneOff, Video, VideoOff, ListOrdered } from "lucide-reac
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils";
+import { cn, fmtTime } from "@/lib/utils";
 import { cancelAppointment, getSlots, queueInfo, rescheduleAppointment, useStore, type Appointment, type Role } from "@/lib/store";
 
 /** Date strip + auto-generated slots. Only available slots are selectable. */
@@ -33,7 +33,7 @@ export function SlotPicker({ doctorId, date, time, onDate, onTime }: { doctorId:
         {slots.map((s) => (
           <button key={s.time} type="button" disabled={!s.available} onClick={() => onTime(s.time)}
             className={cn("rounded-lg border py-2 text-sm font-medium transition", s.time === time ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary", !s.available && "cursor-not-allowed bg-muted text-muted-foreground line-through opacity-60")}>
-            {s.time}
+            {fmtTime(s.time)}
           </button>
         ))}
       </div>
@@ -57,7 +57,7 @@ export function RescheduleDialog({ appt, onDone, trigger }: { appt: Appointment;
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Reschedule {appt.id}</DialogTitle><DialogDescription>Only available slots are shown. Your current slot ({appt.date} {appt.time}) will be released.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Reschedule {appt.id}</DialogTitle><DialogDescription>Only available slots are shown. Your current slot ({appt.date} {fmtTime(appt.time)}) will be released.</DialogDescription></DialogHeader>
         <SlotPicker doctorId={appt.doctorId} date={date} time={time} onDate={setDate} onTime={setTime} />
         <DialogFooter><Button disabled={!time} onClick={confirm}>Confirm new slot</Button></DialogFooter>
       </DialogContent>
@@ -72,7 +72,7 @@ export function CancelDialog({ appt, by, trigger }: { appt: Appointment; by: Rol
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Cancel {appt.id}?</DialogTitle><DialogDescription>The slot on {appt.date} at {appt.time} will become available to others.</DialogDescription></DialogHeader>
+        <DialogHeader><DialogTitle>Cancel {appt.id}?</DialogTitle><DialogDescription>The slot on {appt.date} at {fmtTime(appt.time)} will become available to others.</DialogDescription></DialogHeader>
         <Textarea placeholder="Reason (optional)" value={reason} onChange={(e) => setReason(e.target.value)} />
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>Keep</Button>

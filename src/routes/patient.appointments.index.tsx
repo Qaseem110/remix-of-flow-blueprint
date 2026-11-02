@@ -6,6 +6,7 @@ import { PageHeader, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, RescheduleDialog } from "@/components/app/widgets";
 import { memberOf, slotDateTime, useActiveMember, useSession, useStore, type Appointment } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/appointments/")({
   head: () => meta("My appointments", "View, reschedule or cancel your appointments."),
@@ -26,7 +27,7 @@ function MyAppointments() {
     const changeable = a.status === "Confirmed" || a.status === "Pending";
     return (
       <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
-        <div className="w-20 text-center"><p className="text-xs uppercase text-muted-foreground">{format(slotDateTime(a), "EEE")}</p><p className="font-display text-2xl font-semibold">{format(slotDateTime(a), "d MMM")}</p><p className="text-sm">{a.time}</p></div>
+        <div className="w-20 text-center"><p className="text-xs uppercase text-muted-foreground">{format(slotDateTime(a), "EEE")}</p><p className="font-display text-2xl font-semibold">{format(slotDateTime(a), "d MMM")}</p><p className="text-sm">{fmtTime(a.time)}</p></div>
         <div className="min-w-0 flex-1"><p className="font-medium">{doc?.name}</p><p className="text-sm text-muted-foreground">{a.id} · {a.reason}</p><TypeBadge type={a.type} /></div>
         <StatusBadge status={a.status} />
         <div className="flex gap-2">

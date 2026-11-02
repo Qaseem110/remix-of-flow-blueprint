@@ -4,7 +4,7 @@ import { Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getSlots, toggleBlockedDay, toggleBlockedSlot, useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { cn, fmtTime } from "@/lib/utils";
 
 export function BlockSlots({ doctorId, date, onDate }: { doctorId: string; date: string; onDate: (d: string) => void }) {
   const slots = useStore((s) => getSlots(doctorId, date, s));
@@ -36,7 +36,7 @@ export function BlockSlots({ doctorId, date, onDate }: { doctorId: string; date:
                 className={cn("rounded-lg border px-2 py-2 text-sm",
                   s.booked ? "cursor-not-allowed bg-muted text-muted-foreground line-through" :
                   s.blocked ? "border-destructive bg-destructive/10 text-destructive" : "hover:border-primary")}>
-                {s.time}<span className="block text-[10px]">{s.booked ? "Booked" : s.blocked ? "Unavailable" : "Open"}</span>
+                {fmtTime(s.time)}<span className="block text-[10px]">{s.booked ? "Booked" : s.blocked ? "Unavailable" : "Open"}</span>
               </button>
             ))}
           </div>

@@ -7,6 +7,7 @@ import { PageHeader, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog } from "@/components/app/widgets";
 import { ALL_STATUSES, markNoShow, slotDateTime, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/doctor/appointments")({
   head: () => meta("Appointments", "All your appointments with filters by date and status."),
@@ -35,7 +36,7 @@ function DoctorAppointments() {
           <tbody>
             {list.map((a) => (
               <tr key={a.id} className="border-t">
-                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{a.time}</td><td className="p-3">#{a.queueNumber}</td>
+                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">#{a.queueNumber}</td>
                 <td className="p-3"><Link className="text-primary" to="/doctor/patients/$id" params={{ id: a.patientId }}>{name(a.patientId, a.id)}</Link></td>
                 <td className="p-3"><TypeBadge type={a.type} /></td><td className="max-w-48 truncate p-3">{a.reason}</td><td className="p-3"><StatusBadge status={a.status} /></td>
                 <td className="whitespace-nowrap p-3 text-right">

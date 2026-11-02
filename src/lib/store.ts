@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
+import { fmtTime } from "@/lib/utils";
 
 export type Role = "patient" | "doctor" | "admin" | "pharmacy";
 
@@ -748,8 +749,8 @@ export function bookAppointment(input: { memberId?: string; memberName?: string;
   });
   const doc = userById(input.doctorId);
   const pat = userById(input.patientId);
-  notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${input.date} at ${input.time} (${input.type === "online" ? "Online" : "In-Clinic"}).`, `/patient/appointments/${id}`);
-  notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${input.date} at ${input.time}.`, `/doctor/appointments`);
+  notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${input.date} at ${fmtTime(input.time)} (${input.type === "online" ? "Online" : "In-Clinic"}).`, `/patient/appointments/${id}`);
+  notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${input.date} at ${fmtTime(input.time)}.`, `/doctor/appointments`);
   return state.appointments.find((x) => x.id === id)!;
 }
 
@@ -757,7 +758,7 @@ export function cancelAppointment(id: string, by: Role, reason = "") {
   const a = state.appointments.find((x) => x.id === id);
   if (!a) return;
   patchAppt(id, { status: "Cancelled", cancelledBy: by, cancelReason: reason });
-  const msg = `${id} on ${a.date} at ${a.time} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
+  const msg = `${id} on ${a.date} at ${fmtTime(a.time)} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
   if (by !== "patient") notify(a.patientId, "Appointment cancelled", msg, `/patient/appointments/${id}`);
   if (by !== "doctor") notify(a.doctorId, "Appointment cancelled", msg, `/doctor/appointments`);
 }
@@ -880,8 +881,8 @@ export function runReminders(userId: string) {
   mine.forEach((a) => {
     const mins = (slotDateTime(a).getTime() - Date.now()) / 60000;
     const key = (k: string) => state.notifications.some((n) => n.userId === userId && n.title === k && n.body.includes(a.id));
-    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${a.id} with ${userById(a.doctorId)?.name} on ${a.date} at ${a.time}.`, `/patient/appointments/${a.id}`);
-    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${a.id} begins at ${a.time}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
+    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${a.id} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, `/patient/appointments/${a.id}`);
+    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${a.id} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
   });
 }
 

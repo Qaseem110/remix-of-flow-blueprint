@@ -16,6 +16,7 @@ import { PatientHistory } from "@/components/app/PatientHistory";
 import { MedicineInput } from "@/components/app/MedicineInput";
 import { callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/doctor/consultation/$id")({
   head: () => meta("Consultation", "Conduct the consultation and complete notes, diagnosis, prescription and follow-up."),
@@ -54,7 +55,7 @@ function Console() {
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {a.time} · <TypeBadge type={a.type} /></p></div>
+        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
           {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
