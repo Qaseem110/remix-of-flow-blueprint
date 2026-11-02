@@ -21,6 +21,7 @@ import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminAppointmentsRouteImport } from './routes/admin.appointments'
+import { Route as AdminCasesRouteImport } from './routes/admin.cases'
 import { Route as AdminSettingsRouteImport } from './routes/admin.settings'
 import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as DoctorIndexRouteImport } from './routes/doctor.index'
@@ -100,6 +101,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
 const AdminAppointmentsRoute = AdminAppointmentsRouteImport.update({
   id: '/appointments',
   path: '/appointments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminCasesRoute = AdminCasesRouteImport.update({
+  id: '/cases',
+  path: '/cases',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
@@ -216,6 +222,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/cases': typeof AdminCasesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/cases': typeof AdminCasesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
@@ -281,6 +289,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
+  '/admin/cases': typeof AdminCasesRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
@@ -317,6 +326,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/appointments'
+    | '/admin/cases'
     | '/admin/settings'
     | '/admin/users'
     | '/doctor/appointments'
@@ -347,6 +357,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/appointments'
+    | '/admin/cases'
     | '/admin/settings'
     | '/admin/users'
     | '/doctor/appointments'
@@ -381,6 +392,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/appointments'
+    | '/admin/cases'
     | '/admin/settings'
     | '/admin/users'
     | '/doctor/appointments'
@@ -501,6 +513,13 @@ declare module '@tanstack/react-router' {
       path: '/appointments'
       fullPath: '/admin/appointments'
       preLoaderRoute: typeof AdminAppointmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/cases': {
+      id: '/admin/cases'
+      path: '/cases'
+      fullPath: '/admin/cases'
+      preLoaderRoute: typeof AdminCasesRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
@@ -648,6 +667,7 @@ declare module '@tanstack/react-router' {
 
 interface AdminRouteChildren {
   AdminAppointmentsRoute: typeof AdminAppointmentsRoute
+  AdminCasesRoute: typeof AdminCasesRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -655,6 +675,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAppointmentsRoute: AdminAppointmentsRoute,
+  AdminCasesRoute: AdminCasesRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
