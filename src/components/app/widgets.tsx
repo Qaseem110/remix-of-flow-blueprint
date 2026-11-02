@@ -131,8 +131,12 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
   const [attempt, setAttempt] = useState(0);
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
+  // Backup: free no-account VDO.Ninja room (has its own relay servers) when direct P2P fails.
+  const [backup, setBackup] = useState(false);
+  const sendRef = useRef<((event: string) => void) | null>(null);
 
   useEffect(() => {
+    if (backup) return;
     let cancelled = false;
     let failed = false;
     let local: MediaStream | null = null;
@@ -158,6 +162,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
       void channel.send({ type: "broadcast", event, payload: { ...payload, from: me, to: remoteId } })
         .then((result) => { if (!cancelled && result !== "ok") fail("Call messages could not be delivered. Please retry."); });
     };
+    sendRef.current = send;
     const run = (promise: Promise<void> | undefined) => {
       void promise?.catch(() => fail("The video connection could not be established. Please retry."));
     };
@@ -188,7 +193,8 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           setError(false);
           setStatus("Connected");
         } else if (p.connectionState === "failed") {
-          fail("The video connection failed. Please tap Retry connection.");
+          send("backup");
+          setTimeout(() => { if (!cancelled) setBackup(true); }, 300);
         } else if (p.connectionState === "disconnected") {
           setConnected(false);
           setStatus("Connection interrupted — reconnecting…");
@@ -197,7 +203,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
       pc = p;
       handshake = createCallPeer(p, send);
       setStatus("Connecting video and audio…");
-      connectionTimer = setTimeout(() => fail("The connection timed out. Try another network, then retry."), 30000);
+      connectionTimer = setTimeout(() => { send("backup"); setTimeout(() => { if (!cancelled) setBackup(true); }, 300); }, 20000);
       return handshake;
     };
     const accepts = (payload: { from?: string; to?: string | null }) =>
@@ -242,6 +248,9 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           remoteId = payload.from;
           run(ensurePeer().receiveIce(payload.candidate));
         });
+        channel.on("broadcast", { event: "backup" }, ({ payload }) => {
+          if (payload.from !== me) setBackup(true);
+        });
         channel.on("broadcast", { event: "bye" }, ({ payload }) => {
           if (!accepts(payload)) return;
           pc?.close(); pc = null; handshake = null; remoteId = null;
@@ -272,10 +281,26 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
       local?.getTracks().forEach((track) => track.stop());
       if (channel) void channel.unsubscribe();
     };
-  }, [roomId, attempt]);
+  }, [roomId, attempt, backup]);
 
   useEffect(() => { stream?.getAudioTracks().forEach((t) => (t.enabled = mic)); }, [mic, stream]);
   useEffect(() => { stream?.getVideoTracks().forEach((t) => (t.enabled = cam)); }, [cam, stream]);
+
+  if (backup) {
+    const room = `sahoolat${roomId.replace(/[^a-zA-Z0-9]/g, "")}`.slice(0, 40);
+    const src = `https://vdo.ninja/?room=${room}&password=${room.split("").reverse().join("")}&label=${encodeURIComponent(selfName)}&webcam&autostart`;
+    return (
+      <div className="space-y-2">
+        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
+          <iframe title="Video consultation" src={src} allow="camera; microphone; autoplay; fullscreen; display-capture" className="absolute inset-0 h-full w-full border-0" />
+        </div>
+        <div className="flex flex-wrap justify-center gap-2">
+          <Button variant="outline" size="sm" onClick={() => { setBackup(false); setAttempt((v) => v + 1); }}>Try direct connection again</Button>
+          <Button variant="destructive" size="sm" onClick={onLeave}><PhoneOff className="mr-1 h-4 w-4" />Leave</Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
@@ -286,6 +311,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           <p className="mt-3 font-medium">{otherName}</p>
           <p role="status" className="mt-1 max-w-sm px-4 text-center text-xs opacity-80">{status}</p>
           {error && <Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Retry connection</Button>}
+          <Button variant="link" className="mt-1 text-sidebar-foreground" onClick={() => { sendRef.current?.("backup"); setTimeout(() => setBackup(true), 300); }}>Use backup video call</Button>
         </div>
       )}
       <video ref={localRef} autoPlay muted playsInline aria-label={selfName} className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", (!cam || !stream) && "opacity-0")} />
