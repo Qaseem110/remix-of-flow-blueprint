@@ -165,7 +165,11 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
       if (handshake) return handshake;
       const p = new RTCPeerConnection(ice);
       const media = local;
-      if (media) media.getTracks().forEach((track) => p.addTrack(track, media));
+      if (media) {
+        media.getTracks().forEach((track) => p.addTrack(track, media));
+        if (!media.getVideoTracks().length) p.addTransceiver("video", { direction: "recvonly" });
+        if (!media.getAudioTracks().length) p.addTransceiver("audio", { direction: "recvonly" });
+      }
       else { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
       const incoming = new MediaStream();
       p.onicecandidate = (event) => { if (event.candidate) send("ice", { candidate: event.candidate.toJSON() }); };
@@ -204,8 +208,12 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
     setStatus("Starting camera and microphone…");
     void (async () => {
       try {
-        try { local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); }
-        catch { toast.info("Camera/mic unavailable — allow access to speak and share video."); }
+        // Camera may be held by another meeting app (Zoom/Meet/Teams) — fall back gracefully.
+        for (const c of [{ video: true, audio: true }, { video: false, audio: true }, { video: true, audio: false }]) {
+          try { local = await navigator.mediaDevices.getUserMedia(c); break; } catch { /* try next */ }
+        }
+        if (!local) toast.info("Camera/mic unavailable — close other meeting apps using them, or allow access. You can still see and hear the other person.");
+        else if (!local.getVideoTracks().length) toast.info("Camera is busy (maybe another meeting app). Joining with audio only.");
         if (cancelled) { local?.getTracks().forEach((track) => track.stop()); return; }
         setStream(local);
         if (localRef.current) localRef.current.srcObject = local;
