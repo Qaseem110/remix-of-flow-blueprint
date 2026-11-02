@@ -1070,7 +1070,7 @@ export type CallRecording = { id: string; appointmentId: string; uploaderId: str
 
 /** Uploads one audio segment of a video consultation. Readable only by admins. */
 export async function uploadCallRecording(appointmentId: string, blob: Blob, startedAt: string) {
-  if (!backendEnabled || !blob.size) return;
+  if (!SB || !blob.size) return;
   const uid = state.sessionUserId;
   if (!uid) return;
   const role = state.users.find((u) => u.id === uid)?.role ?? "patient";
@@ -1082,7 +1082,7 @@ export async function uploadCallRecording(appointmentId: string, blob: Blob, sta
 }
 
 export async function listCallRecordings(appointmentId: string): Promise<CallRecording[]> {
-  if (!backendEnabled) return [];
+  if (!SB) return [];
   const { data } = await supabase.from("call_recordings").select("*").eq("appointment_id", appointmentId).order("started_at");
   const out: CallRecording[] = [];
   for (const r of data ?? []) {
@@ -1093,7 +1093,7 @@ export async function listCallRecordings(appointmentId: string): Promise<CallRec
 }
 
 export async function recordedAppointmentIds(): Promise<Set<string>> {
-  if (!backendEnabled) return new Set();
+  if (!SB) return new Set();
   const { data } = await supabase.from("call_recordings").select("appointment_id");
   return new Set((data ?? []).map((r: { appointment_id: string }) => r.appointment_id));
 }
