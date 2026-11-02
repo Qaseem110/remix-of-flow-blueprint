@@ -15,6 +15,7 @@
 - Unit tests (MODE=test) run the store on seed data with the backend disabled. Why: tests stay offline and deterministic.
 - Booking and rescheduling go through the store's awaited write-through operation; PostgreSQL serializes allocation on the doctor's availability row and assigns stable queue numbers and times. Why: concurrent devices must obey daily capacity and receive the committed booking, not an optimistic estimate.
 - Booking availability uses Africa/Tripoli wall-clock time in both browser and database. Why: device timezone must not offer already-past clinic times.
+- Availability supports weekly shift arrays with per-shift capacity and date overrides; empty arrays mean days off, legacy fields are a fallback only. Browser schedule helpers and SQL allocation must resolve overrides first and enforce both shift and day totals. Why: split clinic visits must never create appointments during breaks.
 - Role areas are layout routes (`/patient`, `/doctor`, `/admin`, `/pharmacy`) wrapped in `AppShell`, which guards by session role. Why: one shell + nav per role.
 - Video calls serialize SDP/ICE through `src/lib/call-peer.ts` with one deterministic initiator and queued early candidates. Why: repeated greetings must not replace an in-progress connection or discard its network candidates.
 - Video calls fetch TURN relay credentials server-side (`src/lib/turn.functions.ts`, Cloudflare keys in secrets) and fall back to free no-account relays (freestun, openrelay). Why: direct peer-to-peer fails on mobile/CGNAT networks.

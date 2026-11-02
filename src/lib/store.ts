@@ -5,6 +5,8 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 import { fmtTime } from "@/lib/utils";
+import { scheduleShifts, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
+export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
 export type Role = "patient" | "doctor" | "admin" | "pharmacy";
 
@@ -106,6 +108,8 @@ export interface Availability {
   end: string;
   duration: number; // minutes
   dailyLimit?: number; // appointments shared across online and clinic visits
+  weeklyShifts?: Record<string, Shift[]>;
+  dateOverrides?: Record<string, Shift[]>;
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
   blockedDays?: string[]; // "yyyy-MM-dd" whole days off
 }
@@ -455,7 +459,9 @@ export function slotDateTime(a: { date: string; time: string }) {
 
 const BLOCKING: AppointmentStatus[] = ["Cancelled", "Rescheduled", "No Show"];
 
-export function dailyCapacity(av: Availability): number {
+export function dailyCapacity(av: Availability, date?: string): number {
+  if (date) return scheduleShifts(av, date).reduce((sum, shift) => sum + shift.capacity, 0);
+  if (av.weeklyShifts) return Math.max(0, ...Object.values(av.weeklyShifts).map((shifts) => shifts.reduce((sum, shift) => sum + shift.capacity, 0)));
   const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
   return av.dailyLimit ?? Math.max(1, Math.floor((minutes(av.end) - minutes(av.start)) / av.duration));
 }
@@ -464,25 +470,27 @@ export function dailyCapacity(av: Availability): number {
 export function getSlots(doctorId: string, date: string, s: State = state): { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] {
   const av = s.availability.find((a) => a.doctorId === doctorId);
   if (!av) return [];
-  const day = parse(date, "yyyy-MM-dd", new Date());
-  if (!av.days.includes(day.getDay())) return [];
+  const shifts = scheduleShifts(av, date);
   const dayOff = av.blockedDays?.includes(date) ?? false;
-  const capacity = dailyCapacity(av);
+  const capacity = dailyCapacity(av, date);
   const bookedToday = s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !["Cancelled", "Rescheduled"].includes(a.status));
   const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
-  let cur = parse(`${date} ${av.start}`, "yyyy-MM-dd HH:mm", new Date());
-  const end = parse(`${date} ${av.end}`, "yyyy-MM-dd HH:mm", new Date());
   const taken = new Set(bookedToday.map((a) => a.time));
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   const localNow = `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
-  const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / capacity));
-  for (let i = 0; i < capacity && cur < end; i++) {
+  for (const shift of shifts) {
+  let cur = parse(`${date} ${shift.start}`, "yyyy-MM-dd HH:mm", new Date());
+  const end = parse(`${date} ${shift.end}`, "yyyy-MM-dd HH:mm", new Date());
+  const usedInShift = bookedToday.filter((a) => a.time >= shift.start && a.time < shift.end).length;
+  const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / shift.capacity));
+  for (let i = 0; i < shift.capacity && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
     const booked = taken.has(time);
-    out.push({ time, available: bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
+    out.push({ time, available: usedInShift < shift.capacity && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
+  }
   }
   return out;
 }
@@ -696,16 +704,43 @@ export function updateDoctorProfile(id: string, p: Partial<DoctorProfile>) {
 export function updatePatientProfile(id: string, p: Partial<PatientProfile>) {
   set((s) => ({ ...s, patients: s.patients.map((d) => (d.userId === id ? { ...d, ...p } : d)) }));
 }
-export function saveAvailability(av: Availability) {
+function validateAvailability(av: Availability) {
+  if (av.weeklyShifts) {
+    Object.entries(av.weeklyShifts).forEach(([day, shifts]) => {
+      if (!/^[0-6]$/.test(day)) throw new Error("Invalid working day");
+      validateShifts(shifts);
+    });
+    Object.entries(av.dateOverrides ?? {}).forEach(([date, shifts]) => {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date).getTime())) throw new Error("Invalid schedule date");
+      validateShifts(shifts);
+    });
+    return;
+  }
   const capacity = dailyCapacity(av);
   const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3, 5));
   if (!Number.isInteger(capacity) || capacity < 1 || capacity > minutes(av.end) - minutes(av.start)) throw new Error("Daily limit must be a positive whole number within your working minutes");
   if (av.start >= av.end || !av.days.length) throw new Error("Select working days and valid working hours");
+}
+export function saveAvailability(av: Availability) {
+  validateAvailability(av);
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
     const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
     return { ...s, availability: [...s.availability.filter((a) => a.doctorId !== av.doctorId), next] };
   });
+}
+/** Await schedule persistence so the editor never reports an unsaved schedule as saved. */
+export async function persistAvailability(av: Availability) {
+  validateAvailability(av);
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { error } = await supabase.from("availability").update({ data: av }).eq("id", av.doctorId);
+    if (error) throw new Error(error.message);
+  }
+  const previous = hydrating;
+  hydrating = true;
+  saveAvailability(av);
+  hydrating = previous;
 }
 function patchAvailability(doctorId: string, fn: (a: Availability) => Availability) {
   set((s) => ({ ...s, availability: s.availability.map((a) => (a.doctorId === doctorId ? fn(a) : a)) }));

@@ -4,7 +4,7 @@ import { Building2, GraduationCap, Languages, MapPin, Video, Wallet, Briefcase }
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/app/common";
 import { BookingDatePicker } from "@/components/app/widgets";
-import { dailyCapacity, nextBooking, nextAvailableDate, todayStr, useStore } from "@/lib/store";
+import { weekdayShifts, nextBooking, nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 import { fmtTime } from "@/lib/utils";
@@ -56,7 +56,7 @@ function DoctorProfile() {
           </div>
           <div className="space-y-3 rounded-2xl border bg-card p-5">
             {facts.map((f) => <div key={f.label} className="flex gap-3 text-sm"><f.icon className="mt-0.5 h-4 w-4 text-primary" /><div><p className="text-muted-foreground">{f.label}</p><p className="font-medium">{f.v}</p></div></div>)}
-            {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {[...av.days].sort().map((x) => DAYS[x]).join(", ")} · {fmtTime(av.start)}–{fmtTime(av.end)} · {dailyCapacity(av)} patients per day</p>}
+            {av && <div className="space-y-2 border-t pt-3 text-sm">{DAYS.map((day, i) => { const shifts = weekdayShifts(av, i); return shifts.length ? <div key={day} className="flex flex-wrap justify-between gap-2"><span className="text-muted-foreground">{day}</span><span>{shifts.map((s) => `${fmtTime(s.start)}–${fmtTime(s.end)}`).join(" / ")}</span></div> : null; })}</div>}
           </div>
           <ReviewList doctorId={id} />
         </div>

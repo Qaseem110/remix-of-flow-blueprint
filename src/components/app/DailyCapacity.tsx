@@ -3,15 +3,20 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { dailyCapacity, saveAvailability, useStore } from "@/lib/store";
+import { Link } from "@tanstack/react-router";
+import { dailyCapacity, scheduleShifts, weekdayShifts, persistAvailability, todayStr, useStore } from "@/lib/store";
 
 export function DailyCapacity({ doctorId }: { doctorId: string }) {
   const av = useStore((s) => s.availability.find((a) => a.doctorId === doctorId));
   const [limit, setLimit] = useState<string | null>(null);
   if (!av) return null;
-  const save = () => {
+  const date = todayStr();
+  const shifts = scheduleShifts(av, date);
+  const save = async () => {
     try {
-      saveAvailability({ ...av, dailyLimit: Number(limit ?? dailyCapacity(av)) });
+      if (shifts.length !== 1) return;
+      const weeklyShifts = av.weeklyShifts ?? Object.fromEntries(Array.from({ length: 7 }, (_, i) => [String(i), weekdayShifts(av, i)]));
+      await persistAvailability({ ...av, weeklyShifts, dateOverrides: { ...av.dateOverrides, [date]: [{ ...shifts[0], capacity: Number(limit ?? dailyCapacity(av, date)) }] } });
       setLimit(null);
       toast.success("Daily patient limit saved");
     } catch (error) { toast.error((error as Error).message); }
@@ -19,10 +24,11 @@ export function DailyCapacity({ doctorId }: { doctorId: string }) {
   return (
     <section className="mb-6 flex flex-wrap items-end gap-3 border-b pb-5">
       <div>
-        <Label htmlFor="daily-patients">Patients per day</Label>
-        <Input id="daily-patients" type="number" min={1} step={1} value={limit ?? dailyCapacity(av)} onChange={(e) => setLimit(e.target.value)} className="mt-1 w-36" />
+        <Label htmlFor="daily-patients">Today's patient limit</Label>
+        <Input id="daily-patients" type="number" min={1} step={1} disabled={shifts.length !== 1} value={limit ?? dailyCapacity(av, date)} onChange={(e) => setLimit(e.target.value)} className="mt-1 w-36" />
       </div>
-      <Button onClick={save} disabled={limit === null}>Save daily limit</Button>
+      {shifts.length === 1 && <Button onClick={save} disabled={limit === null}>Save today's limit</Button>}
+      <Button variant="outline" asChild><Link to="/doctor/availability">Customize shifts</Link></Button>
     </section>
   );
 }
