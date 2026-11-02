@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 import { fmtTime } from "@/lib/utils";
+import { readReport } from "@/lib/read-report.functions";
 import { scheduleShifts, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
@@ -792,6 +793,25 @@ export function addAppointmentDocs(id: string, docs: DocFile[]) {
   if (a) notify(a.doctorId, "Patient uploaded documents", `${docs.length} file(s) added to ${id}.`, `/doctor/consultation/${id}`);
 }
 
+/** Patient call uploads are acknowledged only after storage and metadata are saved. */
+export async function persistPatientDocs(id: string, docs: DocFile[]): Promise<Appointment> {
+  const a = state.appointments.find((x) => x.id === id);
+  if (!a || a.patientId !== state.sessionUserId) throw new Error("Only the appointment's patient can upload documents");
+  const updated = { ...a, documents: [...a.documents, ...docs.map((d) => ({ ...d }))] };
+  if (SB) {
+    await uploadDocs(updated, id, true);
+    const table = TABLES.find((t) => t.key === "appointments");
+    if (!table) throw new Error("Document saving is unavailable");
+    const { supabase } = await import("./supabase");
+    const { error } = await supabase.from("appointments").update(table.row(updated)).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+  state = { ...state, appointments: state.appointments.map((x) => x.id === id ? updated : x) };
+  emit();
+  notify(a.doctorId, "Patient uploaded documents", `${docs.length} file(s) added to ${id}.`, `/doctor/consultation/${id}`);
+  return updated;
+}
+
 /** Delete a document. Only the role that uploaded it (patient or doctor) may delete it. */
 export function deleteDocument(docId: string) {
   const all = [...state.appointments, ...state.consultations].flatMap((x) => x.documents);
@@ -1082,19 +1102,19 @@ export function ensureFamilyMember(userId: string, name: string, relation = "Oth
 }
 
 /** Pick files and read each one with AI to fill in report name, date and type. Falls back silently. */
-export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role): Promise<DocFile[]> {
+export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role, requireTitle = false): Promise<DocFile[]> {
   const list = Array.from(files);
   const docs = makeDocs(list, uploadedBy);
-  if (import.meta.env.MODE === "test") return docs;
-  const { readReport } = await import("@/lib/read-report.functions");
+  if (import.meta.env.MODE === "test" && !requireTitle) return docs;
   return Promise.all(docs.map(async (d, i) => {
     try {
       const dataUrl = await new Promise<string>((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.onerror = rej; r.readAsDataURL(list[i]); });
       const info = await readReport({ data: { dataUrl, fileName: d.name } });
+      if (requireTitle && !info?.title.trim()) throw new Error("Could not read the report heading. Please upload a clearer image or PDF and try again.");
       const ext = d.name.includes(".") ? d.name.slice(d.name.lastIndexOf(".")) : "";
       const nm = info?.title ? `${info.title.replace(/[\\/:*?"<>|]/g, "-")}${info.reportDate ? " " + info.reportDate : ""}${ext}` : d.name;
       return info ? { ...d, name: nm, title: info.title || undefined, reportDate: info.reportDate || undefined, kind: info.kind || d.kind } : d;
-    } catch { return d; }
+    } catch (error) { if (requireTitle) throw error; return d; }
   }));
 }
 
