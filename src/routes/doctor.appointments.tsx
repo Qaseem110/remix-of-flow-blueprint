@@ -15,10 +15,11 @@ export const Route = createFileRoute("/doctor/appointments")({
 });
 
 function DoctorAppointments() {
-  const user = useSession()!;
+  const user = useSession();
   const s = useStore((s) => s);
   const [date, setDate] = useState("");
   const [status, setStatus] = useState("all");
+  if (!user) return null;
   const list = s.appointments
     .filter((a) => a.doctorId === user.id && (!date || a.date === date) && (status === "all" || a.status === status))
     .sort((a, b) => slotDateTime(a).getTime() - slotDateTime(b).getTime());

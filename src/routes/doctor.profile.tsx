@@ -15,8 +15,10 @@ export const Route = createFileRoute("/doctor/profile")({
 });
 
 function DocProfile() {
-  const user = useSession()!;
-  const d = useStore((s) => s.doctors.find((x) => x.userId === user.id))!;
+  const user = useSession();
+  const d = useStore((s) => s.doctors.find((x) => x.userId === user?.id));
+  if (!user) return null;
+  if (!d) return <div role="status" className="mx-auto max-w-3xl"><PageHeader title="My profile" /><p className="text-muted-foreground">Your doctor profile is unavailable. Please refresh to try again.</p></div>;
   const save = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -28,7 +30,14 @@ function DocProfile() {
     });
     toast.success("Profile saved");
   };
-  const onPic = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) updateDoctorProfile(user.id, { avatar: URL.createObjectURL(file) }); };
+  const onPic = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { if (typeof reader.result === "string") updateDoctorProfile(user.id, { avatar: reader.result }); };
+    reader.onerror = () => toast.error("Could not read your profile picture. Please try again.");
+    reader.readAsDataURL(file);
+  };
   const fields: [string, string, string | number, string?][] = [
     ["name", "Name", user.name], ["phone", "Phone", user.phone], ["specialization", "Specialization", d.specialization], ["qualification", "Qualification", d.qualification],
     ["licenseNumber", "License / registration no.", d.licenseNumber], ["experience", "Experience (years)", d.experience, "number"], ["fee", `Consultation fee (${CURRENCY})`, d.fee, "number"],
