@@ -105,7 +105,18 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
 }
 
 /** Free peer-to-peer video; signaling stays on the appointment's shared room. */
-const ICE: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+const STUN_ONLY: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+let iceCache: Promise<RTCConfiguration> | null = null;
+/** Fetches relay (TURN) servers once per session so strict networks can still connect. */
+function loadIce(): Promise<RTCConfiguration> {
+  if (!iceCache) {
+    iceCache = import("@/lib/turn.functions")
+      .then(({ getIceServers }) => getIceServers())
+      .then((r) => ({ iceServers: r.iceServers as RTCIceServer[] }))
+      .catch(() => { iceCache = null; return STUN_ONLY; });
+  }
+  return iceCache;
+}
 
 export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
   const localRef = useRef<HTMLVideoElement>(null);
@@ -123,6 +134,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
     let failed = false;
     let local: MediaStream | null = null;
     let pc: RTCPeerConnection | null = null;
+    let ice: RTCConfiguration = STUN_ONLY;
     let channel: RealtimeChannel | null = null;
     let handshake: ReturnType<typeof createCallPeer> | null = null;
     let remoteId: string | null = null;
@@ -148,7 +160,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
     };
     const ensurePeer = () => {
       if (handshake) return handshake;
-      const p = new RTCPeerConnection(ICE);
+      const p = new RTCPeerConnection(ice);
       const media = local;
       if (media) media.getTracks().forEach((track) => p.addTrack(track, media));
       else { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
@@ -169,7 +181,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           setError(false);
           setStatus("Connected");
         } else if (p.connectionState === "failed") {
-          fail("Your networks could not connect directly. Try another Wi-Fi or mobile network, then retry.");
+          fail("The video connection failed. Please tap Retry connection.");
         } else if (p.connectionState === "disconnected") {
           setConnected(false);
           setStatus("Connection interrupted — reconnecting…");
@@ -194,6 +206,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
         if (cancelled) { local?.getTracks().forEach((track) => track.stop()); return; }
         setStream(local);
         if (localRef.current) localRef.current.srcObject = local;
+        ice = await loadIce();
         const { supabase } = await import("@/lib/supabase");
         if (cancelled) return;
         channel = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false, ack: true } } });
