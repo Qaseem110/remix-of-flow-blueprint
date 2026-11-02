@@ -133,6 +133,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
   const [cam, setCam] = useState(true);
   // Backup: free no-account VDO.Ninja room (has its own relay servers) when direct P2P fails.
   const [backup, setBackup] = useState(false);
+  const sendRef = useRef<((event: string) => void) | null>(null);
 
   useEffect(() => {
     if (backup) return;
@@ -161,6 +162,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
       void channel.send({ type: "broadcast", event, payload: { ...payload, from: me, to: remoteId } })
         .then((result) => { if (!cancelled && result !== "ok") fail("Call messages could not be delivered. Please retry."); });
     };
+    sendRef.current = send;
     const run = (promise: Promise<void> | undefined) => {
       void promise?.catch(() => fail("The video connection could not be established. Please retry."));
     };
@@ -309,7 +311,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           <p className="mt-3 font-medium">{otherName}</p>
           <p role="status" className="mt-1 max-w-sm px-4 text-center text-xs opacity-80">{status}</p>
           {error && <Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Retry connection</Button>}
-          <Button variant="link" className="mt-1 text-sidebar-foreground" onClick={() => setBackup(true)}>Use backup video call</Button>
+          <Button variant="link" className="mt-1 text-sidebar-foreground" onClick={() => { sendRef.current?.("backup"); setTimeout(() => setBackup(true), 300); }}>Use backup video call</Button>
         </div>
       )}
       <video ref={localRef} autoPlay muted playsInline aria-label={selfName} className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", (!cam || !stream) && "opacity-0")} />
