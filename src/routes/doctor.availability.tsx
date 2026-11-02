@@ -1,72 +1,74 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
+import { Copy, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/app/common";
 import { BlockSlots } from "@/components/app/BlockSlots";
-import { dailyCapacity, saveAvailability, todayStr, updateDoctorProfile, useSession, useStore } from "@/lib/store";
-import { cn } from "@/lib/utils";
+import { ShiftEditor } from "@/components/app/ShiftEditor";
+import { persistAvailability, scheduleShifts, weekdayShifts, todayStr, updateDoctorProfile, useSession, useStore, type Availability as Schedule, type Shift } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/doctor/availability")({
-  head: () => meta("Availability", "Set working days, hours, daily patient capacity and consultation types."),
+  head: () => meta("Availability", "Customize weekly clinic shifts, patient limits, special dates and days off."),
   component: Availability,
 });
+const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
-const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
-function Availability() {
-  const user = useSession();
-  const av = useStore((s) => s.availability.find((a) => a.doctorId === user?.id));
-  const dp = useStore((s) => s.doctors.find((d) => d.userId === user?.id));
-  const [days, setDays] = useState(av?.days ?? []);
-  const [start, setStart] = useState(av?.start ?? "09:00");
-  const [end, setEnd] = useState(av?.end ?? "17:00");
-  const [limit, setLimit] = useState(String(av ? dailyCapacity(av) : 16));
-  const [pDate, setPDate] = useState(todayStr());
-  if (!user || !av || !dp) return null;
-  const save = () => {
-    if (start >= end) return toast.error("End time must be after start time");
-    if (!days.length) return toast.error("Pick at least one working day");
+function ScheduleForm({ av }: { av: Schedule }) {
+  const dp = useStore((s) => s.doctors.find((d) => d.userId === av.doctorId));
+  const [week, setWeek] = useState<Record<string, Shift[]>>(() => Object.fromEntries(DAYS.map((_, i) => [String(i), weekdayShifts(av, i).map((s) => ({ ...s }))])));
+  const [overrides, setOverrides] = useState<Record<string, Shift[]>>(av.dateOverrides ?? {});
+  const [date, setDate] = useState(todayStr());
+  const [blockDate, setBlockDate] = useState(todayStr());
+  const [busy, setBusy] = useState(false);
+  const [dirty, setDirty] = useState(false);
+  const changeDay = (day: string, shifts: Shift[]) => { setWeek((w) => ({ ...w, [day]: shifts })); setDirty(true); };
+  const changeOverrides = (next: Record<string, Shift[]>) => { setOverrides(next); setDirty(true); };
+  const save = async () => {
+    setBusy(true);
     try {
-      saveAvailability({ ...av, days, start, end, dailyLimit: Number(limit) });
-      toast.success("Availability saved");
-    } catch (error) { toast.error((error as Error).message); }
+      await persistAvailability({ ...av, weeklyShifts: week, dateOverrides: overrides, days: DAYS.map((_, i) => i).filter((i) => week[String(i)]?.length) });
+      setDirty(false); toast.success("Schedule saved");
+    } catch (error) { toast.error((error as Error).message); } finally { setBusy(false); }
   };
   return (
     <div className="mx-auto max-w-5xl">
-      <PageHeader title="Availability & consultation settings" />
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-6 rounded-2xl border bg-card p-6 shadow-soft">
-          <div>
-            <Label>Working days</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {DAYS.map((d, i) => <button key={d} type="button" onClick={() => setDays(days.includes(i) ? days.filter((x) => x !== i) : [...days, i])} className={cn("h-10 w-12 rounded-lg border text-sm font-medium", days.includes(i) ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>{d}</button>)}
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><Label htmlFor="st">Start time</Label><Input id="st" type="time" value={start} onChange={(e) => setStart(e.target.value)} /></div>
-            <div><Label htmlFor="en">End time</Label><Input id="en" type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
-          </div>
-          <div>
-            <Label htmlFor="availability-limit">Patients per day</Label>
-            <Input id="availability-limit" type="number" min={1} step={1} value={limit} onChange={(e) => setLimit(e.target.value)} className="mt-2" />
-          </div>
-          <Button onClick={save} className="w-full">Save availability</Button>
-          <div className="space-y-3 border-t pt-4">
-            <label className="flex items-center justify-between text-sm"><span>Online consultations</span><Switch checked={dp.online} onCheckedChange={(v) => updateDoctorProfile(user.id, { online: v })} /></label>
-            <label className="flex items-center justify-between text-sm"><span>In-clinic consultations</span><Switch checked={dp.clinic} onCheckedChange={(v) => updateDoctorProfile(user.id, { clinic: v })} /></label>
-          </div>
+      <PageHeader title="Availability" subtitle="Clinic shifts & consultation settings" />
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+        <div className="flex flex-wrap gap-5">
+          {dp && <><label className="flex items-center gap-2 text-sm"><Switch checked={dp.online} onCheckedChange={(v) => updateDoctorProfile(av.doctorId, { online: v })} />Online</label><label className="flex items-center gap-2 text-sm"><Switch checked={dp.clinic} onCheckedChange={(v) => updateDoctorProfile(av.doctorId, { clinic: v })} />In-clinic</label></>}
         </div>
-        <div className="rounded-2xl border bg-card p-6">
-          <h2 className="mb-1 text-lg font-semibold">Mark times unavailable</h2>
-          <p className="mb-4 text-sm text-muted-foreground">Busy, on leave or in surgery? Block a time or a whole day so patients can't book it.</p>
-          <BlockSlots doctorId={user.id} date={pDate} onDate={setPDate} />
-        </div>
+        <Button onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save schedule"}</Button>
       </div>
+      <Tabs defaultValue="weekly">
+        <TabsList className="mb-4 flex h-auto flex-wrap justify-start"><TabsTrigger value="weekly">Weekly schedule</TabsTrigger><TabsTrigger value="dates">Special dates</TabsTrigger><TabsTrigger value="blocked">Unavailable times</TabsTrigger></TabsList>
+        <TabsContent value="weekly">
+          {DAYS.map((day, i) => {
+            const shifts = week[String(i)] ?? [];
+            return <section key={day} aria-label={day} className="grid gap-4 border-b py-5 md:grid-cols-[180px_1fr]">
+              <div><div className="flex items-center justify-between gap-3 md:justify-start"><h2 className="font-semibold">{day}</h2><Switch aria-label={`${day} working`} checked={shifts.length > 0} onCheckedChange={(v) => changeDay(String(i), v ? [{ start: "09:00", end: "12:00", capacity: 10 }] : [])} /></div><p className="mt-1 text-xs text-muted-foreground">{shifts.reduce((sum, s) => sum + (s.capacity || 0), 0)} patients</p>
+              {shifts.length > 0 && <Button size="sm" variant="ghost" className="mt-2 px-0" onClick={() => { setWeek(Object.fromEntries(DAYS.map((_, d) => [String(d), (week[String(d)]?.length || d === i) ? shifts.map((s) => ({ ...s })) : []]))); setDirty(true); }}><Copy className="mr-1 h-3.5 w-3.5" />Copy to working days</Button>}</div>
+              <ShiftEditor shifts={shifts} onChange={(next) => changeDay(String(i), next)} id={`day-${i}`} />
+            </section>;
+          })}
+        </TabsContent>
+        <TabsContent value="dates">
+          <div className="mb-5 flex flex-wrap items-end gap-3 border-b pb-5"><div><Label htmlFor="special-date">Date</Label><Input id="special-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className="mt-1 w-44" /></div><Button variant="outline" disabled={!date || !!overrides[date]} onClick={() => changeOverrides({ ...overrides, [date]: scheduleShifts({ ...av, weeklyShifts: week }, date) })}>Add special date</Button></div>
+          {Object.entries(overrides).sort(([a], [b]) => a.localeCompare(b)).map(([day, shifts]) => <section key={day} aria-label={`Special ${day}`} className="border-b py-5"><div className="mb-4 flex items-center justify-between"><h2 className="font-semibold">{day} · {shifts.reduce((sum, s) => sum + (s.capacity || 0), 0)} patients</h2><Button size="icon" variant="ghost" aria-label={`Remove special date ${day}`} title="Restore weekly schedule" onClick={() => { const next = { ...overrides }; delete next[day]; changeOverrides(next); }}><Trash2 className="h-4 w-4" /></Button></div><ShiftEditor shifts={shifts} id={`date-${day}`} onChange={(next) => changeOverrides({ ...overrides, [day]: next })} /><Button size="sm" variant="ghost" className="mt-2" onClick={() => changeOverrides({ ...overrides, [day]: [] })}>Mark day off</Button></section>)}
+        </TabsContent>
+        <TabsContent value="blocked"><BlockSlots doctorId={av.doctorId} date={blockDate} onDate={setBlockDate} /></TabsContent>
+      </Tabs>
+      {dirty && <div className="mt-5 flex justify-end"><Button onClick={save} disabled={busy}>{busy ? "Saving…" : "Save schedule"}</Button></div>}
     </div>
   );
+}
+function Availability() {
+  const user = useSession();
+  const av = useStore((s) => s.availability.find((a) => a.doctorId === user?.id));
+  return av ? <ScheduleForm key={av.doctorId} av={av} /> : null;
 }
