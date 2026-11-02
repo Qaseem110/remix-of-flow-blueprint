@@ -5,7 +5,7 @@
 - [x] Verify allocation rules and signed-in booking flow (23 tests passed; saved booking read back after refresh, then test booking cancelled).
 
 # Customizable doctor schedules
-- [ ] Add multiple shifts per weekday and date-specific schedule overrides.
-- [ ] Enforce shift hours and patient limits in automatic booking and the database.
-- [ ] Update doctor schedule editor, dashboard limit and patient schedule display.
-- [ ] Test split shifts, overrides, limits and schedule saving.
+- [x] Add multiple shifts per weekday and date-specific schedule overrides.
+- [x] Enforce shift hours and patient limits in automatic booking and the database.
+- [x] Update doctor schedule editor, dashboard limit and patient schedule display.
+- [x] Test split shifts, overrides, limits and schedule saving (30 tests passed; doctor saved two shifts and read them back after refresh; test override removed).
