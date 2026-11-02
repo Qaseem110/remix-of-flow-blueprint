@@ -8,36 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, fmtTime } from "@/lib/utils";
-import { cancelAppointment, getSlots, queueInfo, rescheduleAppointment, useStore, type Appointment, type Role } from "@/lib/store";
+import { cancelAppointment, nextBooking, queueInfo, rescheduleAppointment, useStore, type Appointment, type Role } from "@/lib/store";
 
 /** Date strip + auto-generated slots. Only available slots are selectable. */
-export function SlotPicker({ doctorId, date, time, onDate, onTime }: { doctorId: string; date: string; time: string; onDate: (d: string) => void; onTime: (t: string) => void }) {
+export function BookingDatePicker({ doctorId, date, onDate, excludeId }: { doctorId: string; date: string; onDate: (d: string) => void; excludeId?: string }) {
   const days = Array.from({ length: 14 }, (_, i) => format(addDays(new Date(), i), "yyyy-MM-dd"));
-  const slots = useStore((s) => getSlots(doctorId, date, s));
+  const state = useStore((s) => s);
+  const s = excludeId ? { ...state, appointments: state.appointments.filter((a) => a.id !== excludeId) } : state;
+  const allocation = nextBooking(doctorId, date, s);
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto pb-2">
         {days.map((d) => {
           const dt = parse(d, "yyyy-MM-dd", new Date());
-          const has = getSlots(doctorId, d).some((x) => x.available);
+          const has = !!nextBooking(doctorId, d, s);
           return (
-            <button key={d} type="button" disabled={!has} onClick={() => { onDate(d); onTime(""); }}
-              className={cn("flex w-16 shrink-0 flex-col items-center rounded-xl border px-2 py-2 text-sm transition", d === date ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary", !has && "cursor-not-allowed opacity-40")}>
+            <Button key={d} type="button" variant="outline" disabled={!has} onClick={() => onDate(d)}
+              className={cn("flex h-auto w-16 shrink-0 flex-col items-center rounded-lg border px-2 py-2 text-sm transition", d === date ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary", !has && "cursor-not-allowed opacity-40")}>
               <span className="text-xs uppercase">{format(dt, "EEE")}</span>
               <span className="font-display text-xl font-semibold">{format(dt, "d")}</span>
               <span className="text-[10px]">{format(dt, "MMM")}</span>
-            </button>
+            </Button>
           );
         })}
       </div>
-      <div className="mt-4 grid grid-cols-3 gap-2 sm:grid-cols-5">
-        {slots.length === 0 && <p className="col-span-full text-sm text-muted-foreground">No working hours on this day.</p>}
-        {slots.map((s) => (
-          <button key={s.time} type="button" disabled={!s.available} onClick={() => onTime(s.time)}
-            className={cn("rounded-lg border py-2 text-sm font-medium transition", s.time === time ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary", !s.available && "cursor-not-allowed bg-muted text-muted-foreground line-through opacity-60")}>
-            {fmtTime(s.time)}
-          </button>
-        ))}
+      <div className="mt-4 border-t pt-4">
+        {allocation ? <dl className="grid grid-cols-2 gap-3"><div><dt className="text-xs text-muted-foreground">Next queue number</dt><dd className="text-xl font-semibold">#{allocation.queueNumber}</dd></div><div><dt className="text-xs text-muted-foreground">Estimated time</dt><dd className="text-xl font-semibold">{fmtTime(allocation.time)}</dd></div></dl> : <p className="text-sm text-muted-foreground">No places available on this day.</p>}
       </div>
     </div>
   );
@@ -46,22 +42,24 @@ export function SlotPicker({ doctorId, date, time, onDate, onTime }: { doctorId:
 export function RescheduleDialog({ appt, onDone, trigger }: { appt: Appointment; onDone?: (id: string) => void; trigger: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(appt.date);
-  const [time, setTime] = useState("");
-  const confirm = () => {
+  const [busy, setBusy] = useState(false);
+  const available = useStore((s) => !!nextBooking(appt.doctorId, date, { ...s, appointments: s.appointments.filter((a) => a.id !== appt.id) }));
+  const confirm = async () => {
+    setBusy(true);
     try {
-      const n = rescheduleAppointment(appt.id, date, time);
+      const n = await rescheduleAppointment(appt.id, date);
       toast.success(`Rescheduled — new ID ${n.id}`);
       setOpen(false);
       onDone?.(n.id);
-    } catch (e) { toast.error((e as Error).message); }
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl">
-        <DialogHeader><DialogTitle>Reschedule {appt.id}</DialogTitle><DialogDescription>Only available slots are shown. Your current slot ({appt.date} {fmtTime(appt.time)}) will be released.</DialogDescription></DialogHeader>
-        <SlotPicker doctorId={appt.doctorId} date={date} time={time} onDate={setDate} onTime={setTime} />
-        <DialogFooter><Button disabled={!time} onClick={confirm}>Confirm new slot</Button></DialogFooter>
+        <DialogHeader><DialogTitle>Reschedule {appt.id}</DialogTitle><DialogDescription>Current appointment: {appt.date} at {fmtTime(appt.time)}.</DialogDescription></DialogHeader>
+        <BookingDatePicker doctorId={appt.doctorId} date={date} onDate={setDate} excludeId={appt.id} />
+        <DialogFooter><Button disabled={!available || busy} onClick={confirm}>{busy ? "Saving…" : "Confirm new date"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>
   );

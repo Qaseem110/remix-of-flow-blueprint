@@ -8,6 +8,7 @@ import { PageHeader, Stat, StatusBadge, TypeBadge, Initials } from "@/components
 import { callPatient, dayAppointments, inActiveQueue, markNoShow, moveInQueue, returnToQueue, todayStr, useSession, useStore, waitingQueue } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
+import { DailyCapacity } from "@/components/app/DailyCapacity";
 
 export const Route = createFileRoute("/doctor/")({
   head: () => meta("Doctor dashboard", "Today's appointments, live queue and consultations."),
@@ -15,10 +16,12 @@ export const Route = createFileRoute("/doctor/")({
 });
 
 function DoctorDashboard() {
-  const user = useSession()!;
+  const user = useSession();
   const navigate = useNavigate();
   const s = useStore((s) => s);
-  const dp = s.doctors.find((d) => d.userId === user.id)!;
+  if (!user) return null;
+  const dp = s.doctors.find((d) => d.userId === user.id);
+  if (!dp) return null;
   const today = dayAppointments(user.id, todayStr(), s);
   const current = today.find((a) => a.status === "In Consultation" || a.status === "Ready to Join");
   const queue = waitingQueue(today);
@@ -38,6 +41,7 @@ function DoctorDashboard() {
         </div>
       )}
       <PageHeader title="Today" subtitle={new Date().toDateString()} />
+      <DailyCapacity doctorId={user.id} />
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="Appointments" value={today.length} />
         <Stat label="In queue" value={queue.length} />

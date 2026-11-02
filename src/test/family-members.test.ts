@@ -19,10 +19,10 @@ describe("linked family accounts", () => {
     expect(b.id).toBe(a.id);
     expect(getState().patients[0].members?.filter((m) => m.name === "Shazal")).toHaveLength(1);
   });
-  it("a member's appointment does not show under the main account", () => {
+  it("a member's appointment does not show under the main account", async () => {
     const pid = getState().patients[0].userId;
     const m = ensureFamilyMember(pid, "Shazal", "Sister");
-    const appt = bookAppointment({ ...openSlot(), patientId: pid, memberId: m.id, memberName: m.name, type: "clinic", reason: "Fever", documents: [] });
+    const appt = await bookAppointment({ ...openSlot(), patientId: pid, memberId: m.id, memberName: m.name, type: "clinic", reason: "Fever", documents: [] });
     expect(memberOf(appt)).toBe(m.id);
     const mainList = getState().appointments.filter((x) => x.patientId === pid && memberOf(x) === null);
     expect(mainList.some((x) => x.id === appt.id)).toBe(false);

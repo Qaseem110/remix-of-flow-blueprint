@@ -3,8 +3,8 @@ import { useState } from "react";
 import { Building2, GraduationCap, Languages, MapPin, Video, Wallet, Briefcase } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar } from "@/components/app/common";
-import { SlotPicker } from "@/components/app/widgets";
-import { nextAvailableDate, todayStr, useStore } from "@/lib/store";
+import { BookingDatePicker } from "@/components/app/widgets";
+import { dailyCapacity, nextBooking, nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 import { fmtTime } from "@/lib/utils";
@@ -20,7 +20,7 @@ function DoctorProfile() {
   const d = useStore((s) => s.doctors.find((x) => x.userId === id));
   const av = useStore((s) => s.availability.find((x) => x.doctorId === id));
   const [date, setDate] = useState(() => nextAvailableDate(id) ?? todayStr());
-  const [time, setTime] = useState("");
+  const allocation = useStore((s) => nextBooking(id, date, s));
   if (!u || !d) return <p>Doctor not found.</p>;
   const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const facts = [
@@ -56,15 +56,15 @@ function DoctorProfile() {
           </div>
           <div className="space-y-3 rounded-2xl border bg-card p-5">
             {facts.map((f) => <div key={f.label} className="flex gap-3 text-sm"><f.icon className="mt-0.5 h-4 w-4 text-primary" /><div><p className="text-muted-foreground">{f.label}</p><p className="font-medium">{f.v}</p></div></div>)}
-            {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {av.days.sort().map((x) => DAYS[x]).join(", ")} · {fmtTime(av.start)}–{fmtTime(av.end)} · {av.duration}-min visits</p>}
+            {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {[...av.days].sort().map((x) => DAYS[x]).join(", ")} · {fmtTime(av.start)}–{fmtTime(av.end)} · {dailyCapacity(av)} patients per day</p>}
           </div>
           <ReviewList doctorId={id} />
         </div>
         <div className="rounded-2xl border bg-card p-5">
-          <h2 className="mb-4 text-lg font-semibold">Available slots</h2>
-          <SlotPicker doctorId={id} date={date} time={time} onDate={setDate} onTime={setTime} />
-          <Button className="mt-5 w-full" disabled={!time} asChild={!!time}>
-            {time ? <Link to="/patient/book/$doctorId" params={{ doctorId: id }} search={{ date, time }}>Book {date} at {time}</Link> : <span>Select a slot</span>}
+          <h2 className="mb-4 text-lg font-semibold">Available dates</h2>
+          <BookingDatePicker doctorId={id} date={date} onDate={setDate} />
+          <Button className="mt-5 w-full" disabled={!allocation} asChild={!!allocation}>
+            {allocation ? <Link to="/patient/book/$doctorId" params={{ doctorId: id }} search={{ date }}>Book {date}</Link> : <span>No places available</span>}
           </Button>
         </div>
       </div>
