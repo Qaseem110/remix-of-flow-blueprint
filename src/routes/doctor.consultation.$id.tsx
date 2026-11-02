@@ -109,15 +109,29 @@ function Console() {
         </div>
         <aside className="rounded-2xl border bg-card p-5">
           <Tabs defaultValue="current">
-            <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="current">This visit</TabsTrigger><TabsTrigger value="history">History</TabsTrigger></TabsList>
+            <TabsList className="grid w-full grid-cols-3"><TabsTrigger value="current">This visit</TabsTrigger><TabsTrigger value="reports">All reports</TabsTrigger><TabsTrigger value="history">History</TabsTrigger></TabsList>
             <TabsContent value="current" className="space-y-3">
               <div><p className="text-xs uppercase text-muted-foreground">Reason for visit</p><p className="text-sm">{a.reason}</p></div>
               <div><p className="mb-2 text-xs uppercase text-muted-foreground">Patient uploaded documents</p><PinGate patientId={a.patientId}><DocList docs={a.documents} empty="No uploads for this visit." /></PinGate></div>
             </TabsContent>
+            <TabsContent value="reports"><PinGate patientId={a.patientId}><AllReports patientId={a.patientId} memberId={a.memberId ?? null} /></PinGate></TabsContent>
             <TabsContent value="history"><PatientHistory patientId={a.patientId} memberId={a.memberId ?? null} excludeId={a.id} /></TabsContent>
           </Tabs>
         </aside>
       </div>
     </div>
   );
+}
+
+/** Every health report of the patient (all visits, all doctors), newest first. */
+function AllReports({ patientId, memberId }: { patientId: string; memberId: string | null }) {
+  const appts = useStore((s) => s.appointments);
+  const cons = useStore((s) => s.consultations);
+  const visits = appts.filter((x) => x.patientId === patientId && (x.memberId ?? null) === memberId);
+  const ids = new Set(visits.map((x) => x.id));
+  const seen = new Set<string>();
+  const docs = [...visits.flatMap((x) => x.documents), ...cons.filter((c) => ids.has(c.appointmentId)).flatMap((c) => c.documents)]
+    .filter((d) => (seen.has(d.id) ? false : (seen.add(d.id), true)))
+    .sort((x, y) => (y.uploadedAt ?? "").localeCompare(x.uploadedAt ?? ""));
+  return <DocList docs={docs} empty="No health reports yet." />;
 }
