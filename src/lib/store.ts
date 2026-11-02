@@ -144,6 +144,7 @@ export interface Appointment {
   payment?: "cash" | "card";
   memberId?: string; // set when booked for a linked family member
   memberName?: string;
+  queueOrder?: number; // set when a doctor moves a patient within the queue
 }
 
 export interface PrescriptionItem {
@@ -505,13 +506,20 @@ export function inActiveQueue(a: Appointment) {
   return ["Confirmed", "Waiting", "Ready to Join", "In Consultation"].includes(a.status);
 }
 
+/** Position key in the live queue (doctor can override the default order). */
+export const queueKey = (a: Appointment) => a.queueOrder ?? a.queueNumber;
+/** Patients waiting to be called, in queue order. */
+export function waitingQueue(day: Appointment[]) {
+  return day.filter(inActiveQueue).filter((x) => x.status !== "In Consultation" && x.status !== "Ready to Join").sort((x, y) => queueKey(x) - queueKey(y));
+}
+
 export function queueInfo(appointmentId: string, s: State = state) {
   const a = s.appointments.find((x) => x.id === appointmentId);
   if (!a) return null;
   const day = dayAppointments(a.doctorId, a.date, s);
   const current = day.find((x) => x.status === "In Consultation" || x.status === "Ready to Join");
-  const active = day.filter(inActiveQueue).filter((x) => x.status !== "In Consultation" && x.status !== "Ready to Join");
-  const ahead = active.filter((x) => x.queueNumber < a.queueNumber).length;
+  const active = waitingQueue(day);
+  const ahead = active.filter((x) => queueKey(x) < queueKey(a)).length;
   const lastDone = [...day].reverse().find((x) => x.status === "Completed");
   return {
     queueActive: a.date === todayStr(),
@@ -838,6 +846,36 @@ export function markNoShow(id: string) {
     notify(a.patientId, "Marked as no-show", `You missed ${id}. You can book a new appointment anytime.`, `/patient/appointments/${id}`);
     notifyApproaching(a.doctorId, a.date);
   }
+}
+
+function keyAt(list: Appointment[], position: number) {
+  if (list.length === 0) return 1;
+  const pos = Math.max(0, Math.min(position, list.length));
+  if (pos === 0) return queueKey(list[0]) - 1;
+  if (pos === list.length) return queueKey(list[list.length - 1]) + 1;
+  return (queueKey(list[pos - 1]) + queueKey(list[pos])) / 2;
+}
+
+/** Bring an absent (no-show) patient back into today's queue; position = patients ahead of them (0 = next). */
+export function returnToQueue(id: string, position: number) {
+  const a = state.appointments.find((x) => x.id === id);
+  if (!a || a.status !== "No Show") return;
+  const list = waitingQueue(dayAppointments(a.doctorId, a.date)).filter((x) => x.id !== id);
+  patchAppt(id, { status: "Waiting", queueOrder: keyAt(list, position) });
+  const ahead = Math.max(0, Math.min(position, list.length));
+  notify(a.patientId, "You're back in the queue", ahead === 0 ? "You are next in line." : `${ahead} patient${ahead > 1 ? "s" : ""} ahead of you.`, `/patient/appointments/${id}`);
+}
+
+/** Move a waiting patient up (-1) or down (+1) in the queue. */
+export function moveInQueue(id: string, dir: -1 | 1) {
+  const a = state.appointments.find((x) => x.id === id);
+  if (!a) return;
+  const list = waitingQueue(dayAppointments(a.doctorId, a.date));
+  const i = list.findIndex((x) => x.id === id);
+  const j = i + dir;
+  if (i < 0 || j < 0 || j >= list.length) return;
+  const rest = list.filter((x) => x.id !== id);
+  patchAppt(id, { queueOrder: keyAt(rest, j) });
 }
 
 export function canJoin(a: Appointment) {
