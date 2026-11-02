@@ -40,7 +40,7 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
-  const chunkError = /dynamically imported module|Importing a module script failed|error loading dynamically|Loading chunk/i.test(String(error?.message ?? error));
+  const chunkError = /dynamically imported module|Importing a module script failed|error loading dynamically|Loading chunk/i.test(String(error instanceof Error ? error.message : error));
   const [recovering, setRecovering] = useState(chunkError);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
