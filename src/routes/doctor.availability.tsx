@@ -7,32 +7,34 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/app/common";
 import { BlockSlots } from "@/components/app/BlockSlots";
-import { saveAvailability, todayStr, updateDoctorProfile, useSession, useStore } from "@/lib/store";
+import { dailyCapacity, saveAvailability, todayStr, updateDoctorProfile, useSession, useStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/doctor/availability")({
-  head: () => meta("Availability", "Set working days, hours, appointment duration and consultation types."),
+  head: () => meta("Availability", "Set working days, hours, daily patient capacity and consultation types."),
   component: Availability,
 });
 
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const DURATIONS = [15, 20, 30, 45, 60];
 
 function Availability() {
-  const user = useSession()!;
-  const av = useStore((s) => s.availability.find((a) => a.doctorId === user.id))!;
-  const dp = useStore((s) => s.doctors.find((d) => d.userId === user.id))!;
-  const [days, setDays] = useState(av.days);
-  const [start, setStart] = useState(av.start);
-  const [end, setEnd] = useState(av.end);
-  const [duration, setDuration] = useState(av.duration);
+  const user = useSession();
+  const av = useStore((s) => s.availability.find((a) => a.doctorId === user?.id));
+  const dp = useStore((s) => s.doctors.find((d) => d.userId === user?.id));
+  const [days, setDays] = useState(av?.days ?? []);
+  const [start, setStart] = useState(av?.start ?? "09:00");
+  const [end, setEnd] = useState(av?.end ?? "17:00");
+  const [limit, setLimit] = useState(String(av ? dailyCapacity(av) : 16));
   const [pDate, setPDate] = useState(todayStr());
+  if (!user || !av || !dp) return null;
   const save = () => {
     if (start >= end) return toast.error("End time must be after start time");
     if (!days.length) return toast.error("Pick at least one working day");
-    saveAvailability({ doctorId: user.id, days, start, end, duration });
-    toast.success("Availability saved — slots regenerated");
+    try {
+      saveAvailability({ ...av, days, start, end, dailyLimit: Number(limit) });
+      toast.success("Availability saved");
+    } catch (error) { toast.error((error as Error).message); }
   };
   return (
     <div className="mx-auto max-w-5xl">
@@ -50,8 +52,8 @@ function Availability() {
             <div><Label htmlFor="en">End time</Label><Input id="en" type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></div>
           </div>
           <div>
-            <Label>Appointment duration</Label>
-            <div className="mt-2 flex flex-wrap gap-2">{DURATIONS.map((d) => <button key={d} type="button" onClick={() => setDuration(d)} className={cn("rounded-lg border px-4 py-2 text-sm", duration === d ? "border-primary bg-primary text-primary-foreground" : "bg-card")}>{d} min</button>)}</div>
+            <Label htmlFor="availability-limit">Patients per day</Label>
+            <Input id="availability-limit" type="number" min={1} step={1} value={limit} onChange={(e) => setLimit(e.target.value)} className="mt-2" />
           </div>
           <Button onClick={save} className="w-full">Save availability</Button>
           <div className="space-y-3 border-t pt-4">
