@@ -42,6 +42,12 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
   const router = useRouter();
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
+    // An updated app version can leave old page files missing in an open tab; reload once to fetch the new ones.
+    const msg = String((error as Error)?.message ?? error);
+    if (/dynamically imported module|Importing a module script failed|error loading dynamically|Loading chunk/i.test(msg) && !sessionStorage.getItem("sahoolat-reloaded")) {
+      sessionStorage.setItem("sahoolat-reloaded", "1");
+      window.location.reload();
+    }
   }, [error]);
 
   return (
@@ -53,6 +59,7 @@ function ErrorComponent({ error, reset }: ErrorComponentProps) {
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+        <p className="mt-3 break-words rounded-md bg-muted px-3 py-2 text-left font-mono text-xs text-muted-foreground">{String((error as Error)?.message ?? error)}</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {

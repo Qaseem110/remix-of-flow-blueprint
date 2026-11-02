@@ -734,7 +734,7 @@ export async function persistAvailability(av: Availability) {
   validateAvailability(av);
   if (SB) {
     const { supabase } = await import("./supabase");
-    const { error } = await supabase.from("availability").update({ data: av }).eq("id", av.doctorId);
+    const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av });
     if (error) throw new Error(error.message);
   }
   const previous = hydrating;
