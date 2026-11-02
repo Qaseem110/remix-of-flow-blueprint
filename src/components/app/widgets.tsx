@@ -105,7 +105,12 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
 }
 
 /** Free peer-to-peer video; signaling stays on the appointment's shared room. */
-const STUN_ONLY: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+/** Free, no-account relays so calls can connect across strict networks. */
+const STUN_ONLY: RTCConfiguration = { iceServers: [
+  { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
+  { urls: ["turn:freestun.net:3478", "turn:freestun.net:3478?transport=tcp"], username: "free", credential: "free" },
+  { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
+] };
 let iceCache: Promise<RTCConfiguration> | null = null;
 /** Fetches relay (TURN) servers once per session so strict networks can still connect. */
 function loadIce(): Promise<RTCConfiguration> {
