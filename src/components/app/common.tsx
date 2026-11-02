@@ -40,7 +40,11 @@ export function Initials({ name, className }: { name: string; className?: string
 }
 
 export function Avatar({ name, src, className }: { name: string; src?: string; className?: string }) {
-  if (src) return <img src={src} alt={name} className={cn("h-12 w-12 shrink-0 rounded-full object-cover", className)} />;
+  const [failedSrc, setFailedSrc] = useState<string | undefined>();
+  // Blob URLs belong to the tab that created them, not to a persisted profile.
+  // Never retry an old tab's photo on every menu transition.
+  const usable = src && !src.startsWith("blob:") && failedSrc !== src;
+  if (usable) return <img src={src} alt={name} onError={() => setFailedSrc(src)} className={cn("h-12 w-12 shrink-0 rounded-full object-cover", className)} />;
   return <Initials name={name} className={className} />;
 }
 

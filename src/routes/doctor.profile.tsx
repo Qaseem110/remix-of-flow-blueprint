@@ -15,8 +15,10 @@ export const Route = createFileRoute("/doctor/profile")({
 });
 
 function DocProfile() {
-  const user = useSession()!;
-  const d = useStore((s) => s.doctors.find((x) => x.userId === user.id))!;
+  const user = useSession();
+  const d = useStore((s) => s.doctors.find((x) => x.userId === user?.id));
+  if (!user) return null;
+  if (!d) return <div role="status" className="mx-auto max-w-3xl"><PageHeader title="My profile" /><p className="text-muted-foreground">Your doctor profile is unavailable. Please refresh to try again.</p></div>;
   const save = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
