@@ -16,6 +16,14 @@ const STUN: Ice[] = [
 export const getIceServers = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async (): Promise<{ iceServers: Ice[]; relay: boolean }> => {
+    // Any standard TURN provider (e.g. ExpressTURN / Metered free plans).
+    const turnUrls = process.env.TURN_URLS;
+    const turnUser = process.env.TURN_USERNAME;
+    const turnPass = process.env.TURN_CREDENTIAL;
+    if (turnUrls && turnUser && turnPass) {
+      const urls = turnUrls.split(",").map((u) => u.trim()).filter(Boolean);
+      return { iceServers: [{ urls, username: turnUser, credential: turnPass }, ...STUN], relay: true };
+    }
     const keyId = process.env.CLOUDFLARE_TURN_KEY_ID;
     const token = process.env.CLOUDFLARE_TURN_API_TOKEN;
     if (!keyId || !token) return { iceServers: STUN, relay: false };
