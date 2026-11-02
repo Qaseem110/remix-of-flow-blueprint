@@ -58,6 +58,36 @@ export type Database = {
           },
         ]
       }
+      call_recordings: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          id: string
+          path: string
+          role: string
+          started_at: string
+          uploader_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          id?: string
+          path: string
+          role?: string
+          started_at?: string
+          uploader_id?: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          id?: string
+          path?: string
+          role?: string
+          started_at?: string
+          uploader_id?: string
+        }
+        Relationships: []
+      }
       consultations: {
         Row: {
           data: Json
