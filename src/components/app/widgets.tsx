@@ -102,224 +102,69 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
   );
 }
 
-/** Free peer-to-peer video; signaling stays on the appointment's shared room. */
-/** Free, no-account relays so calls can connect across strict networks. */
-const STUN_ONLY: RTCConfiguration = { iceServers: [
-  { urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] },
-  { urls: ["turn:freestun.net:3478", "turn:freestun.net:3478?transport=tcp"], username: "free", credential: "free" },
-  { urls: ["turn:openrelay.metered.ca:80", "turn:openrelay.metered.ca:443", "turn:openrelay.metered.ca:443?transport=tcp"], username: "openrelayproject", credential: "openrelayproject" },
-] };
-let iceCache: Promise<RTCConfiguration> | null = null;
-/** Fetches relay (TURN) servers once per session so strict networks can still connect. */
-function loadIce(): Promise<RTCConfiguration> {
-  if (!iceCache) {
-    iceCache = import("@/lib/turn.functions")
-      .then(({ getIceServers }) => getIceServers())
-      .then((r) => ({ iceServers: r.iceServers as RTCIceServer[] }))
-      .catch(() => { iceCache = null; return STUN_ONLY; });
-  }
-  return iceCache;
-}
-
-export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
-  const localRef = useRef<HTMLVideoElement>(null);
-  const remoteRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [connected, setConnected] = useState(false);
-  const [status, setStatus] = useState("Starting camera and microphone…");
-  const [error, setError] = useState(false);
-  const [attempt, setAttempt] = useState(0);
-  const [mic, setMic] = useState(true);
-  const [cam, setCam] = useState(true);
-  // Backup: free no-account VDO.Ninja room (has its own relay servers) when direct P2P fails.
-  const [backup, setBackup] = useState(false);
-  const sendRef = useRef<((event: string) => void) | null>(null);
-
-  useEffect(() => {
-    if (backup) return;
-    let cancelled = false;
-    let failed = false;
-    let local: MediaStream | null = null;
-    let pc: RTCPeerConnection | null = null;
-    let ice: RTCConfiguration = STUN_ONLY;
-    let channel: RealtimeChannel | null = null;
-    let handshake: ReturnType<typeof createCallPeer> | null = null;
-    let remoteId: string | null = null;
-    let helloTimer: ReturnType<typeof setInterval> | undefined;
-    let connectionTimer: ReturnType<typeof setTimeout> | undefined;
-    const me = crypto.randomUUID();
-    const fail = (message: string) => {
-      if (cancelled) return;
-      failed = true;
-      setConnected(false);
-      setError(true);
-      setStatus(message);
-      clearInterval(helloTimer);
-      clearTimeout(connectionTimer);
-    };
-    const send = (event: string, payload: Record<string, unknown> = {}) => {
-      if (!channel) return;
-      void channel.send({ type: "broadcast", event, payload: { ...payload, from: me, to: remoteId } })
-        .then((result) => { if (!cancelled && result !== "ok") fail("Call messages could not be delivered. Please retry."); });
-    };
-    sendRef.current = send;
-    const run = (promise: Promise<void> | undefined) => {
-      void promise?.catch(() => fail("The video connection could not be established. Please retry."));
-    };
-    const ensurePeer = () => {
-      if (handshake) return handshake;
-      const p = new RTCPeerConnection(ice);
-      const media = local;
-      if (media) {
-        media.getTracks().forEach((track) => p.addTrack(track, media));
-        if (!media.getVideoTracks().length) p.addTransceiver("video", { direction: "recvonly" });
-        if (!media.getAudioTracks().length) p.addTransceiver("audio", { direction: "recvonly" });
-      }
-      else { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
-      const incoming = new MediaStream();
-      p.onicecandidate = (event) => { if (event.candidate) send("ice", { candidate: event.candidate.toJSON() }); };
-      p.ontrack = (event) => {
-        incoming.addTrack(event.track);
-        if (remoteRef.current) {
-          remoteRef.current.srcObject = incoming;
-          void remoteRef.current.play().catch(() => {});
-        }
-      };
-      p.onconnectionstatechange = () => {
-        if (cancelled) return;
-        if (p.connectionState === "connected") {
-          clearTimeout(connectionTimer);
-          setConnected(true);
-          setError(false);
-          setStatus("Connected");
-        } else if (p.connectionState === "failed") {
-          send("backup");
-          setTimeout(() => { if (!cancelled) setBackup(true); }, 300);
-        } else if (p.connectionState === "disconnected") {
-          setConnected(false);
-          setStatus("Connection interrupted — reconnecting…");
-        }
-      };
-      pc = p;
-      handshake = createCallPeer(p, send);
-      setStatus("Connecting video and audio…");
-      connectionTimer = setTimeout(() => { send("backup"); setTimeout(() => { if (!cancelled) setBackup(true); }, 300); }, 20000);
-      return handshake;
-    };
-    const accepts = (payload: { from?: string; to?: string | null }) =>
-      !cancelled && !failed && payload.from && payload.from !== me && (!payload.to || payload.to === me) && (!remoteId || remoteId === payload.from);
-
-    setConnected(false);
-    setError(false);
-    setStatus("Starting camera and microphone…");
-    void (async () => {
-      try {
-        // Camera may be held by another meeting app (Zoom/Meet/Teams) — fall back gracefully.
-        for (const c of [{ video: true, audio: true }, { video: false, audio: true }, { video: true, audio: false }]) {
-          try { local = await navigator.mediaDevices.getUserMedia(c); break; } catch { /* try next */ }
-        }
-        if (!local) toast.info("Camera/mic unavailable — close other meeting apps using them, or allow access. You can still see and hear the other person.");
-        else if (!local.getVideoTracks().length) toast.info("Camera is busy (maybe another meeting app). Joining with audio only.");
-        if (cancelled) { local?.getTracks().forEach((track) => track.stop()); return; }
-        setStream(local);
-        if (localRef.current) localRef.current.srcObject = local;
-        ice = await loadIce();
-        const { supabase } = await import("@/lib/supabase");
-        if (cancelled) return;
-        channel = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false, ack: true } } });
-        channel.on("broadcast", { event: "hello" }, ({ payload }) => {
-          if (!accepts(payload)) return;
-          const first = !remoteId;
-          remoteId = payload.from;
-          if (first) send("hello");
-          // Exactly one caller offers, regardless of who joined first.
-          if (me < payload.from) run(ensurePeer().offer());
-        });
-        channel.on("broadcast", { event: "offer" }, ({ payload }) => {
-          if (!accepts(payload)) return;
-          remoteId = payload.from;
-          run(ensurePeer().receiveOffer(payload.sdp));
-        });
-        channel.on("broadcast", { event: "answer" }, ({ payload }) => {
-          if (accepts(payload)) run(handshake?.receiveAnswer(payload.sdp));
-        });
-        channel.on("broadcast", { event: "ice" }, ({ payload }) => {
-          if (!accepts(payload)) return;
-          remoteId = payload.from;
-          run(ensurePeer().receiveIce(payload.candidate));
-        });
-        channel.on("broadcast", { event: "backup" }, ({ payload }) => {
-          if (payload.from !== me) setBackup(true);
-        });
-        channel.on("broadcast", { event: "bye" }, ({ payload }) => {
-          if (!accepts(payload)) return;
-          pc?.close(); pc = null; handshake = null; remoteId = null;
-          clearTimeout(connectionTimer);
-          setConnected(false);
-          if (remoteRef.current) remoteRef.current.srcObject = null;
-          setStatus("The other person left the call. Waiting for them to rejoin…");
-        });
-        channel.subscribe((state) => {
-          if (cancelled) return;
-          if (state === "SUBSCRIBED") {
-            setStatus("Waiting for the other person to join…");
-            send("hello");
-            clearInterval(helloTimer);
-            helloTimer = setInterval(() => send("hello"), 3000);
-          } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
-            fail("The call service is unavailable. Check your internet connection and retry.");
-          }
-        });
-      } catch { fail("The call could not start. Please retry."); }
-    })();
-    return () => {
-      send("bye");
-      cancelled = true;
-      clearInterval(helloTimer);
-      clearTimeout(connectionTimer);
-      pc?.close();
-      local?.getTracks().forEach((track) => track.stop());
-      if (channel) void channel.unsubscribe();
-    };
-  }, [roomId, attempt, backup]);
-
-  useEffect(() => { stream?.getAudioTracks().forEach((t) => (t.enabled = mic)); }, [mic, stream]);
-  useEffect(() => { stream?.getVideoTracks().forEach((t) => (t.enabled = cam)); }, [cam, stream]);
-
-  if (backup) {
+/** Video consultation via VDO.Ninja (free, no account, own relay servers). Each side's voice is recorded for the admin case file. */
+export function VideoRoom({ roomId, selfName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
+  const src = useMemo(() => {
     const room = `sahoolat${roomId.replace(/[^a-zA-Z0-9]/g, "")}`.slice(0, 40);
-    const src = `https://vdo.ninja/?room=${room}&password=${room.split("").reverse().join("")}&label=${encodeURIComponent(selfName)}&webcam&autostart`;
-    return (
-      <div className="space-y-2">
-        <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
-          <iframe title="Video consultation" src={src} allow="camera; microphone; autoplay; fullscreen; display-capture" className="absolute inset-0 h-full w-full border-0" />
-        </div>
-        <div className="flex flex-wrap justify-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => { setBackup(false); setAttempt((v) => v + 1); }}>Try direct connection again</Button>
-          <Button variant="destructive" size="sm" onClick={onLeave}><PhoneOff className="mr-1 h-4 w-4" />Leave</Button>
-        </div>
-      </div>
-    );
-  }
-
+    const pw = room.split("").reverse().join("");
+    return `https://vdo.ninja/?room=${room}&password=${pw}&label=${encodeURIComponent(selfName)}&webcam&autostart&quality=1&maxvideobitrate=800`;
+    // Fixed per room: changing src would reload the call and drop it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]);
+  const recording = useCallRecorder(roomId);
   return (
-    <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
-      <video ref={remoteRef} autoPlay playsInline className={cn("absolute inset-0 h-full w-full object-cover", !connected && "hidden")} />
-      {!connected && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center text-sidebar-foreground">
-          <div className="flex h-24 w-24 items-center justify-center rounded-full bg-sidebar-accent font-display text-3xl">{otherName.replace(/^Dr\.?\s*/, "")[0]}</div>
-          <p className="mt-3 font-medium">{otherName}</p>
-          <p role="status" className="mt-1 max-w-sm px-4 text-center text-xs opacity-80">{status}</p>
-          {error && <Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Retry connection</Button>}
-          <Button variant="link" className="mt-1 text-sidebar-foreground" onClick={() => { sendRef.current?.("backup"); setTimeout(() => setBackup(true), 300); }}>Use backup video call</Button>
-        </div>
-      )}
-      <video ref={localRef} autoPlay muted playsInline aria-label={selfName} className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", (!cam || !stream) && "opacity-0")} />
-      <div className="absolute bottom-4 left-1/2 flex -translate-x-1/2 gap-2">
-        <Button size="icon" variant="secondary" onClick={() => setMic(!mic)} aria-label="Toggle mic">{mic ? <Mic className="h-4 w-4" /> : <MicOff className="h-4 w-4" />}</Button>
-        <Button size="icon" variant="secondary" onClick={() => setCam(!cam)} aria-label="Toggle camera">{cam ? <Video className="h-4 w-4" /> : <VideoOff className="h-4 w-4" />}</Button>
-        <Button size="icon" variant="destructive" onClick={onLeave} aria-label="Leave"><PhoneOff className="h-4 w-4" /></Button>
+    <div className="space-y-2">
+      <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
+        <iframe key={roomId} title="Video consultation" src={src} allow="camera; microphone; autoplay; fullscreen; display-capture; speaker-selection" className="absolute inset-0 h-full w-full border-0" />
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">{recording ? "● This consultation's audio is being recorded for the medical case file." : "Audio recording unavailable (microphone not allowed)."}</p>
+        <Button variant="destructive" size="sm" onClick={onLeave}><PhoneOff className="mr-1 h-4 w-4" />Leave</Button>
       </div>
     </div>
   );
+}
+
+/** Records this participant's microphone in 2-minute segments and uploads each, so a dropped tab loses little. */
+function useCallRecorder(appointmentId: string) {
+  const [active, setActive] = useState(false);
+  useEffect(() => {
+    let stopped = false;
+    let stream: MediaStream | null = null;
+    let rec: MediaRecorder | null = null;
+    let timer: ReturnType<typeof setInterval> | undefined;
+    const segment = () => {
+      if (!stream || stopped) return;
+      const chunks: Blob[] = [];
+      const startedAt = new Date().toISOString();
+      const mime = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"].find((m) => MediaRecorder.isTypeSupported(m));
+      const r = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+      r.onstop = () => {
+        const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
+        void import("@/lib/store").then(({ uploadCallRecording }) => uploadCallRecording(appointmentId, blob, startedAt)).catch(() => {});
+      };
+      r.start(1000);
+      rec = r;
+    };
+    void (async () => {
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+        if (stopped) { stream.getTracks().forEach((t) => t.stop()); return; }
+        setActive(true);
+        segment();
+        timer = setInterval(() => { rec?.stop(); segment(); }, 120000);
+      } catch { setActive(false); }
+    })();
+    const flush = () => { if (rec?.state === "recording") rec.stop(); };
+    window.addEventListener("pagehide", flush);
+    return () => {
+      stopped = true;
+      clearInterval(timer);
+      window.removeEventListener("pagehide", flush);
+      flush();
+      stream?.getTracks().forEach((t) => t.stop());
+    };
+  }, [appointmentId]);
+  return active;
 }
