@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from "react";
+import type { RealtimeChannel } from "@supabase/supabase-js";
+import { createCallPeer } from "@/lib/call-peer";
 import { addDays, format, parse } from "date-fns";
 import { toast } from "sonner";
 import { Mic, MicOff, PhoneOff, Video, VideoOff, ListOrdered } from "lucide-react";
@@ -102,84 +104,151 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
   );
 }
 
-/** Appointment-linked consultation room (local camera preview; remote video is a placeholder until backend/WebRTC). */
+/** Free peer-to-peer video; signaling stays on the appointment's shared room. */
 const ICE: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
 
-/**
- * Free 1:1 video call: browser-to-browser (WebRTC). Supabase Realtime is only used
- * to exchange connection details; audio/video never pass through any server.
- */
 export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
   const localRef = useRef<HTMLVideoElement>(null);
   const remoteRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [connected, setConnected] = useState(false);
+  const [status, setStatus] = useState("Starting camera and microphone…");
+  const [error, setError] = useState(false);
+  const [attempt, setAttempt] = useState(0);
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
+    let failed = false;
     let local: MediaStream | null = null;
     let pc: RTCPeerConnection | null = null;
-    let channel: { send: (m: unknown) => unknown; unsubscribe: () => unknown } | null = null;
-    let sb: { removeChannel: (c: never) => unknown } | null = null;
-    const me = Math.random().toString(36).slice(2);
-    let repliedHello = false;
-    const send = (event: string, payload: Record<string, unknown> = {}) => channel?.send({ type: "broadcast", event, payload: { ...payload, from: me } });
-
-    const newPeer = () => {
-      pc?.close();
-      const p = new RTCPeerConnection(ICE);
-      local?.getTracks().forEach((t) => p.addTrack(t, local!));
-      if (!local) { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
-      p.onicecandidate = (e) => { if (e.candidate) send("ice", { candidate: e.candidate.toJSON() }); };
-      p.ontrack = (e) => { if (remoteRef.current) remoteRef.current.srcObject = e.streams[0] ?? new MediaStream([e.track]); setConnected(true); };
-      p.onconnectionstatechange = () => { if (["failed", "closed", "disconnected"].includes(p.connectionState)) setConnected(false); };
-      pc = p;
-      return p;
-    };
-    const makeOffer = async () => {
-      const p = newPeer();
-      await p.setLocalDescription(await p.createOffer());
-      send("offer", { sdp: p.localDescription });
-    };
-
-    (async () => {
-      try { local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); }
-      catch { toast.info("Camera/mic unavailable — you can still see and hear the other person"); }
-      if (cancelled) { local?.getTracks().forEach((t) => t.stop()); return; }
-      setStream(local);
-      if (localRef.current && local) localRef.current.srcObject = local;
-
-      const { supabase } = await import("@/lib/supabase");
+    let channel: RealtimeChannel | null = null;
+    let handshake: ReturnType<typeof createCallPeer> | null = null;
+    let remoteId: string | null = null;
+    let helloTimer: ReturnType<typeof setInterval> | undefined;
+    let connectionTimer: ReturnType<typeof setTimeout> | undefined;
+    const me = crypto.randomUUID();
+    const fail = (message: string) => {
       if (cancelled) return;
-      sb = supabase as never;
-      const ch = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false } } });
-      ch.on("broadcast", { event: "hello" }, ({ payload }) => {
-        if (payload.from > me) return void (repliedHello ? null : ((repliedHello = true), send("hello")));
-        void makeOffer();
-      });
-      ch.on("broadcast", { event: "offer" }, async ({ payload }) => {
-        const p = newPeer();
-        await p.setRemoteDescription(payload.sdp);
-        await p.setLocalDescription(await p.createAnswer());
-        send("answer", { sdp: p.localDescription });
-      });
-      ch.on("broadcast", { event: "answer" }, async ({ payload }) => { if (pc && pc.signalingState === "have-local-offer") await pc.setRemoteDescription(payload.sdp); });
-      ch.on("broadcast", { event: "ice" }, async ({ payload }) => { try { await pc?.addIceCandidate(payload.candidate); } catch { /* stale candidate */ } });
-      ch.on("broadcast", { event: "bye" }, () => { pc?.close(); pc = null; setConnected(false); repliedHello = false; });
-      ch.subscribe((status) => { if (status === "SUBSCRIBED") send("hello"); });
-      channel = ch as never;
-    })();
-
-    return () => {
-      cancelled = true;
-      send("bye");
-      pc?.close();
-      local?.getTracks().forEach((t) => t.stop());
-      if (channel && sb) sb.removeChannel(channel as never);
+      failed = true;
+      setConnected(false);
+      setError(true);
+      setStatus(message);
+      clearInterval(helloTimer);
+      clearTimeout(connectionTimer);
     };
-  }, [roomId]);
+    const send = (event: string, payload: Record<string, unknown> = {}) => {
+      if (!channel) return;
+      void channel.send({ type: "broadcast", event, payload: { ...payload, from: me, to: remoteId } })
+        .then((result) => { if (!cancelled && result !== "ok") fail("Call messages could not be delivered. Please retry."); });
+    };
+    const run = (promise: Promise<void> | undefined) => {
+      void promise?.catch(() => fail("The video connection could not be established. Please retry."));
+    };
+    const ensurePeer = () => {
+      if (handshake) return handshake;
+      const p = new RTCPeerConnection(ICE);
+      const media = local;
+      if (media) media.getTracks().forEach((track) => p.addTrack(track, media));
+      else { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
+      const incoming = new MediaStream();
+      p.onicecandidate = (event) => { if (event.candidate) send("ice", { candidate: event.candidate.toJSON() }); };
+      p.ontrack = (event) => {
+        incoming.addTrack(event.track);
+        if (remoteRef.current) {
+          remoteRef.current.srcObject = incoming;
+          void remoteRef.current.play().catch(() => {});
+        }
+      };
+      p.onconnectionstatechange = () => {
+        if (cancelled) return;
+        if (p.connectionState === "connected") {
+          clearTimeout(connectionTimer);
+          setConnected(true);
+          setError(false);
+          setStatus("Connected");
+        } else if (p.connectionState === "failed") {
+          fail("Your networks could not connect directly. Try another Wi-Fi or mobile network, then retry.");
+        } else if (p.connectionState === "disconnected") {
+          setConnected(false);
+          setStatus("Connection interrupted — reconnecting…");
+        }
+      };
+      pc = p;
+      handshake = createCallPeer(p, send);
+      setStatus("Connecting video and audio…");
+      connectionTimer = setTimeout(() => fail("The connection timed out. Try another network, then retry."), 30000);
+      return handshake;
+    };
+    const accepts = (payload: { from?: string; to?: string | null }) =>
+      !cancelled && !failed && payload.from && payload.from !== me && (!payload.to || payload.to === me) && (!remoteId || remoteId === payload.from);
+
+    setConnected(false);
+    setError(false);
+    setStatus("Starting camera and microphone…");
+    void (async () => {
+      try {
+        try { local = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }); }
+        catch { toast.info("Camera/mic unavailable — allow access to speak and share video."); }
+        if (cancelled) { local?.getTracks().forEach((track) => track.stop()); return; }
+        setStream(local);
+        if (localRef.current) localRef.current.srcObject = local;
+        const { supabase } = await import("@/lib/supabase");
+        if (cancelled) return;
+        channel = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false, ack: true } } });
+        channel.on("broadcast", { event: "hello" }, ({ payload }) => {
+          if (!accepts(payload)) return;
+          const first = !remoteId;
+          remoteId = payload.from;
+          if (first) send("hello");
+          // Exactly one caller offers, regardless of who joined first.
+          if (me < payload.from) run(ensurePeer().offer());
+        });
+        channel.on("broadcast", { event: "offer" }, ({ payload }) => {
+          if (!accepts(payload)) return;
+          remoteId = payload.from;
+          run(ensurePeer().receiveOffer(payload.sdp));
+        });
+        channel.on("broadcast", { event: "answer" }, ({ payload }) => {
+          if (accepts(payload)) run(handshake?.receiveAnswer(payload.sdp));
+        });
+        channel.on("broadcast", { event: "ice" }, ({ payload }) => {
+          if (!accepts(payload)) return;
+          remoteId = payload.from;
+          run(ensurePeer().receiveIce(payload.candidate));
+        });
+        channel.on("broadcast", { event: "bye" }, ({ payload }) => {
+          if (!accepts(payload)) return;
+          pc?.close(); pc = null; handshake = null; remoteId = null;
+          clearTimeout(connectionTimer);
+          setConnected(false);
+          if (remoteRef.current) remoteRef.current.srcObject = null;
+          setStatus("The other person left the call. Waiting for them to rejoin…");
+        });
+        channel.subscribe((state) => {
+          if (cancelled) return;
+          if (state === "SUBSCRIBED") {
+            setStatus("Waiting for the other person to join…");
+            send("hello");
+            clearInterval(helloTimer);
+            helloTimer = setInterval(() => send("hello"), 3000);
+          } else if (state === "CHANNEL_ERROR" || state === "TIMED_OUT" || state === "CLOSED") {
+            fail("The call service is unavailable. Check your internet connection and retry.");
+          }
+        });
+      } catch { fail("The call could not start. Please retry."); }
+    })();
+    return () => {
+      send("bye");
+      cancelled = true;
+      clearInterval(helloTimer);
+      clearTimeout(connectionTimer);
+      pc?.close();
+      local?.getTracks().forEach((track) => track.stop());
+      if (channel) void channel.unsubscribe();
+    };
+  }, [roomId, attempt]);
 
   useEffect(() => { stream?.getAudioTracks().forEach((t) => (t.enabled = mic)); }, [mic, stream]);
   useEffect(() => { stream?.getVideoTracks().forEach((t) => (t.enabled = cam)); }, [cam, stream]);
@@ -191,7 +260,8 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
         <div className="absolute inset-0 flex flex-col items-center justify-center text-sidebar-foreground">
           <div className="flex h-24 w-24 items-center justify-center rounded-full bg-sidebar-accent font-display text-3xl">{otherName.replace(/^Dr\.?\s*/, "")[0]}</div>
           <p className="mt-3 font-medium">{otherName}</p>
-          <p className="text-xs opacity-60">Waiting for {otherName} to join…</p>
+          <p role="status" className="mt-1 max-w-sm px-4 text-center text-xs opacity-80">{status}</p>
+          {error && <Button variant="secondary" className="mt-3" onClick={() => setAttempt((value) => value + 1)}>Retry connection</Button>}
         </div>
       )}
       <video ref={localRef} autoPlay muted playsInline aria-label={selfName} className={cn("absolute bottom-4 right-4 h-28 w-40 rounded-xl bg-sidebar-accent object-cover", (!cam || !stream) && "opacity-0")} />
