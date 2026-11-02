@@ -328,14 +328,14 @@ async function reportSyncError(msg: string) {
 
 /** Files picked in the browser, waiting to be uploaded to storage (by doc id). */
 const pendingFiles = new Map<string, File>();
-async function uploadDocs(x: { documents: DocFile[] }, appointmentId: string) {
+async function uploadDocs(x: { documents: DocFile[] }, appointmentId: string, strict = false) {
   const { supabase } = await import("./supabase");
   for (const d of x.documents ?? []) {
     const f = pendingFiles.get(d.id);
     if (!f || d.path) continue;
     const path = `${appointmentId}/${d.id}-${d.name.replace(/[^\w.-]/g, "_")}`;
     const { error } = await supabase.storage.from("documents").upload(path, f, { contentType: f.type, upsert: true });
-    if (error) { void reportSyncError(`${d.name}: ${error.message}`); continue; }
+    if (error) { if (strict) throw new Error(`${d.name}: ${error.message}`); void reportSyncError(`${d.name}: ${error.message}`); continue; }
     d.path = path;
     pendingFiles.delete(d.id);
   }
@@ -953,6 +953,28 @@ export function canJoin(a: Appointment) {
 }
 
 // ---------- Consultations ----------
+/** Save doctor attachments immediately, including for completed consultations. */
+export async function addConsultationDocs(appointmentId: string, docs: DocFile[]): Promise<Consultation> {
+  const a = state.appointments.find((x) => x.id === appointmentId);
+  const doctor = userById(state.sessionUserId ?? "");
+  if (!a || doctor?.role !== "doctor" || a.doctorId !== doctor.id) throw new Error("Only the appointment's doctor can upload documents");
+  if (docs.some((d) => d.uploadedBy !== "doctor")) throw new Error("Doctor documents must be uploaded as doctor");
+  const existing = state.consultations.find((c) => c.appointmentId === appointmentId);
+  const record: Consultation = existing ?? { appointmentId, doctorId: a.doctorId, patientId: a.patientId, symptoms: a.reason, diagnosis: "", privateNotes: "", summary: "", prescription: [], documents: [], followUpRequired: false, followUpTiming: "" };
+  const updated = { ...record, documents: [...record.documents, ...docs.map((d) => ({ ...d }))] };
+  if (SB) {
+    await uploadDocs(updated, appointmentId, true);
+    const table = TABLES.find((t) => t.key === "consultations");
+    if (!table) throw new Error("Document saving is unavailable");
+    const { supabase } = await import("./supabase");
+    const { error } = await supabase.from("consultations").upsert(table.row(updated));
+    if (error) throw new Error(error.message);
+  }
+  state = { ...state, consultations: [...state.consultations.filter((c) => c.appointmentId !== appointmentId), updated] };
+  emit();
+  return updated;
+}
+
 export function ensureConsultation(appointmentId: string): Consultation {
   const ex = state.consultations.find((c) => c.appointmentId === appointmentId);
   if (ex) return ex;

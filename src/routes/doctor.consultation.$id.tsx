@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { Plus, Save, Trash2, Upload, CheckCircle2, PhoneCall } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,7 @@ import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
 import { PatientHistory } from "@/components/app/PatientHistory";
 import { MedicineInput } from "@/components/app/MedicineInput";
-import { callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
+import { addConsultationDocs, callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 
@@ -28,14 +28,16 @@ const emptyRx: PrescriptionItem = { medicine: "", dosage: "", frequency: "", dur
 function Console() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  const user = useSession()!;
+  const user = useSession();
   const a = useStore((s) => s.appointments.find((x) => x.id === id));
   const patient = useStore((s) => s.users.find((x) => x.id === a?.patientId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
   const [c, setC] = useState(() => (a ? ensureConsultation(id) : null));
   const [kind, setKind] = useState("Prescription");
+  const [uploading, setUploading] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => { if (a && !c) setC(ensureConsultation(id)); }, [a, c, id]);
-  if (!a || !patient || !c || a.doctorId !== user.id) return <p>Consultation not found.</p>;
+  if (!user || !a || !patient || !c || a.doctorId !== user.id) return <p>Consultation not found.</p>;
   const done = a.status === "Completed";
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });
   const setRx = (i: number, p: Partial<PrescriptionItem>) => upd({ prescription: c.prescription.map((r, j) => (j === i ? { ...r, ...p } : r)) });
@@ -47,9 +49,17 @@ function Console() {
     toast.success("Consultation completed");
     navigate({ to: "/doctor" });
   };
-  const upload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    try { upd({ documents: [...c.documents, ...makeDocs(e.target.files ?? [], "doctor", kind)] }); } catch (err) { toast.error((err as Error).message); }
+  const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
+    if (!files.length) return;
+    setUploading(true);
+    try {
+      const saved = await addConsultationDocs(id, makeDocs(files, "doctor", kind));
+      setC((current) => current ? { ...current, documents: saved.documents } : saved);
+      toast.success("Documents uploaded and saved");
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setUploading(false); }
   };
 
   return (
@@ -85,12 +95,12 @@ function Console() {
 
             <div>
               <Label>Documents for patient</Label>
-              {!done && (
-                <div className="mt-2 flex gap-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   <Select value={kind} onValueChange={setKind}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent>{["Prescription", "Consultation summary", "Report", "Referral", "Other"].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent></Select>
-                  <label className="flex cursor-pointer items-center gap-1 rounded-md border px-3 text-sm"><Upload className="h-4 w-4" />Upload<input type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={upload} /></label>
+                  <Button type="button" variant="outline" disabled={uploading} onClick={() => fileInput.current?.click()}><Upload className="mr-1 h-4 w-4" />{uploading ? "Uploading…" : "Upload documents"}</Button>
+                  <input ref={fileInput} aria-label="Upload consultation documents" type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={upload} />
                 </div>
-              )}
+              <p className="mt-1 text-xs text-muted-foreground">{allowed.join(", ").toUpperCase()} · Up to 10 MB per file</p>
               <div className="mt-2"><DocList docs={c.documents} empty="No documents uploaded." /></div>
             </div>
 
@@ -101,8 +111,8 @@ function Console() {
 
             {done ? <p className="flex items-center gap-2 text-success"><CheckCircle2 className="h-5 w-5" /> Completed — record shared with patient.</p> : (
               <div className="flex flex-wrap justify-end gap-2">
-                <Button variant="outline" onClick={save}><Save className="mr-1 h-4 w-4" />Save record</Button>
-                <Button onClick={complete}><CheckCircle2 className="mr-1 h-4 w-4" />Complete consultation</Button>
+                <Button variant="outline" disabled={uploading} onClick={save}><Save className="mr-1 h-4 w-4" />Save record</Button>
+                <Button disabled={uploading} onClick={complete}><CheckCircle2 className="mr-1 h-4 w-4" />Complete consultation</Button>
               </div>
             )}
           </section>

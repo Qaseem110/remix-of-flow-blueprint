@@ -5,6 +5,10 @@ import { useStore } from "@/lib/store";
 
 /** Patient info + past consultations, including private notes (doctor-only view). */
 export function PatientHistory({ patientId, excludeId, memberId }: { patientId: string; excludeId?: string; memberId?: string | null }) {
+  return <PinGate patientId={patientId}><UnlockedPatientHistory patientId={patientId} excludeId={excludeId} memberId={memberId} /></PinGate>;
+}
+
+function UnlockedPatientHistory({ patientId, excludeId, memberId }: { patientId: string; excludeId?: string; memberId?: string | null }) {
   const s = useStore((s) => s);
   const u = s.users.find((x) => x.id === patientId);
   const p = s.patients.find((x) => x.userId === patientId);
@@ -30,11 +34,11 @@ export function PatientHistory({ patientId, excludeId, memberId }: { patientId: 
             <p className="text-muted-foreground">{c.symptoms}</p>
             {c.privateNotes && <p className="mt-1 rounded bg-warning/15 p-1.5 text-xs"><b>Private note:</b> {c.privateNotes}</p>}
             {c.prescription.map((rx, i) => <p key={i} className="mt-1 flex gap-1 text-xs"><Pill className="h-3 w-3 text-primary" />{rx.medicine} — {rx.dosage}, {rx.frequency}</p>)}
-            {c.documents.length > 0 && <div className="mt-2"><PinGate patientId={patientId}><DocList docs={c.documents} /></PinGate></div>}
+            {c.documents.length > 0 && <div className="mt-2"><DocList docs={c.documents} /></div>}
           </div>
         ))}
       </div>
-      <div><p className="mb-2 text-xs uppercase text-muted-foreground">Other patient uploads</p><PinGate patientId={patientId}><DocList docs={uploads} empty="None" /></PinGate></div>
+      <div><p className="mb-2 text-xs uppercase text-muted-foreground">Other patient uploads</p><DocList docs={uploads} empty="None" /></div>
     </div>
   );
 }
