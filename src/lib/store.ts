@@ -473,13 +473,15 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   let cur = parse(`${date} ${av.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${av.end}`, "yyyy-MM-dd HH:mm", new Date());
   const taken = new Set(bookedToday.map((a) => a.time));
-  const nowD = new Date();
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
+  const localNow = `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
   const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / capacity));
   for (let i = 0; i < capacity && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
     const booked = taken.has(time);
-    out.push({ time, available: bookedToday.length < capacity && !booked && !blocked && cur > nowD, blocked, booked });
+    out.push({ time, available: bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
   }
   return out;

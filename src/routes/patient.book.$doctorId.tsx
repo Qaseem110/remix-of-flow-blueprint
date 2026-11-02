@@ -19,7 +19,7 @@ export const Route = createFileRoute("/patient/book/$doctorId")({
     date: typeof s.date === "string" ? s.date : undefined,
     followUpOf: typeof s.followUpOf === "string" ? s.followUpOf : undefined,
   }),
-  head: () => meta("Book appointment", "Choose consultation type, date, time and reason for your visit."),
+  head: () => meta("Book appointment", "Choose your consultation and day, and receive an assigned queue number and estimated time."),
   component: Book,
 });
 

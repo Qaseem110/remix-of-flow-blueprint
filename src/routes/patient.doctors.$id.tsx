@@ -10,7 +10,7 @@ import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/doctors/$id")({
-  head: () => meta("Doctor profile", "Doctor details, fees, languages and available slots."),
+  head: () => meta("Doctor profile", "Doctor details, fees, languages and available appointment dates."),
   component: DoctorProfile,
 });
 
