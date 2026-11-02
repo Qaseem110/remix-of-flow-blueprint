@@ -1,3 +1,9 @@
+# Doctor documents and patient history
+- [x] Save doctor document uploads immediately, including after completed visits.
+- [x] Gate the full patient history with the patient's PIN and refresh unlocked records.
+- [x] Test doctor uploads and PIN-protected history (7 relevant tests passed).
+- [ ] Verify live upload and PIN unlock with a doctor appointment; current preview session provides no doctor account.
+
 # Queue-based appointments
 - [x] Add daily patient capacity and automatic queue/time allocation with server enforcement.
 - [x] Replace patient time selection in booking, doctor profile and rescheduling.

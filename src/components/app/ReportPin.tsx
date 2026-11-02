@@ -5,40 +5,53 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-
-// Unlocked patients for this browser tab (cleared on refresh / sign-out).
-const unlocked = new Set<string>();
+import { getState, hydrate, useStore } from "@/lib/store";
 
 /** Doctor-side gate: patient reports stay hidden until the patient's report PIN is entered. */
 export function PinGate({ patientId, children }: { patientId: string; children: React.ReactNode }) {
-  const [open, setOpen] = useState(unlocked.has(patientId));
+  const sessionUserId = useStore((s) => s.sessionUserId);
+  const [accessKey, setAccessKey] = useState<string | null>(null);
+  const key = `${sessionUserId}:${patientId}`;
+  const open = accessKey === key;
   const [hasPin, setHasPin] = useState<boolean | null>(null);
   const [pin, setPin] = useState("");
   const [busy, setBusy] = useState(false);
   useEffect(() => {
-    if (open) return;
-    void supabase.rpc("has_report_access", { patient: patientId }).then(({ data }) => {
-      if (data) { unlocked.add(patientId); setOpen(true); }
-      else void supabase.rpc("has_report_pin", { patient: patientId }).then(({ data: d }) => setHasPin(!!d));
-    });
-  }, [patientId, open]);
+    let cancelled = false;
+    setAccessKey(null); setHasPin(null); setPin("");
+    const check = async () => {
+      const { data, error } = await supabase.rpc("has_report_access", { patient: patientId });
+      if (cancelled) return;
+      if (data && !error) {
+        await hydrate(sessionUserId);
+        if (!cancelled) setAccessKey(key);
+      } else {
+        setAccessKey(null);
+        const { data: has, error: pinError } = await supabase.rpc("has_report_pin", { patient: patientId });
+        if (!cancelled && !pinError) setHasPin(!!has);
+      }
+    };
+    if (sessionUserId) void check();
+    const timer = setInterval(() => { if (sessionUserId) void check(); }, 60000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [patientId, sessionUserId, key]);
   if (open) return <>{children}</>;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true);
-    const { data, error } = await supabase.rpc("unlock_patient_reports", { patient: patientId, pin });
-    setBusy(false);
-    if (error || !data) { toast.error("Wrong PIN"); return; }
-    unlocked.add(patientId); setOpen(true);
-    // Reload so reports from the patient's other doctors become visible.
-    const { hydrate, getState } = await import("@/lib/store");
-    await hydrate(getState().sessionUserId);
+    try {
+      const { data, error } = await supabase.rpc("unlock_patient_reports", { patient: patientId, pin });
+      if (error || !data) { toast.error(error ? "Could not unlock records. Please try again." : "Wrong PIN or no appointment with this patient"); return; }
+      await hydrate(sessionUserId);
+      if (getState().sessionUserId === sessionUserId) { setAccessKey(key); setPin(""); }
+    } catch { toast.error("Could not load records. Please try again."); }
+    finally { setBusy(false); }
   };
   return (
     <div className="rounded-xl border border-dashed bg-muted/40 p-4 text-sm">
       <p className="mb-2 flex items-center gap-2 font-medium"><Lock className="h-4 w-4 text-primary" />Reports are locked</p>
       {hasPin === false ? <p className="text-muted-foreground">This patient hasn't set a report PIN yet. Ask them to set one in their profile.</p> : (
         <form onSubmit={submit} className="flex gap-2">
-          <Input inputMode="numeric" type="password" maxLength={6} placeholder="Patient's PIN" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} className="max-w-40" />
+          <Input aria-label="Patient's report PIN" inputMode="numeric" type="password" maxLength={6} placeholder="Patient's PIN" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} className="max-w-40" />
           <Button size="sm" disabled={busy || pin.length < 4}>Unlock</Button>
         </form>
       )}
