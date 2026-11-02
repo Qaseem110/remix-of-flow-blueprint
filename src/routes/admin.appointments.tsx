@@ -7,6 +7,7 @@ import { PageHeader, StatusBadge, TypeBadge, Stat } from "@/components/app/commo
 import { CancelDialog } from "@/components/app/widgets";
 import { ALL_STATUSES, slotDateTime, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/admin/appointments")({
   head: () => meta("Appointments overview", "System-wide appointment overview with filters."),
@@ -38,7 +39,7 @@ function AdminAppts() {
           <tbody>
             {list.map((a) => (
               <tr key={a.id} className="border-t">
-                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{a.time}</td><td className="p-3">{name(a.doctorId)}</td><td className="p-3">{name(a.patientId)}</td>
+                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">{name(a.doctorId)}</td><td className="p-3">{name(a.patientId)}</td>
                 <td className="p-3"><TypeBadge type={a.type} /></td><td className="p-3"><StatusBadge status={a.status} /></td>
                 <td className="p-3 text-right">{["Confirmed", "Pending", "Checked-In", "Waiting"].includes(a.status) && <CancelDialog appt={a} by="admin" trigger={<Button size="sm" variant="ghost" className="text-destructive">Cancel</Button>} />}</td>
               </tr>

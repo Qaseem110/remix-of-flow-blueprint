@@ -79,7 +79,7 @@ function Records() {
           {records.map(({ c, a, doc }) => (
             <article key={c.appointmentId} className="rounded-2xl border bg-card p-6 shadow-soft">
               <div className="flex flex-wrap items-start justify-between gap-2">
-                <div><p className="font-display text-xl font-semibold">{doc.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "d MMM yyyy, HH:mm")} · {a.id}</p></div>
+                <div><p className="font-display text-xl font-semibold">{doc.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "d MMM yyyy, h:mm a")} · {a.id}</p></div>
                 <TypeBadge type={a.type} />
               </div>
               <div className="mt-4 grid gap-4 text-sm md:grid-cols-2">

@@ -41,7 +41,7 @@ function PatientDashboard() {
                 <StatusBadge status={next.status} />
               </div>
               <div className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
-                <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" />{format(slotDateTime(next), "EEE d MMM, HH:mm")}</div>
+                <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-primary" />{format(slotDateTime(next), "EEE d MMM, h:mm a")}</div>
                 <TypeBadge type={next.type} />
                 <div className="flex items-center gap-2 text-muted-foreground">{next.type === "online" ? <><Video className="h-4 w-4" /> Video link in app</> : <><MapPin className="h-4 w-4" /> {dp.clinicName}</>}</div>
               </div>
@@ -75,7 +75,7 @@ function PatientDashboard() {
           <div className="space-y-2">
             {upcoming.slice(1).map((a) => (
               <Link key={a.id} to="/patient/appointments/$id" params={{ id: a.id }} className="flex items-center justify-between rounded-xl border bg-card p-4 hover:border-primary">
-                <div><p className="font-medium">{s.users.find((u) => u.id === a.doctorId)?.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "EEE d MMM, HH:mm")} · {a.id}</p></div>
+                <div><p className="font-medium">{s.users.find((u) => u.id === a.doctorId)?.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "EEE d MMM, h:mm a")} · {a.id}</p></div>
                 <div className="flex items-center gap-3"><TypeBadge type={a.type} /><StatusBadge status={a.status} /></div>
               </Link>
             ))}

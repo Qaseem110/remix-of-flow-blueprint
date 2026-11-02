@@ -7,6 +7,7 @@ import { SlotPicker } from "@/components/app/widgets";
 import { nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/doctors/$id")({
   head: () => meta("Doctor profile", "Doctor details, fees, languages and available slots."),
@@ -55,7 +56,7 @@ function DoctorProfile() {
           </div>
           <div className="space-y-3 rounded-2xl border bg-card p-5">
             {facts.map((f) => <div key={f.label} className="flex gap-3 text-sm"><f.icon className="mt-0.5 h-4 w-4 text-primary" /><div><p className="text-muted-foreground">{f.label}</p><p className="font-medium">{f.v}</p></div></div>)}
-            {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {av.days.sort().map((x) => DAYS[x]).join(", ")} · {av.start}–{av.end} · {av.duration}-min visits</p>}
+            {av && <p className="border-t pt-3 text-sm text-muted-foreground">Works {av.days.sort().map((x) => DAYS[x]).join(", ")} · {fmtTime(av.start)}–{fmtTime(av.end)} · {av.duration}-min visits</p>}
           </div>
           <ReviewList doctorId={id} />
         </div>

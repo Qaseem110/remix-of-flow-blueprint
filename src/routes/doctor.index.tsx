@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { PageHeader, Stat, StatusBadge, TypeBadge, Initials } from "@/components/app/common";
 import { callPatient, dayAppointments, inActiveQueue, markNoShow, todayStr, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/doctor/")({
   head: () => meta("Doctor dashboard", "Today's appointments, live queue and consultations."),
@@ -69,7 +70,7 @@ function DoctorDashboard() {
             {today.length === 0 && <p className="text-sm text-muted-foreground">No appointments today.</p>}
             {today.map((a) => (
               <div key={a.id} className="flex flex-wrap items-center gap-3 rounded-xl border p-3">
-                <span className="w-12 font-display text-lg">{a.time}</span>
+                <span className="w-16 font-display text-lg">{fmtTime(a.time)}</span>
                 <Initials name={name(a.patientId, a.id)} className="h-9 w-9 text-sm" />
                 <div className="min-w-0 flex-1">
                   <Link to="/doctor/patients/$id" params={{ id: a.patientId }} className="font-medium hover:text-primary">{name(a.patientId, a.id)}</Link>
@@ -93,7 +94,7 @@ function DoctorDashboard() {
               return (
                 <div key={c.appointmentId} className="flex justify-between rounded-lg bg-muted p-3">
                   <span><b>{name(c.patientId, c.appointmentId)}</b> — {c.followUpTiming} (from {c.appointmentId})</span>
-                  <span className={booked ? "text-success" : "text-muted-foreground"}>{booked ? `Booked ${booked.date} ${booked.time}` : "Not booked yet"}</span>
+                  <span className={booked ? "text-success" : "text-muted-foreground"}>{booked ? `Booked ${booked.date} ${fmtTime(booked.time)}` : "Not booked yet"}</span>
                 </div>
               );
             })}

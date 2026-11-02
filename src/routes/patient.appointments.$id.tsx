@@ -50,7 +50,7 @@ function ApptDetail() {
           </div>
           <dl className="mt-6 space-y-3 text-sm">
             <div className="flex justify-between"><dt className="text-muted-foreground">Doctor</dt><dd className="font-medium">{doc.name} · {dp.specialization}</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Date & time</dt><dd className="flex items-center gap-1 font-medium"><CalendarDays className="h-4 w-4" />{format(slotDateTime(a), "EEEE d MMM yyyy, HH:mm")}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Date & time</dt><dd className="flex items-center gap-1 font-medium"><CalendarDays className="h-4 w-4" />{format(slotDateTime(a), "EEEE d MMM yyyy, h:mm a")}</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Type</dt><dd><TypeBadge type={a.type} /></dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{a.type === "online" ? "Consultation link" : "Clinic location"}</dt>
               <dd className="text-right font-medium">{a.type === "online" ? <span className="flex items-center gap-1"><Video className="h-4 w-4" />sahoolat.app/room/{a.id}</span> : <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{dp.clinicName}, {dp.clinicAddress}, {dp.city}</span>}</dd></div>

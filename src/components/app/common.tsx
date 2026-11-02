@@ -1,5 +1,5 @@
 import { Badge } from "@/components/ui/badge";
-import { cn } from "@/lib/utils";
+import { cn, fmtTime } from "@/lib/utils";
 import type { AppointmentStatus, DocFile } from "@/lib/store";
 import { FileText, Download, Video, Building2, Eye, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -78,7 +78,7 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
                   Uploaded by {d.uploadedBy === "patient" ? "patient" : d.uploadedBy === "doctor" ? "doctor" : d.uploadedBy}
                   {d.uploadedAt && <> · {format(new Date(d.uploadedAt), "d MMM yyyy, h:mm a")}</>} · {(d.size / 1024).toFixed(0)} KB
                 </p>
-                {doctor && <p className="text-xs"><span className="text-muted-foreground">Doctor:</span> {doctor.name}{a && <span className="text-muted-foreground"> · Visit {a.date} {a.time} ({a.id})</span>}</p>}
+                {doctor && <p className="text-xs"><span className="text-muted-foreground">Doctor:</span> {doctor.name}{a && <span className="text-muted-foreground"> · Visit {a.date} {fmtTime(a.time)} ({a.id})</span>}</p>}
                 {a?.reason && <p className="text-xs"><span className="text-muted-foreground">Reason:</span> {a.reason}</p>}
                 {diagnosis && <p className="text-xs"><span className="text-muted-foreground">Diagnosis:</span> {diagnosis}</p>}
               </div>
