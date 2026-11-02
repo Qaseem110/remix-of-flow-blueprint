@@ -384,6 +384,8 @@ export async function hydrate(sessionUserId: string | null) {
   const version = ++hydrationVersion;
   const { supabase } = await import("./supabase");
   const results = await Promise.all([...TABLES.map((t) => supabase.from(t.table).select("*")), supabase.from("settings").select("*").eq("id", "global").maybeSingle()]);
+  // A temporary connection failure must not erase an already-loaded account or its records.
+  if (ready && state.sessionUserId === sessionUserId && results.some((r) => r.error)) return;
   const next = { ...state, sessionUserId } as State;
   TABLES.forEach((t, i) => {
     const r = results[i] as { data: unknown[] | null; error: { message: string } | null };
@@ -421,7 +423,7 @@ export function startSync() {
     const { data } = await supabase.auth.getSession();
     await hydrate(data.session?.user.id ?? null);
     supabase.auth.onAuthStateChange((event) => {
-      if (event === "SIGNED_OUT") { hydrating = true; state = { ...emptyState(), doctors: state.doctors, users: state.users, availability: state.availability, reviews: state.reviews, pharmacies: state.pharmacies, medicines: state.medicines, settings: state.settings }; hydrating = false; emit(); }
+      if (event === "SIGNED_OUT") { ++hydrationVersion; hydrating = true; state = emptyState(); hydrating = false; emit(); }
     });
     let t: ReturnType<typeof setTimeout> | undefined;
     const refresh = () => { clearTimeout(t); t = setTimeout(() => void hydrate(state.sessionUserId), 400); };

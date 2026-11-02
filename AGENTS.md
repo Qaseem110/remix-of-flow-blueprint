@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
+- Dashboard headers keep navigation in a separate top row and sign-out in the shared account row; sign-out awaits auth teardown and invalidates pending hydrations. Why: account controls must fit every screen and stale refreshes must not restore signed-out data.
 - Doctor attachments use the store's awaited upload-and-save operation; full doctor-side patient history is rendered only after server-verified PIN access. Why: uploads must survive refresh and history must not bypass its gate.
 - All data access goes through `src/lib/store.ts`: an in-memory cache hydrated from the backend client exported by `src/lib/supabase.ts` and written through by diffing state after each mutation; UI must not mutate state directly. Why: keeps UI synchronous and backend-swappable.
 - Backend is Lovable Cloud temporarily for testing; the user plans to move back to self-hosted Supabase. Keep schema portable (plain SQL, mirrored in `supabase/schema.sql` + `supabase/limits.sql`) and only swap `src/lib/supabase.ts` when moving. Why: one-file switch back.
