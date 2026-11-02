@@ -105,7 +105,18 @@ export function QueueCard({ appointmentId }: { appointmentId: string }) {
 }
 
 /** Free peer-to-peer video; signaling stays on the appointment's shared room. */
-const ICE: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+const STUN_ONLY: RTCConfiguration = { iceServers: [{ urls: ["stun:stun.l.google.com:19302", "stun:stun1.l.google.com:19302"] }] };
+let iceCache: Promise<RTCConfiguration> | null = null;
+/** Fetches relay (TURN) servers once per session so strict networks can still connect. */
+function loadIce(): Promise<RTCConfiguration> {
+  if (!iceCache) {
+    iceCache = import("@/lib/turn.functions")
+      .then(({ getIceServers }) => getIceServers())
+      .then((r) => ({ iceServers: r.iceServers as RTCIceServer[] }))
+      .catch(() => { iceCache = null; return STUN_ONLY; });
+  }
+  return iceCache;
+}
 
 export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: string; selfName: string; otherName: string; onLeave: () => void }) {
   const localRef = useRef<HTMLVideoElement>(null);
