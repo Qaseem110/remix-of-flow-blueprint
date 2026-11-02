@@ -1064,3 +1064,36 @@ export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role
     } catch { return d; }
   }));
 }
+
+// ---------- Call recordings (admin case files) ----------
+export type CallRecording = { id: string; appointmentId: string; uploaderId: string; role: string; url: string; startedAt: string };
+
+/** Uploads one audio segment of a video consultation. Readable only by admins. */
+export async function uploadCallRecording(appointmentId: string, blob: Blob, startedAt: string) {
+  if (!backendEnabled || !blob.size) return;
+  const uid = state.sessionUserId;
+  if (!uid) return;
+  const role = state.users.find((u) => u.id === uid)?.role ?? "patient";
+  const ext = blob.type.includes("mp4") ? "m4a" : "webm";
+  const path = `${uid}/${appointmentId}/${Date.now()}.${ext}`;
+  const { error } = await supabase.storage.from("recordings").upload(path, blob, { contentType: blob.type || "audio/webm" });
+  if (error) throw error;
+  await supabase.from("call_recordings").insert({ appointment_id: appointmentId, uploader_id: uid, role, path, started_at: startedAt });
+}
+
+export async function listCallRecordings(appointmentId: string): Promise<CallRecording[]> {
+  if (!backendEnabled) return [];
+  const { data } = await supabase.from("call_recordings").select("*").eq("appointment_id", appointmentId).order("started_at");
+  const out: CallRecording[] = [];
+  for (const r of data ?? []) {
+    const { data: s } = await supabase.storage.from("recordings").createSignedUrl(r.path, 3600);
+    out.push({ id: r.id, appointmentId: r.appointment_id, uploaderId: r.uploader_id, role: r.role, url: s?.signedUrl ?? "", startedAt: r.started_at });
+  }
+  return out;
+}
+
+export async function recordedAppointmentIds(): Promise<Set<string>> {
+  if (!backendEnabled) return new Set();
+  const { data } = await supabase.from("call_recordings").select("appointment_id");
+  return new Set((data ?? []).map((r: { appointment_id: string }) => r.appointment_id));
+}
