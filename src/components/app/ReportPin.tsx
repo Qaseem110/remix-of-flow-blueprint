@@ -17,15 +17,21 @@ export function PinGate({ patientId, children }: { patientId: string; children: 
   const [busy, setBusy] = useState(false);
   useEffect(() => {
     if (open) return;
-    void supabase.rpc("has_report_pin", { patient: patientId }).then(({ data }) => setHasPin(!!data));
+    void supabase.rpc("has_report_access", { patient: patientId }).then(({ data }) => {
+      if (data) { unlocked.add(patientId); setOpen(true); }
+      else void supabase.rpc("has_report_pin", { patient: patientId }).then(({ data: d }) => setHasPin(!!d));
+    });
   }, [patientId, open]);
   if (open) return <>{children}</>;
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setBusy(true);
-    const { data, error } = await supabase.rpc("verify_report_pin", { patient: patientId, pin });
+    const { data, error } = await supabase.rpc("unlock_patient_reports", { patient: patientId, pin });
     setBusy(false);
     if (error || !data) { toast.error("Wrong PIN"); return; }
     unlocked.add(patientId); setOpen(true);
+    // Reload so reports from the patient's other doctors become visible.
+    const { hydrate, getState } = await import("@/lib/store");
+    await hydrate(getState().sessionUserId);
   };
   return (
     <div className="rounded-xl border border-dashed bg-muted/40 p-4 text-sm">
