@@ -13,7 +13,7 @@ function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
   const active = useActiveMember();
   return (
     <Select value={active ?? "main"} onValueChange={(v) => setActiveMember(v === "main" ? null : v)}>
-      <SelectTrigger className="h-9 w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-primary" /><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9 w-44 border-sidebar-border text-sidebar-foreground lg:w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-sidebar-foreground" /><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="main">{name} (Me)</SelectItem>
         {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.relation})</SelectItem>)}
@@ -80,10 +80,10 @@ function Notifications({ userId }: { userId: string }) {
 
 function SideNav({ role }: { role: Role }) {
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
           activeProps={{ className: "bg-sidebar-accent !text-sidebar-primary font-semibold" }}>
           <n.icon className="h-4 w-4" />{n.label}
         </Link>
@@ -118,12 +118,12 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   }
 
   const brand = (
-    <Link to="/" className="flex items-center gap-2 px-3 font-display text-xl font-semibold text-sidebar-foreground">
+    <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold text-sidebar-foreground">
       <Stethoscope className="h-6 w-6 text-sidebar-primary" /> Sahoolat
     </Link>
   );
   const footer = (
-    <div className="mt-auto border-t border-sidebar-border pt-4">
+    <div className="border-t border-sidebar-border pt-4">
       <p className="px-3 text-sm font-medium text-sidebar-foreground">{user.name}</p>
       <p className="px-3 text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
       <button onClick={() => { logout(); navigate({ to: "/login" }); }} className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent">
@@ -133,19 +133,33 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   );
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="sticky top-0 hidden h-screen w-60 flex-col gap-6 bg-sidebar p-4 md:flex">{brand}<SideNav role={role} />{footer}</aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-20 flex h-14 items-center justify-between border-b bg-background/85 px-4 backdrop-blur md:px-8">
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-30 border-b bg-sidebar">
+        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 md:px-8">
           <Sheet>
             <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
             <SheetContent side="left" className="flex w-64 flex-col gap-6 bg-sidebar p-4">{brand}<SideNav role={role} />{footer}</SheetContent>
           </Sheet>
-          <div className="hidden text-sm text-muted-foreground md:block">Welcome back, <span className="font-medium text-foreground">{user.name}</span></div>
-          <div className="flex items-center gap-2">{role === "patient" && <AccountSwitcher userId={user.id} name={user.name} />}<Notifications userId={user.id} /></div>
-        </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
-      </div>
+          <div className="hidden md:block">{brand}</div>
+          <div className="hidden flex-1 md:block"><SideNav role={role} /></div>
+          <div className="ml-auto flex items-center gap-2">
+            {role === "patient" && <AccountSwitcher userId={user.id} name={user.name} />}
+            <Notifications userId={user.id} />
+            <div className="hidden items-center gap-3 border-l border-sidebar-border pl-3 lg:flex">
+              <div className="text-right">
+                <p className="text-sm font-medium text-sidebar-foreground">{user.name}</p>
+                <p className="text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
+              </div>
+              <Button variant="ghost" size="icon" aria-label="Sign out" onClick={() => { logout(); navigate({ to: "/login" }); }}>
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 p-4 md:p-8">
+        <div className="mx-auto w-full max-w-7xl">{children}</div>
+      </main>
     </div>
   );
 }
