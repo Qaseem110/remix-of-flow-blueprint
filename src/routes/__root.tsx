@@ -129,6 +129,17 @@ function RootShell({ children }: { children: ReactNode }) {
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
   useEffect(() => { startSync(); }, []);
+  useEffect(() => {
+    // After a new deploy, old page files disappear; reload to pick up the new version instead of erroring.
+    const onPreloadError = (e: Event) => {
+      e.preventDefault();
+      const last = Number(sessionStorage.getItem("sahoolat-reloaded-at") || 0);
+      if (Date.now() - last > 10000) { sessionStorage.setItem("sahoolat-reloaded-at", String(Date.now())); window.location.reload(); }
+    };
+    window.addEventListener("vite:preloadError", onPreloadError);
+    const t = setTimeout(() => sessionStorage.removeItem("sahoolat-reloaded"), 10000);
+    return () => { window.removeEventListener("vite:preloadError", onPreloadError); clearTimeout(t); };
+  }, []);
 
 
   return (
