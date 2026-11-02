@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
+- Patient call uploads require successful content-based naming and use the store's awaited storage-and-metadata operation; report inference uses the AI Gateway SDK inside its authenticated server function. Why: original filenames and premature upload success must not silently replace report reading or persistence.
 - Doctor pages narrow session and profile data before rendering; navigation preloads on intent, and shared avatars fall back for persisted blob URLs or failed images. Why: transient data and stale tab-local photos must not crash or slow dashboard transitions.
 - Monetary displays and input currency labels use the shared currency constant and price formatter in `src/lib/utils.ts`. Why: prices stay consistent across booking and medicine views without altering stored amounts.
 - Dashboard headers keep navigation in a separate top row and sign-out in the shared account row; sign-out awaits auth teardown and invalidates pending hydrations. Why: account controls must fit every screen and stale refreshes must not restore signed-out data.
