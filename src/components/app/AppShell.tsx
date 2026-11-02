@@ -80,10 +80,10 @@ function Notifications({ userId }: { userId: string }) {
 
 function SideNav({ role }: { role: Role }) {
   return (
-    <nav className="flex flex-col gap-1">
+    <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
           activeProps={{ className: "bg-sidebar-accent !text-sidebar-primary font-semibold" }}>
           <n.icon className="h-4 w-4" />{n.label}
         </Link>
