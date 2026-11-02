@@ -1,4 +1,10 @@
 # Doctor documents and patient history
+ 
+# Dashboard sign-out and page transitions
+- [ ] Keep Sign out visible on every dashboard at all screen sizes.
+- [ ] Diagnose and fix brief errors during page opening.
+- [ ] Verify page navigation and sign-out with the active account.
+
 - [x] Save doctor document uploads immediately, including after completed visits.
 - [x] Gate the full patient history with the patient's PIN and refresh unlocked records.
 - [x] Test doctor uploads and PIN-protected history (7 relevant tests passed).
