@@ -134,6 +134,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
     let failed = false;
     let local: MediaStream | null = null;
     let pc: RTCPeerConnection | null = null;
+    let ice: RTCConfiguration = STUN_ONLY;
     let channel: RealtimeChannel | null = null;
     let handshake: ReturnType<typeof createCallPeer> | null = null;
     let remoteId: string | null = null;
@@ -159,7 +160,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
     };
     const ensurePeer = () => {
       if (handshake) return handshake;
-      const p = new RTCPeerConnection(ICE);
+      const p = new RTCPeerConnection(ice);
       const media = local;
       if (media) media.getTracks().forEach((track) => p.addTrack(track, media));
       else { p.addTransceiver("audio", { direction: "recvonly" }); p.addTransceiver("video", { direction: "recvonly" }); }
@@ -180,7 +181,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
           setError(false);
           setStatus("Connected");
         } else if (p.connectionState === "failed") {
-          fail("Your networks could not connect directly. Try another Wi-Fi or mobile network, then retry.");
+          fail("The video connection failed. Please tap Retry connection.");
         } else if (p.connectionState === "disconnected") {
           setConnected(false);
           setStatus("Connection interrupted — reconnecting…");
@@ -205,6 +206,7 @@ export function VideoRoom({ roomId, selfName, otherName, onLeave }: { roomId: st
         if (cancelled) { local?.getTracks().forEach((track) => track.stop()); return; }
         setStream(local);
         if (localRef.current) localRef.current.srcObject = local;
+        ice = await loadIce();
         const { supabase } = await import("@/lib/supabase");
         if (cancelled) return;
         channel = supabase.channel(`call-${roomId}`, { config: { broadcast: { self: false, ack: true } } });
