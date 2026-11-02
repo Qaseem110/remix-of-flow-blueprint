@@ -15,4 +15,4 @@
 - Unit tests (MODE=test) run the store on seed data with the backend disabled. Why: tests stay offline and deterministic.
 - Role areas are layout routes (`/patient`, `/doctor`, `/admin`, `/pharmacy`) wrapped in `AppShell`, which guards by session role. Why: one shell + nav per role.
 - Video calls serialize SDP/ICE through `src/lib/call-peer.ts` with one deterministic initiator and queued early candidates. Why: repeated greetings must not replace an in-progress connection or discard its network candidates.
-- Video calls fetch TURN relay credentials server-side (`src/lib/turn.functions.ts`, Cloudflare keys in secrets) and fall back to STUN only. Why: direct peer-to-peer fails on mobile/CGNAT networks.
+- Video calls fetch TURN relay credentials server-side (`src/lib/turn.functions.ts`, Cloudflare keys in secrets) and fall back to free no-account relays (freestun, openrelay). Why: direct peer-to-peer fails on mobile/CGNAT networks.
