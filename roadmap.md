@@ -1,4 +1,10 @@
 # Queue-based appointments
+ 
+# Doctor documents and patient history
+- [ ] Save doctor document uploads immediately, including after completed visits.
+- [ ] Gate the full patient history with the patient's PIN and refresh unlocked records.
+- [ ] Test doctor uploads and PIN-protected history.
+
 - [x] Add daily patient capacity and automatic queue/time allocation with server enforcement.
 - [x] Replace patient time selection in booking, doctor profile and rescheduling.
 - [x] Add dashboard capacity control and align availability settings.
