@@ -1,3 +1,8 @@
+# Dashboard sign-out and page transitions
+- [x] Keep Sign out visible on every dashboard at all screen sizes.
+- [x] Fix stale hydration overwrites and consultation initialization; show loading during automatic page-update recovery.
+- [x] Verify patient page navigation and live sign-out at 390, 949 and 1280 pixels; no browser errors, 8 relevant tests passed.
+
 # Doctor documents and patient history
 - [x] Save doctor document uploads immediately, including after completed visits.
 - [x] Gate the full patient history with the patient's PIN and refresh unlocked records.

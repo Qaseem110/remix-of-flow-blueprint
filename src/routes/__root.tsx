@@ -8,7 +8,7 @@ import {
   Scripts,
   type ErrorComponentProps,
 } from "@tanstack/react-router";
-import { useEffect, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { Toaster } from "@/components/ui/sonner";
 import appCss from "../styles.css?url";
@@ -40,15 +40,18 @@ function NotFoundComponent() {
 function ErrorComponent({ error, reset }: ErrorComponentProps) {
   console.error(error);
   const router = useRouter();
+  const chunkError = /dynamically imported module|Importing a module script failed|error loading dynamically|Loading chunk/i.test(String(error instanceof Error ? error.message : error));
+  const [recovering, setRecovering] = useState(chunkError);
   useEffect(() => {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
     // An updated app version can leave old page files missing in an open tab; reload once to fetch the new ones.
-    const msg = String((error as Error)?.message ?? error);
-    if (/dynamically imported module|Importing a module script failed|error loading dynamically|Loading chunk/i.test(msg) && !sessionStorage.getItem("sahoolat-reloaded")) {
+    if (chunkError && !sessionStorage.getItem("sahoolat-reloaded")) {
       sessionStorage.setItem("sahoolat-reloaded", "1");
       window.location.reload();
-    }
-  }, [error]);
+    } else setRecovering(false);
+  }, [error, chunkError]);
+
+  if (recovering) return <div role="status" className="flex min-h-screen items-center justify-center text-muted-foreground">Updating page…</div>;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">

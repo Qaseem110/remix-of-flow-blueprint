@@ -7,6 +7,8 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { setActiveMember, useActiveMember, logout, markAllRead, runReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
   const members = useStore((s) => s.patients.find((p) => p.userId === userId)?.members) ?? [];
@@ -97,6 +99,18 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   const user = useSession();
   const navigate = useNavigate();
   const ready = useReady();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = useState(false);
+  const signOut = async () => {
+    setSigningOut(true);
+    try {
+      await queryClient.cancelQueries();
+      queryClient.clear();
+      await logout();
+      await navigate({ to: "/login", replace: true });
+    } catch { toast.error("Could not sign out. Please try again."); }
+    finally { setSigningOut(false); }
+  };
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -127,23 +141,22 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
     <div className="border-t border-sidebar-border pt-4">
       <p className="px-3 text-sm font-medium text-sidebar-foreground">{user.name}</p>
       <p className="px-3 text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
-      <button onClick={() => { logout(); navigate({ to: "/login" }); }} className="mt-3 flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 hover:bg-sidebar-accent">
+      <Button variant="ghost" disabled={signingOut} onClick={signOut} className="mt-3 w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
         <LogOut className="h-4 w-4" /> Sign out
-      </button>
+      </Button>
     </div>
   );
 
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-30 border-b bg-sidebar">
-        <div className="mx-auto flex h-16 w-full max-w-7xl items-center gap-4 px-4 md:px-8">
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center gap-2 px-4 py-3 md:gap-4 md:px-8">
           <Sheet>
             <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
             <SheetContent side="left" className="flex w-64 flex-col gap-6 bg-sidebar p-4">{brand}<SideNav role={role} />{footer}</SheetContent>
           </Sheet>
-          <div className="hidden md:block">{brand}</div>
-          <div className="hidden flex-1 md:block"><SideNav role={role} /></div>
-          <div className="ml-auto flex items-center gap-2">
+          <div className="hidden shrink-0 sm:block">{brand}</div>
+          <div className="ml-auto flex min-w-0 items-center gap-2 text-sidebar-foreground">
             {role === "patient" && <AccountSwitcher userId={user.id} name={user.name} />}
             <Notifications userId={user.id} />
             <div className="hidden items-center gap-3 border-l border-sidebar-border pl-3 lg:flex">
@@ -151,12 +164,11 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
                 <p className="text-sm font-medium text-sidebar-foreground">{user.name}</p>
                 <p className="text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
               </div>
-              <Button variant="ghost" size="icon" aria-label="Sign out" onClick={() => { logout(); navigate({ to: "/login" }); }}>
-                <LogOut className="h-4 w-4" />
-              </Button>
             </div>
+            <Button variant="ghost" disabled={signingOut} onClick={signOut} className="shrink-0 gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"><LogOut className="h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
           </div>
         </div>
+        <div className="hidden border-t border-sidebar-border md:block"><div className="mx-auto max-w-7xl overflow-x-auto px-4 py-2 md:px-8"><SideNav role={role} /></div></div>
       </header>
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-7xl">{children}</div>

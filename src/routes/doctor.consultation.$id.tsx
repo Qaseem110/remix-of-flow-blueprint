@@ -32,12 +32,16 @@ function Console() {
   const a = useStore((s) => s.appointments.find((x) => x.id === id));
   const patient = useStore((s) => s.users.find((x) => x.id === a?.patientId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
-  const [c, setC] = useState(() => (a ? ensureConsultation(id) : null));
+  const [c, setC] = useState<ReturnType<typeof ensureConsultation> | null>(null);
   const [kind, setKind] = useState("Prescription");
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
-  useEffect(() => { if (a && !c) setC(ensureConsultation(id)); }, [a, c, id]);
-  if (!user || !a || !patient || !c || a.doctorId !== user.id) return <p>Consultation not found.</p>;
+  useEffect(() => {
+    if (a && user && a.doctorId === user.id) setC(ensureConsultation(id));
+    else setC(null);
+  }, [id, a?.id, user?.id]);
+  if (!user || !a || !patient || a.doctorId !== user.id) return <p>Consultation not found.</p>;
+  if (!c || c.appointmentId !== id) return <p role="status" className="text-muted-foreground">Loading consultation…</p>;
   const done = a.status === "Completed";
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });
   const setRx = (i: number, p: Partial<PrescriptionItem>) => upd({ prescription: c.prescription.map((r, j) => (j === i ? { ...r, ...p } : r)) });
