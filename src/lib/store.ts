@@ -378,8 +378,10 @@ async function syncDiff(prev: State, next: State) {
 }
 
 /** Load everything the signed-in (or anonymous) user may see from Supabase. */
+let hydrationVersion = 0;
 export async function hydrate(sessionUserId: string | null) {
   if (!SB) return;
+  const version = ++hydrationVersion;
   const { supabase } = await import("./supabase");
   const results = await Promise.all([...TABLES.map((t) => supabase.from(t.table).select("*")), supabase.from("settings").select("*").eq("id", "global").maybeSingle()]);
   const next = { ...state, sessionUserId } as State;
@@ -401,6 +403,7 @@ export async function hydrate(sessionUserId: string | null) {
   }
   const s = results[TABLES.length] as { data: { data: Settings } | null };
   next.settings = { ...DEFAULT_SETTINGS, ...(s.data?.data ?? {}) };
+  if (version !== hydrationVersion) return;
   hydrating = true;
   state = next;
   ready = true;
@@ -615,9 +618,15 @@ export async function login(email: string, password: string): Promise<User> {
   if (!u.active) { await supabase.auth.signOut(); throw new Error("This account has been deactivated"); }
   return u;
 }
-export function logout() {
-  set((s) => ({ ...s, sessionUserId: null }));
-  if (SB) void import("./supabase").then(({ supabase }) => supabase.auth.signOut());
+export async function logout() {
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { error } = await supabase.auth.signOut();
+    if (error) throw new Error(error.message);
+  }
+  ++hydrationVersion;
+  state = SB ? emptyState() : { ...state, sessionUserId: null };
+  emit();
 }
 
 async function signUp(email: string, password: string, meta: Record<string, unknown>): Promise<string> {
