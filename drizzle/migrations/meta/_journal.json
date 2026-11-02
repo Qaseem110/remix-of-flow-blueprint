@@ -50,6 +50,13 @@
       "when": 1793646657647,
       "tag": "0006_correct_booking_day_time",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793647094024,
+      "tag": "0007_customizable_shift_schedules",
+      "breakpoints": true
     }
   ]
 }
