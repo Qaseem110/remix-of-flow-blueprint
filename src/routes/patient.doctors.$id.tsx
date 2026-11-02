@@ -7,7 +7,7 @@ import { BookingDatePicker } from "@/components/app/widgets";
 import { weekdayShifts, nextBooking, nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
-import { fmtTime } from "@/lib/utils";
+import { fmtPrice, fmtTime } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/doctors/$id")({
   head: () => meta("Doctor profile", "Doctor details, fees, languages and available appointment dates."),
@@ -26,7 +26,7 @@ function DoctorProfile() {
   const facts = [
     { icon: GraduationCap, label: "Qualification", v: d.qualification },
     { icon: Briefcase, label: "Experience", v: `${d.experience} years` },
-    { icon: Wallet, label: "Consultation fee", v: `${d.fee} LYD` },
+    { icon: Wallet, label: "Consultation fee", v: fmtPrice(d.fee) },
     { icon: Languages, label: "Languages", v: d.languages.join(", ") || "—" },
     { icon: MapPin, label: "Clinic", v: `${d.clinicName}, ${d.clinicAddress}, ${d.city}` },
   ];

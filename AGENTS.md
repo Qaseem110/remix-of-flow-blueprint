@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
+- Monetary displays and input currency labels use the shared currency constant and price formatter in `src/lib/utils.ts`. Why: prices stay consistent across booking and medicine views without altering stored amounts.
 - Dashboard headers keep navigation in a separate top row and sign-out in the shared account row; sign-out awaits auth teardown and invalidates pending hydrations. Why: account controls must fit every screen and stale refreshes must not restore signed-out data.
 - Doctor attachments use the store's awaited upload-and-save operation; full doctor-side patient history is rendered only after server-verified PIN access. Why: uploads must survive refresh and history must not bypass its gate.
 - All data access goes through `src/lib/store.ts`: an in-memory cache hydrated from the backend client exported by `src/lib/supabase.ts` and written through by diffing state after each mutation; UI must not mutate state directly. Why: keeps UI synchronous and backend-swappable.

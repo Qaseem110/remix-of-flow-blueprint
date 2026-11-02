@@ -9,7 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
 import { BookingDatePicker } from "@/components/app/widgets";
 import { bookAppointment, nextBooking, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
-import { cn, fmtTime } from "@/lib/utils";
+import { cn, fmtPrice, fmtTime } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
 type Search = { date?: string; followUpOf?: string };
@@ -74,7 +74,7 @@ function Book() {
     <div className="mx-auto max-w-3xl">
       <div className="mb-6 flex items-center gap-4">
         <Avatar name={u.name} src={d.avatar} />
-        <div><h1 className="text-2xl font-semibold">{search.followUpOf ? "Book follow-up" : "Book appointment"}</h1><p className="text-muted-foreground">{u.name} · {d.specialization} · {d.fee} LYD</p></div>
+        <div><h1 className="text-2xl font-semibold">{search.followUpOf ? "Book follow-up" : "Book appointment"}</h1><p className="text-muted-foreground">{u.name} · {d.specialization} · {fmtPrice(d.fee)}</p></div>
       </div>
       <ol className="mb-6 flex gap-2">
         {STEPS.map((s, i) => (
@@ -128,7 +128,7 @@ function Book() {
         {step === 3 && (
           <>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Queue number", allocation ? `#${allocation.queueNumber}` : "Full"], ["Estimated time", allocation ? fmtTime(allocation.time) : "Unavailable"], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", `${d.fee} LYD`], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
+            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Queue number", allocation ? `#${allocation.queueNumber}` : "Full"], ["Estimated time", allocation ? fmtTime(allocation.time) : "Unavailable"], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", fmtPrice(d.fee)], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>

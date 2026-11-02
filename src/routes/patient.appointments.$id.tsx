@@ -8,6 +8,7 @@ import { CancelDialog, QueueCard, RescheduleDialog } from "@/components/app/widg
 import { addAppointmentDocs, canJoin, checkIn, readAndMakeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { ReviewForm } from "@/components/app/Reviews";
+import { fmtPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/appointments/$id")({
   validateSearch: (s: Record<string, unknown>): { confirmed?: boolean } => ({ confirmed: s.confirmed === true || s.confirmed === "true" ? true : undefined }),
@@ -55,7 +56,7 @@ function ApptDetail() {
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{a.type === "online" ? "Consultation link" : "Clinic location"}</dt>
               <dd className="text-right font-medium">{a.type === "online" ? <span className="flex items-center gap-1"><Video className="h-4 w-4" />sahoolat.app/room/{a.id}</span> : <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{dp.clinicName}, {dp.clinicAddress}, {dp.city}</span>}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Reason</dt><dd className="text-right">{a.reason}</dd></div>
-            <div className="flex justify-between"><dt className="text-muted-foreground">Payment</dt><dd>{dp.fee} LYD · {a.payment === "card" ? "Card" : a.type === "online" ? "Pay later" : "Pay at clinic"}</dd></div>
+            <div className="flex justify-between"><dt className="text-muted-foreground">Payment</dt><dd>{fmtPrice(dp.fee)} · {a.payment === "card" ? "Card" : a.type === "online" ? "Pay later" : "Pay at clinic"}</dd></div>
             {a.rescheduledFrom && <div className="flex justify-between"><dt className="text-muted-foreground">Rescheduled from</dt><dd>{a.rescheduledFrom}</dd></div>}
             {a.rescheduledTo && <div className="flex justify-between"><dt className="text-muted-foreground">Moved to</dt><dd><Link className="text-primary" to="/patient/appointments/$id" params={{ id: a.rescheduledTo }}>{a.rescheduledTo}</Link></dd></div>}
             {a.status === "Cancelled" && <div className="flex justify-between"><dt className="text-muted-foreground">Cancelled by</dt><dd className="capitalize">{a.cancelledBy}{a.cancelReason ? ` — ${a.cancelReason}` : ""}</dd></div>}

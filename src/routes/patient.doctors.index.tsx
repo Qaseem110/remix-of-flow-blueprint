@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Avatar, PageHeader } from "@/components/app/common";
 import { getSlots, nextAvailableDate, useStore, visibleDoctors } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/doctors/")({
   head: () => meta("Find a doctor", "Search doctors by name, specialization, location, consultation type and date."),
@@ -67,7 +68,7 @@ function FindDoctor() {
                   <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{d.languages.join(", ")}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
-                  <span className="text-sm"><b className="font-display text-lg">{d.fee} LYD</b> · next: {na ?? "—"}</span>
+                  <span className="text-sm"><b className="font-display text-lg">{fmtPrice(d.fee)}</b> · next: {na ?? "—"}</span>
                   <Button size="sm" asChild><Link to="/patient/doctors/$id" params={{ id: d.userId }}>View profile</Link></Button>
                 </div>
               </div>
