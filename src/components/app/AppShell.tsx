@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -46,6 +46,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/admin", label: "Verification", icon: ShieldCheck },
     { to: "/admin/users", label: "Users & Doctors", icon: Users },
     { to: "/admin/appointments", label: "Appointments", icon: CalendarDays },
+    { to: "/admin/cases", label: "Case files", icon: FolderOpen },
     { to: "/admin/settings", label: "Settings", icon: Settings },
   ],
 };
