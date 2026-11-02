@@ -13,7 +13,7 @@ function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
   const active = useActiveMember();
   return (
     <Select value={active ?? "main"} onValueChange={(v) => setActiveMember(v === "main" ? null : v)}>
-      <SelectTrigger className="h-9 w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-primary" /><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9 w-44 border-sidebar-border text-sidebar-foreground lg:w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-sidebar-foreground" /><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="main">{name} (Me)</SelectItem>
         {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.relation})</SelectItem>)}
@@ -83,7 +83,7 @@ function SideNav({ role }: { role: Role }) {
     <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
-          className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
+          className="flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
           activeProps={{ className: "bg-sidebar-accent !text-sidebar-primary font-semibold" }}>
           <n.icon className="h-4 w-4" />{n.label}
         </Link>
