@@ -30,7 +30,14 @@ function DocProfile() {
     });
     toast.success("Profile saved");
   };
-  const onPic = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) updateDoctorProfile(user.id, { avatar: URL.createObjectURL(file) }); };
+  const onPic = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => { if (typeof reader.result === "string") updateDoctorProfile(user.id, { avatar: reader.result }); };
+    reader.onerror = () => toast.error("Could not read your profile picture. Please try again.");
+    reader.readAsDataURL(file);
+  };
   const fields: [string, string, string | number, string?][] = [
     ["name", "Name", user.name], ["phone", "Phone", user.phone], ["specialization", "Specialization", d.specialization], ["qualification", "Qualification", d.qualification],
     ["licenseNumber", "License / registration no.", d.licenseNumber], ["experience", "Experience (years)", d.experience, "number"], ["fee", `Consultation fee (${CURRENCY})`, d.fee, "number"],
