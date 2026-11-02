@@ -12,7 +12,7 @@ import { AuthFrame } from "./login";
 
 export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" || s.role === "pharmacy" ? s.role : undefined }) as { role?: "doctor" | "pharmacy" },
-  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor or medical store on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }] }),
+  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor or medical store on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Register,
 });
 

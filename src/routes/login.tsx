@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { login } from "@/lib/store";
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "Sign in — Sahoolat" }, { name: "description", content: "Sign in to your Sahoolat patient, doctor or admin account." }, { property: "og:title", content: "Sign in — Sahoolat" }, { property: "og:description", content: "Sign in to your Sahoolat account." }] }),
+  head: () => ({ meta: [{ title: "Sign in — Sahoolat" }, { name: "description", content: "Sign in to your Sahoolat patient, doctor or admin account." }, { property: "og:title", content: "Sign in — Sahoolat" }, { property: "og:description", content: "Sign in to your Sahoolat account." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Login,
 });
 
