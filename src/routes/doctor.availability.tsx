@@ -70,5 +70,8 @@ function ScheduleForm({ av }: { av: Schedule }) {
 function Availability() {
   const user = useSession();
   const av = useStore((s) => s.availability.find((a) => a.doctorId === user?.id));
-  return av ? <ScheduleForm key={av.doctorId} av={av} /> : null;
+  if (!user) return null;
+  // Doctors without a saved schedule start from a default weekday schedule instead of a blank page.
+  const schedule: Schedule = av ?? { doctorId: user.id, days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", duration: 30 };
+  return <ScheduleForm key={`${schedule.doctorId}-${av ? "saved" : "new"}`} av={schedule} />;
 }
