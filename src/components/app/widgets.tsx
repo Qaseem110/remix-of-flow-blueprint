@@ -1,14 +1,12 @@
-import { useEffect, useRef, useState } from "react";
-import type { RealtimeChannel } from "@supabase/supabase-js";
-import { createCallPeer } from "@/lib/call-peer";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { addDays, format, parse } from "date-fns";
 import { toast } from "sonner";
-import { Mic, MicOff, PhoneOff, Video, VideoOff, ListOrdered } from "lucide-react";
+import { PhoneOff, ListOrdered } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { cn, fmtTime } from "@/lib/utils";
-import { cancelAppointment, nextBooking, queueInfo, rescheduleAppointment, useStore, type Appointment, type Role } from "@/lib/store";
+import { cancelAppointment, nextBooking, queueInfo, rescheduleAppointment, uploadCallRecording, useStore, type Appointment, type Role } from "@/lib/store";
 
 /** Date strip + auto-generated slots. Only available slots are selectable. */
 export function BookingDatePicker({ doctorId, date, onDate, excludeId }: { doctorId: string; date: string; onDate: (d: string) => void; excludeId?: string }) {
@@ -142,7 +140,7 @@ function useCallRecorder(appointmentId: string) {
       r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       r.onstop = () => {
         const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-        void import("@/lib/store").then(({ uploadCallRecording }) => uploadCallRecording(appointmentId, blob, startedAt)).catch(() => {});
+        void uploadCallRecording(appointmentId, blob, startedAt).catch(() => {});
       };
       r.start(1000);
       rec = r;
