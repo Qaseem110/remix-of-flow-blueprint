@@ -17,5 +17,5 @@
 - Booking availability uses Africa/Tripoli wall-clock time in both browser and database. Why: device timezone must not offer already-past clinic times.
 - Availability supports weekly shift arrays with per-shift capacity and date overrides; empty arrays mean days off, legacy fields are a fallback only. Browser schedule helpers and SQL allocation must resolve overrides first and enforce both shift and day totals. Why: split clinic visits must never create appointments during breaks.
 - Role areas are layout routes (`/patient`, `/doctor`, `/admin`, `/pharmacy`) wrapped in `AppShell`, which guards by session role. Why: one shell + nav per role.
-- Video calls serialize SDP/ICE through `src/lib/call-peer.ts` with one deterministic initiator and queued early candidates. Why: repeated greetings must not replace an in-progress connection or discard its network candidates.
-- Video calls fetch TURN relay credentials server-side (`src/lib/turn.functions.ts`, Cloudflare keys in secrets) and fall back to free no-account relays (freestun, openrelay). Why: direct peer-to-peer fails on mobile/CGNAT networks.
+
+- Video consultations embed a VDO.Ninja room derived from the appointment ID (no custom WebRTC); each participant records their own mic in 2-minute segments to the private `recordings` bucket + `call_recordings` table, readable only by admins via `/admin/cases`. Why: free relays were unreliable, and admins need a complete case file.
