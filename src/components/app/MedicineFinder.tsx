@@ -3,6 +3,7 @@ import { MapPin, Phone, Search, Store, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { searchMedicines, useStore, type Pharmacy } from "@/lib/store";
+import { fmtPrice } from "@/lib/utils";
 
 export const mapsUrl = (p: Pharmacy) =>
   p.lat != null && p.lng != null
@@ -34,7 +35,7 @@ export function MedicineFinder() {
               <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{p.address}, {p.city}{p.hours ? ` · ${p.hours}` : ""}</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Badge variant="secondary" className="text-sm">Rs {m.price.toLocaleString()}</Badge>
+              <Badge variant="secondary" className="text-sm">{fmtPrice(m.price)}</Badge>
               <div className="flex flex-wrap justify-end gap-2 text-sm">
                 <a href={`tel:${p.phone}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-primary"><Phone className="h-3.5 w-3.5" />Call</a>
                 <a href={wa(p.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-primary"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>

@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { PageHeader } from "@/components/app/common";
 import { deleteMedicine, saveMedicine, useSession, useStore, type Medicine } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { CURRENCY, fmtPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/pharmacy/")({
   head: () => meta("My medicines", "List the medicines available at your medical store."),
@@ -69,7 +70,7 @@ function Inventory() {
       <Input className="mb-4 max-w-sm" placeholder="Search my list…" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="overflow-x-auto rounded-2xl border bg-card">
         <table className="w-full text-sm">
-          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground"><tr>{["Medicine", "Strength", "Form / pack", "Price (Rs)", "In stock", ""].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
+          <thead className="bg-muted text-left text-xs uppercase text-muted-foreground"><tr>{["Medicine", "Strength", "Form / pack", `Price (${CURRENCY})`, "In stock", ""].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
           <tbody>
             {shown.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No medicines yet. Scan a photo or add one manually.</td></tr>}
             {shown.map((m) => (
@@ -77,7 +78,7 @@ function Inventory() {
                 <td className="p-3"><p className="font-medium">{m.name}</p>{m.formula && <p className="text-xs text-muted-foreground">{m.formula}</p>}</td>
                 <td className="p-3">{m.strength}</td>
                 <td className="p-3">{m.form}{m.packSize ? ` · ${m.packSize}` : ""}</td>
-                <td className="p-3">{m.price.toLocaleString()}</td>
+                <td className="p-3">{fmtPrice(m.price)}</td>
                 <td className="p-3"><Switch checked={m.inStock} onCheckedChange={(v) => saveMedicine({ ...m, inStock: v })} aria-label="In stock" /></td>
                 <td className="p-3"><div className="flex justify-end gap-2">
                   <button onClick={() => edit(m)} className="text-primary" aria-label={`Edit ${m.name}`}><Pencil className="h-4 w-4" /></button>
@@ -97,7 +98,7 @@ function Inventory() {
             {F("strength", "Strength (mg)")}
             {F("form", "Form (Tablet, Syrup…)")}
             {F("packSize", "Pack size (optional)")}
-            {F("price", "Price (Rs)", "number")}
+            {F("price", `Price (${CURRENCY})`, "number")}
             <label className="flex items-center gap-2 text-sm sm:col-span-2"><Switch checked={draft?.inStock ?? true} onCheckedChange={(v) => setDraft((d) => d && { ...d, inStock: v })} />Available in stock</label>
             <Button className="sm:col-span-2">Save</Button>
           </form>

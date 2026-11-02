@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Avatar, PageHeader } from "@/components/app/common";
 import { updateDoctorProfile, updateUser, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { CURRENCY } from "@/lib/utils";
 
 export const Route = createFileRoute("/doctor/profile")({
   head: () => meta("Doctor profile", "Complete your public profile, specialization and services."),
@@ -30,7 +31,7 @@ function DocProfile() {
   const onPic = (e: React.ChangeEvent<HTMLInputElement>) => { const file = e.target.files?.[0]; if (file) updateDoctorProfile(user.id, { avatar: URL.createObjectURL(file) }); };
   const fields: [string, string, string | number, string?][] = [
     ["name", "Name", user.name], ["phone", "Phone", user.phone], ["specialization", "Specialization", d.specialization], ["qualification", "Qualification", d.qualification],
-    ["licenseNumber", "License / registration no.", d.licenseNumber], ["experience", "Experience (years)", d.experience, "number"], ["fee", "Consultation fee (LYD)", d.fee, "number"],
+    ["licenseNumber", "License / registration no.", d.licenseNumber], ["experience", "Experience (years)", d.experience, "number"], ["fee", `Consultation fee (${CURRENCY})`, d.fee, "number"],
     ["languages", "Languages (comma separated)", d.languages.join(", ")], ["services", "Services (comma separated)", d.services.join(", ")], ["clinicName", "Clinic name", d.clinicName], ["city", "City", d.city], ["clinicAddress", "Clinic address", d.clinicAddress],
   ];
   return (
