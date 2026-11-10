@@ -11,6 +11,8 @@ import { BookingDatePicker } from "@/components/app/widgets";
 import { bookAppointment, nextBooking, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
 import { cn, fmtPrice, fmtTime } from "@/lib/utils";
 import { meta } from "@/lib/meta";
+import { distanceKm, travelMinutes } from "@/lib/geo";
+import { MapPin } from "lucide-react";
 
 type Search = { date?: string; followUpOf?: string };
 
@@ -40,6 +42,11 @@ function Book() {
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState(search.followUpOf ? `Follow-up for ${search.followUpOf}` : "");
   const [docs, setDocs] = useState<DocFile[]>([]);
+  const [loc, setLoc] = useState<{ lat: number; lng: number } | null>(null);
+  const markLocation = () => {
+    if (!navigator.geolocation) return toast.error("Location isn't available on this device");
+    navigator.geolocation.getCurrentPosition((p) => setLoc({ lat: p.coords.latitude, lng: p.coords.longitude }), () => toast.error("Location permission was denied. Allow location for this site in your browser."), { timeout: 20000 });
+  };
   const [payment, setPayment] = useState<PaymentMethod>("cash");
   const activeMember = useActiveMember();
   const members = useStore((s) => s.patients.find((p) => p.userId === user?.id)?.members) ?? [];
@@ -64,7 +71,7 @@ function Book() {
       } else if (forWho !== "main") {
         const m = members.find((x) => x.id === forWho); memberId = m?.id; memberName = m?.name;
       }
-      const a = await bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment });
+      const a = await bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment, patientLat: type === "clinic" ? loc?.lat : undefined, patientLng: type === "clinic" ? loc?.lng : undefined });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
     } catch (err) { toast.error((err as Error).message); setStep(1); } finally { setBusy(false); }
   };
@@ -132,6 +139,16 @@ function Book() {
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>
+          {type === "clinic" && (
+            <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border p-4 text-sm">
+              <MapPin className="h-5 w-5 text-primary" />
+              <div className="flex-1">
+                <p className="font-medium">Your location</p>
+                <p className="text-muted-foreground">{loc ? (d.clinicLat != null && d.clinicLng != null ? (() => { const km = distanceKm(loc, { lat: d.clinicLat, lng: d.clinicLng }); return `About ${km.toFixed(1)} km away, roughly ${travelMinutes(km)} min to reach the clinic.`; })() : "Location marked. The doctor hasn't set the clinic location yet.") : "Mark where you'll travel from so we can tell you when to leave."}</p>
+              </div>
+              <Button type="button" variant="outline" onClick={markLocation}>{loc ? "Update location" : "Mark my location"}</Button>
+            </div>
+          )}
           <p className="mb-2 mt-5 text-sm font-medium">Payment method</p>
           <div className="grid gap-3 sm:grid-cols-2">
             {([["cash", type === "online" ? "Pay later" : "Pay at clinic", Banknote], ["card", "Card (online)", CreditCard]] as const).map(([v, t, Icon]) => (

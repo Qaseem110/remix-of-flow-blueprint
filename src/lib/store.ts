@@ -155,6 +155,8 @@ export interface Appointment {
   memberId?: string; // set when booked for a linked family member
   memberName?: string;
   queueOrder?: number; // set when a doctor moves a patient within the queue
+  patientLat?: number; // where the patient will travel from, marked at booking
+  patientLng?: number;
   leaveAlertAt?: string; // when the 'time to leave' alert was sent
 }
 
@@ -863,7 +865,7 @@ export function deleteDocument(docId: string) {
 }
 
 // ---------- Appointments ----------
-export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string }): Promise<Appointment> {
+export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number }): Promise<Appointment> {
   const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
   const slot = nextBooking(input.doctorId, input.date, previewState);
   if (!slot) throw new Error("No places available on this day. Choose another date.");
