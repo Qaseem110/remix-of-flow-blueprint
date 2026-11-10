@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -32,6 +32,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/patient/appointments", label: "My Appointments", icon: CalendarDays },
     { to: "/patient/records", label: "Health Records", icon: ClipboardList },
     { to: "/patient/medicines", label: "Find Medicine", icon: Pill },
+    { to: "/patient/labs", label: "Lab Tests", icon: FlaskConical },
     { to: "/patient/profile", label: "Profile", icon: User },
   ],
   doctor: [
@@ -47,6 +48,10 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
   pharmacy: [
     { to: "/pharmacy", label: "My Medicines", icon: Pill },
     { to: "/pharmacy/store", label: "Store Details", icon: Store },
+  ],
+  lab: [
+    { to: "/lab", label: "Test Requests", icon: FlaskConical },
+    { to: "/lab/details", label: "Lab Details", icon: Store },
   ],
   admin: [
     { to: "/admin", label: "Verification", icon: ShieldCheck },

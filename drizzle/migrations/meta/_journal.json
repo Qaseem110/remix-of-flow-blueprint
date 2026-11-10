@@ -120,6 +120,13 @@
       "when": 1794345122324,
       "tag": "0016_allow_shared_slot_times",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794346332372,
+      "tag": "0017_laboratories",
+      "breakpoints": true
     }
   ]
 }

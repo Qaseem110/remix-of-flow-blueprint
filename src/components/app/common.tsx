@@ -79,7 +79,7 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
                 {d.reportDate && <p className="text-xs"><span className="text-muted-foreground">Report date:</span> {format(new Date(d.reportDate + "T00:00:00"), "d MMM yyyy")}</p>}
                 <p className="text-xs text-muted-foreground">
                   <Badge variant="outline" className="mr-1 px-1.5 py-0 text-[10px]">{d.kind}</Badge>
-                  Uploaded by {d.uploadedBy === "patient" ? "patient" : d.uploadedBy === "doctor" ? "doctor" : d.uploadedBy}
+                  Uploaded by {d.uploadedBy === "patient" ? "patient" : d.uploadedBy === "doctor" ? "doctor" : d.uploadedBy === "lab" ? "laboratory" : d.uploadedBy}
                   {d.uploadedAt && <> · {format(new Date(d.uploadedAt), "d MMM yyyy, h:mm a")}</>} · {(d.size / 1024).toFixed(0)} KB
                 </p>
                 {doctor && <p className="text-xs"><span className="text-muted-foreground">Doctor:</span> {doctor.name}{a && <span className="text-muted-foreground"> · Visit {a.date} {fmtTime(a.time)} ({a.id})</span>}</p>}
@@ -89,7 +89,7 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
               <div className="flex shrink-0 gap-2">
                 <button type="button" onClick={() => setPreview(d)} className="text-primary hover:text-primary-glow" aria-label={`Preview ${d.name}`}><Eye className="h-4 w-4" /></button>
                 <a href={d.url} download={d.name} target="_blank" rel="noreferrer" className="text-primary hover:text-primary-glow" aria-label={`Download ${d.name}`}><Download className="h-4 w-4" /></a>
-                {me?.role === d.uploadedBy && <button type="button" onClick={() => del(d)} className="text-destructive hover:opacity-80" aria-label={`Delete ${d.name}`}><Trash2 className="h-4 w-4" /></button>}
+                {me?.role === d.uploadedBy && d.uploadedBy !== "lab" && <button type="button" onClick={() => del(d)} className="text-destructive hover:opacity-80" aria-label={`Delete ${d.name}`}><Trash2 className="h-4 w-4" /></button>}
               </div>
             </li>
           );

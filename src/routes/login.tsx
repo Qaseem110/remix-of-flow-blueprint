@@ -45,7 +45,7 @@ function Login() {
     try {
       const u = await login(em, pw);
       toast.success(`Welcome, ${u.name}`);
-      navigate({ to: u.role === "patient" ? "/patient" : u.role === "doctor" ? "/doctor" : u.role === "pharmacy" ? "/pharmacy" : u.role === "receptionist" ? "/reception" : "/admin" });
+      navigate({ to: u.role === "patient" ? "/patient" : u.role === "doctor" ? "/doctor" : u.role === "pharmacy" ? "/pharmacy" : u.role === "receptionist" ? "/reception" : u.role === "lab" ? "/lab" : "/admin" });
     } catch (err) {
       toast.error((err as Error).message);
     } finally { setBusy(false); }
