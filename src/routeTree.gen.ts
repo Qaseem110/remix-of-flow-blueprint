@@ -29,6 +29,7 @@ import { Route as AdminUsersRouteImport } from './routes/admin.users'
 import { Route as DoctorIndexRouteImport } from './routes/doctor.index'
 import { Route as DoctorAppointmentsRouteImport } from './routes/doctor.appointments'
 import { Route as DoctorAvailabilityRouteImport } from './routes/doctor.availability'
+import { Route as DoctorLabsRouteImport } from './routes/doctor.labs'
 import { Route as DoctorProfileRouteImport } from './routes/doctor.profile'
 import { Route as DoctorReceptionRouteImport } from './routes/doctor.reception'
 import { Route as LabIndexRouteImport } from './routes/lab.index'
@@ -148,6 +149,11 @@ const DoctorAppointmentsRoute = DoctorAppointmentsRouteImport.update({
 const DoctorAvailabilityRoute = DoctorAvailabilityRouteImport.update({
   id: '/availability',
   path: '/availability',
+  getParentRoute: () => DoctorRoute,
+} as any)
+const DoctorLabsRoute = DoctorLabsRouteImport.update({
+  id: '/labs',
+  path: '/labs',
   getParentRoute: () => DoctorRoute,
 } as any)
 const DoctorProfileRoute = DoctorProfileRouteImport.update({
@@ -271,6 +277,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
+  '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/lab/details': typeof LabDetailsRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
+  '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/lab/details': typeof LabDetailsRoute
@@ -350,6 +358,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
+  '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/lab/details': typeof LabDetailsRoute
@@ -394,6 +403,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/doctor/appointments'
     | '/doctor/availability'
+    | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/lab/details'
@@ -430,6 +440,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/doctor/appointments'
     | '/doctor/availability'
+    | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/lab/details'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/doctor/appointments'
     | '/doctor/availability'
+    | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/lab/details'
@@ -653,6 +665,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorAvailabilityRouteImport
       parentRoute: typeof DoctorRoute
     }
+    '/doctor/labs': {
+      id: '/doctor/labs'
+      path: '/labs'
+      fullPath: '/doctor/labs'
+      preLoaderRoute: typeof DoctorLabsRouteImport
+      parentRoute: typeof DoctorRoute
+    }
     '/doctor/profile': {
       id: '/doctor/profile'
       path: '/profile'
@@ -817,6 +836,7 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 interface DoctorRouteChildren {
   DoctorAppointmentsRoute: typeof DoctorAppointmentsRoute
   DoctorAvailabilityRoute: typeof DoctorAvailabilityRoute
+  DoctorLabsRoute: typeof DoctorLabsRoute
   DoctorProfileRoute: typeof DoctorProfileRoute
   DoctorReceptionRoute: typeof DoctorReceptionRoute
   DoctorIndexRoute: typeof DoctorIndexRoute
@@ -827,6 +847,7 @@ interface DoctorRouteChildren {
 const DoctorRouteChildren: DoctorRouteChildren = {
   DoctorAppointmentsRoute: DoctorAppointmentsRoute,
   DoctorAvailabilityRoute: DoctorAvailabilityRoute,
+  DoctorLabsRoute: DoctorLabsRoute,
   DoctorProfileRoute: DoctorProfileRoute,
   DoctorReceptionRoute: DoctorReceptionRoute,
   DoctorIndexRoute: DoctorIndexRoute,
