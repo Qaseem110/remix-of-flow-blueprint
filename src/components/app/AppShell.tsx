@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { setActiveMember, useActiveMember, logout, markAllRead, runReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
+import { setActiveMember, useActiveMember, logout, markAllRead, runReminders, runMedicineReminders, useReady, useSession, useStore, type Role } from "@/lib/store";
 import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
@@ -120,6 +120,14 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   useEffect(() => {
     if (user?.role === "patient") runReminders(user.id);
   }, [user?.id, user?.role]);
+  useEffect(() => {
+    if (user?.role !== "patient" || !ready) return;
+    const id = user.id;
+    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+    runMedicineReminders(id);
+    const t = setInterval(() => runMedicineReminders(id), 60_000);
+    return () => clearInterval(t);
+  }, [user?.id, user?.role, ready]);
 
   if (!mounted) return null;
   if (!ready) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;

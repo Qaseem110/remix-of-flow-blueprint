@@ -1,3 +1,4 @@
+import { suggestTimes } from "@/lib/medicine-reminders";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -93,6 +94,12 @@ function Console() {
                   <MedicineInput disabled={done} value={r.medicine} onChange={(v) => setRx(i, { medicine: v })} />
                   {(["dosage", "frequency", "duration"] as const).map((k) => <Input key={k} disabled={done} placeholder={k[0].toUpperCase() + k.slice(1)} value={r[k]} onChange={(e) => setRx(i, { [k]: e.target.value })} />)}
                   <div className="flex gap-1"><Input disabled={done} placeholder="Instructions" value={r.instructions} onChange={(e) => setRx(i, { instructions: e.target.value })} />{!done && <Button size="icon" variant="ghost" onClick={() => upd({ prescription: c.prescription.filter((_, j) => j !== i) })}><Trash2 className="h-4 w-4" /></Button>}</div>
+                  <div className="flex flex-wrap items-center gap-2 sm:col-span-5">
+                    <span className="text-xs text-muted-foreground">Patient alerts:</span>
+                    {(r.times ?? []).map((t) => <span key={t} className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs text-primary">{fmtTime(t)}{!done && <button type="button" aria-label="Remove alert" onClick={() => setRx(i, { times: (r.times ?? []).filter((x) => x !== t) })}>×</button>}</span>)}
+                    {!done && <Input type="time" className="h-8 w-32" onChange={(e) => { const v = e.target.value; if (v && !(r.times ?? []).includes(v)) setRx(i, { times: [...(r.times ?? []), v].sort() }); e.target.value = ""; }} />}
+                    {!done && <Button type="button" size="sm" variant="outline" disabled={!suggestTimes(r.frequency).length} onClick={() => setRx(i, { times: suggestTimes(r.frequency) })}>Set from frequency</Button>}
+                  </div>
                 </div>
               ))}
             </div>
