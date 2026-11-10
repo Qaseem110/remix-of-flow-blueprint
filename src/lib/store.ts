@@ -114,6 +114,7 @@ export interface Availability {
   dailyLimit?: number; // appointments shared across online and clinic visits
   consultMinutes?: number; // minutes the doctor spends per patient
   patientsPerSlot?: number; // patients seen together at the same time
+  breakStartedAt?: string; // set while the doctor has paused the queue
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
@@ -601,6 +602,40 @@ export function checkLeaveAlert(id: string, pos: { lat: number; lng: number }) {
   patchAppt(id, { leaveAlertAt: now() });
   notify(a.patientId, "Time to leave for your appointment", `You are about ${km.toFixed(1)} km (~${travel} min) from the clinic and your turn (Queue #${a.queueNumber}) is in about ${left} min. Please leave now.`, `/patient/appointments/${id}`);
   return { km, travel, left, sent: true };
+}
+
+const waitingToday = (doctorId: string) => dayAppointments(doctorId, todayStr()).filter((a) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(a.status));
+/** Doctor pauses the queue (emergency break); waiting patients are told. */
+export async function startBreak(doctorId: string) {
+  const av = state.availability.find((a) => a.doctorId === doctorId);
+  if (!av || av.breakStartedAt) return;
+  await persistAvailability({ ...av, breakStartedAt: now() });
+  const doc = userById(doctorId)?.name ?? "The doctor";
+  for (const a of waitingToday(doctorId)) notify(a.patientId, "Emergency break — queue paused", `${doc} is on an emergency break. Your queue (#${a.queueNumber}) is paused; we'll send your updated time when it resumes.`, `/patient/appointments/${a.id}`);
+}
+/** Doctor resumes: today's waiting times move later by the break length and patients get their new time. */
+export async function endBreak(doctorId: string) {
+  const av = state.availability.find((a) => a.doctorId === doctorId);
+  if (!av?.breakStartedAt) return 0;
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(av.breakStartedAt).getTime()) / 60000));
+  const { breakStartedAt: _, ...rest } = av;
+  if (minutes > 0) {
+    if (SB) {
+      const { supabase } = await import("./supabase");
+      const { error } = await supabase.rpc("shift_queue_times", { _doctor: doctorId, _date: todayStr(), _minutes: minutes });
+      if (error) throw new Error(error.message);
+    } else {
+      const ids = new Set(waitingToday(doctorId).map((a) => a.id));
+      const shift = (t: string) => { const m = Math.min(23 * 60 + 59, Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + minutes); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+      const prev = hydrating; hydrating = true;
+      set((s) => ({ ...s, appointments: s.appointments.map((a) => (ids.has(a.id) ? { ...a, time: shift(a.time) } : a)) }));
+      hydrating = prev;
+    }
+  }
+  await persistAvailability(rest as Availability);
+  const doc = userById(doctorId)?.name ?? "The doctor";
+  for (const a of waitingToday(doctorId)) notify(a.patientId, "Queue resumed — updated time", `${doc} is back. Queue #${a.queueNumber} — your updated time is ${fmtTime(a.time)}${minutes ? ` (moved ${minutes} min later)` : ""}.`, `/patient/appointments/${a.id}`);
+  return minutes;
 }
 
 function notifyApproaching(doctorId: string, date: string) {

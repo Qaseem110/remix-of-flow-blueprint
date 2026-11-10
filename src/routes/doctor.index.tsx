@@ -1,11 +1,11 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { AlertTriangle, ArrowDown, ArrowUp, PhoneCall, Play, Undo2, UserX } from "lucide-react";
+import { AlertTriangle, ArrowDown, ArrowUp, Coffee, PhoneCall, Play, Undo2, UserX } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Stat, StatusBadge, TypeBadge, Initials } from "@/components/app/common";
-import { callPatient, dayAppointments, inActiveQueue, markNoShow, moveInQueue, returnToQueue, todayStr, useSession, useStore, waitingQueue } from "@/lib/store";
+import { startBreak, endBreak, callPatient, dayAppointments, inActiveQueue, markNoShow, moveInQueue, returnToQueue, todayStr, useSession, useStore, waitingQueue } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 import { DailyCapacity } from "@/components/app/DailyCapacity";
@@ -30,7 +30,8 @@ function DoctorDashboard() {
   const name = (id: string, apptId?: string) => s.appointments.find((a) => a.id === apptId)?.memberName ?? s.users.find((u) => u.id === id)?.name ?? "";
   const followUps = s.consultations.filter((c) => c.doctorId === user.id && c.followUpRequired && c.completedAt);
 
-  const start = (id: string) => { callPatient(id); navigate({ to: "/doctor/consultation/$id", params: { id } }); };
+  const onBreak = !!s.availability.find((a) => a.doctorId === user.id)?.breakStartedAt;
+  const start = (id: string) => { if (onBreak) { toast.error("End your break to continue the queue"); return; } callPatient(id); navigate({ to: "/doctor/consultation/$id", params: { id } }); };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -41,6 +42,7 @@ function DoctorDashboard() {
         </div>
       )}
       <PageHeader title="Today" subtitle={new Date().toDateString()} />
+      <BreakBar doctorId={user.id} />
       <DailyCapacity doctorId={user.id} />
       <div className="grid gap-4 sm:grid-cols-4">
         <Stat label="Appointments" value={today.length} />
@@ -134,6 +136,24 @@ function AbsentRow({ id, label, waiting }: { id: string; label: string; waiting:
         <SelectContent>{options.map((i) => <SelectItem key={i} value={String(i)}>{i === 0 ? "Next in line" : i === waiting ? "End of queue" : `After ${i} patient${i > 1 ? "s" : ""}`}</SelectItem>)}</SelectContent>
       </Select>
       <Button size="sm" variant="secondary" onClick={() => { returnToQueue(id, Number(pos)); toast.success("Patient returned to the queue"); }}><Undo2 className="mr-1 h-3.5 w-3.5" />Return</Button>
+    </div>
+  );
+}
+
+function BreakBar({ doctorId }: { doctorId: string }) {
+  const since = useStore((s) => s.availability.find((a) => a.doctorId === doctorId)?.breakStartedAt);
+  const [busy, setBusy] = useState(false);
+  const toggle = async () => {
+    setBusy(true);
+    try {
+      if (since) { const m = await endBreak(doctorId); toast.success(m ? `Queue resumed — times moved ${m} min later` : "Queue resumed"); }
+      else { await startBreak(doctorId); toast.success("Queue paused — patients notified"); }
+    } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <div className={`mb-4 flex flex-wrap items-center justify-between gap-3 rounded-2xl border p-4 ${since ? "border-warning bg-warning/15" : "bg-card"}`}>
+      <div className="flex items-center gap-2"><Coffee className="h-5 w-5 text-primary" /><div><p className="font-semibold">{since ? "On break — queue paused" : "Queue running"}</p><p className="text-sm text-muted-foreground">{since ? `Since ${new Date(since).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}. Patients' times will move later by the break length.` : "Take an emergency break to pause the queue and notify waiting patients."}</p></div></div>
+      <Button onClick={toggle} disabled={busy} variant={since ? "default" : "outline"}>{since ? "End break & resume" : "Emergency break"}</Button>
     </div>
   );
 }
