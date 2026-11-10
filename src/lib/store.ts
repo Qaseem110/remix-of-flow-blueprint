@@ -113,6 +113,7 @@ export interface Availability {
   duration: number; // minutes
   dailyLimit?: number; // appointments shared across online and clinic visits
   consultMinutes?: number; // minutes the doctor spends per patient
+  patientsPerSlot?: number; // patients seen together at the same time
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
@@ -488,7 +489,8 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   const capacity = dailyCapacity(av, date);
   const bookedToday = s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !["Cancelled", "Rescheduled"].includes(a.status));
   const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
-  const taken = new Set(bookedToday.map((a) => a.time));
+  const takenCount = new Map<string, number>();
+  for (const a of bookedToday.filter((x) => !BLOCKING.includes(x.status))) takenCount.set(a.time, (takenCount.get(a.time) ?? 0) + 1);
   const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   const localNow = `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
@@ -496,11 +498,11 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   let cur = parse(`${date} ${shift.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${shift.end}`, "yyyy-MM-dd HH:mm", new Date());
   const usedInShift = bookedToday.filter((a) => a.time >= shift.start && a.time < shift.end).length;
-  const { step: interval, capacity: shiftCap } = shiftTiming(av, shift);
-  for (let i = 0; i < shiftCap && cur < end; i++) {
+  const { step: interval, capacity: shiftCap, perSlot, slots } = shiftTiming(av, shift);
+  for (let i = 0; i < slots && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
-    const booked = taken.has(time);
+    const booked = (takenCount.get(time) ?? 0) >= perSlot;
     out.push({ time, available: usedInShift < shiftCap && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
   }
@@ -768,6 +770,7 @@ function validateAvailability(av: Availability) {
 export function saveAvailability(av: Availability) {
   validateAvailability(av);
   if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
+  if (av.patientsPerSlot !== undefined && (!Number.isInteger(av.patientsPerSlot) || av.patientsPerSlot < 1 || av.patientsPerSlot > 50)) throw new Error("Patients at the same time must be between 1 and 50");
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
     const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
@@ -778,6 +781,7 @@ export function saveAvailability(av: Availability) {
 export async function persistAvailability(av: Availability) {
   validateAvailability(av);
   if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
+  if (av.patientsPerSlot !== undefined && (!Number.isInteger(av.patientsPerSlot) || av.patientsPerSlot < 1 || av.patientsPerSlot > 50)) throw new Error("Patients at the same time must be between 1 and 50");
   if (SB) {
     const { supabase } = await import("./supabase");
     const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av });
