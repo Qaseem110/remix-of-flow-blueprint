@@ -109,6 +109,7 @@ export interface Availability {
   end: string;
   duration: number; // minutes
   dailyLimit?: number; // appointments shared across online and clinic visits
+  consultMinutes?: number; // minutes the doctor spends per patient
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
