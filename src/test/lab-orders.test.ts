@@ -30,3 +30,17 @@ describe("laboratory tests", () => {
     expect(() => deleteDocument(saved.documents[0].id)).toThrow("cannot be deleted");
   });
 });
+
+describe("lab report discussion", () => {
+  it("patient and prescribing doctor can discuss; the lab cannot", async () => {
+    const { postLabMessage } = await import("@/lib/store");
+    const me = await asPatient();
+    const rx = getState().consultations.find((c) => c.patientId === me && c.prescription.length > 0)!;
+    const o = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "LFT", date: "2026-12-01" });
+    await postLabMessage(o.id, "Is this normal?");
+    expect(getState().labMessages.filter((m) => m.orderId === o.id)).toHaveLength(1);
+    const lab = getState().users.find((u) => u.id === labId)!;
+    await login(lab.email, "secret1");
+    await expect(postLabMessage(o.id, "hi")).rejects.toThrow("Only the patient and doctor");
+  });
+});

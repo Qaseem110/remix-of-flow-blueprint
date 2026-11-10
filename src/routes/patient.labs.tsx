@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader } from "@/components/app/common";
 import { LabOrderCard } from "@/components/app/LabOrderCard";
+import { LabDiscussion } from "@/components/app/LabDiscussion";
 import { createLabOrder, memberOf, prescribedConsultations, setLabOrderStatus, useActiveMember, useSession, useStore, type Lab } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
@@ -51,6 +52,7 @@ function PatientLabs() {
         {orders.map((o) => (
           <LabOrderCard key={o.id} o={o}>
             {o.status === "Requested" && <Button size="sm" variant="outline" onClick={() => setLabOrderStatus(o.id, "Cancelled").then(() => toast.success("Cancelled"), (e: Error) => toast.error(e.message))}>Cancel</Button>}
+            <LabDiscussion orderId={o.id} />
           </LabOrderCard>
         ))}
       </section>

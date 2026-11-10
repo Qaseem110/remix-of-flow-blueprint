@@ -51,6 +51,13 @@ export interface LabOrder {
   createdAt: string;
   completedAt?: string;
 }
+export interface LabMessage {
+  id: string;
+  orderId: string;
+  authorId: string;
+  body: string;
+  at: string;
+}
 export interface Medicine {
   id: string;
   pharmacyId: string;
@@ -262,6 +269,7 @@ interface State {
   receptionists: Receptionist[];
   labs: Lab[];
   labOrders: LabOrder[];
+  labMessages: LabMessage[];
   sessionUserId: string | null;
 }
 
@@ -327,7 +335,7 @@ function seed(): State {
     users, doctors, patients, availability, appointments, consultations, notifications,
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
-    pharmacies: [], medicines: [], labs: [], labOrders: [],
+    pharmacies: [], medicines: [], labs: [], labOrders: [], labMessages: [],
     receptionists: [{ id: "u-rec1", doctorId: "u-doc1", name: "Front Desk", email: "desk@sahoolat.test", phone: "03001234567", permissions: { book: true, queue: true, checkIn: true, cancel: false } }],
     sessionUserId: null,
   };
@@ -337,7 +345,7 @@ function seed(): State {
 /** Supabase is used everywhere except unit tests (which run on the seed data). */
 const SB = import.meta.env.MODE !== "test";
 const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
-const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], labs: [], labOrders: [], sessionUserId: null });
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], labs: [], labOrders: [], labMessages: [], sessionUserId: null });
 let state: State = SB ? emptyState() : seed();
 let ready = !SB;
 let hydrating = false;
@@ -351,7 +359,7 @@ function set(fn: (s: State) => State) {
 }
 
 // ---------- Supabase sync ----------
-type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines" | "labs" | "labOrders";
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines" | "labs" | "labOrders" | "labMessages";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
   { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
@@ -365,6 +373,7 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "medicines", table: "medicines", id: (m) => m.id, row: (m) => ({ id: m.id, pharmacy_id: m.pharmacyId, data: m }), from: (r) => ({ ...r.data, id: r.id, pharmacyId: r.pharmacy_id }) },
   { key: "labs", table: "labs", id: (l) => l.userId, row: (l) => ({ id: l.userId, data: l }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
+  { key: "labMessages", table: "lab_messages", id: (m) => m.id, row: (m) => ({ id: m.id, order_id: m.orderId, author_id: m.authorId, data: m }), from: (r) => ({ ...r.data, id: r.id, orderId: r.order_id, authorId: r.author_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -913,6 +922,20 @@ export async function uploadLabResults(id: string, files: FileList | File[]) {
   const lab = state.labs.find((l) => l.userId === o.labId);
   notify(o.patientId, "Lab report ready", `${lab?.labName ?? "The laboratory"} uploaded your ${o.tests} report. See Health Records.`, "/patient/records");
   notify(o.doctorId, "Lab report ready", `${o.tests} report for ${o.memberName ?? userById(o.patientId)?.name ?? "your patient"} is available.`, `/doctor/consultation/${o.appointmentId}`);
+}
+/** Patient and the prescribing doctor discuss a lab report. */
+export async function postLabMessage(orderId: string, body: string) {
+  const o = state.labOrders.find((x) => x.id === orderId);
+  const me = state.sessionUserId;
+  if (!o || !me || (me !== o.patientId && me !== o.doctorId)) throw new Error("Only the patient and doctor can discuss this report");
+  const text = body.trim().slice(0, 2000);
+  if (!text) throw new Error("Write a message");
+  const m: LabMessage = { id: uid("LM"), orderId, authorId: me, body: text, at: now() };
+  await writeRow("lab_messages", TABLES.find((t) => t.key === "labMessages")!.row(m), true);
+  hydrating = true;
+  try { set((s) => ({ ...s, labMessages: [...s.labMessages, m] })); } finally { hydrating = false; }
+  const to = me === o.patientId ? o.doctorId : o.patientId;
+  notify(to, "New message on lab report", `${userById(me)?.name ?? "Someone"}: ${text.slice(0, 80)}`, to === o.doctorId ? "/doctor/labs" : "/patient/labs");
 }
 export function updatePharmacy(id: string, p: Partial<Pharmacy>) {
   set((s) => ({ ...s, pharmacies: s.pharmacies.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
