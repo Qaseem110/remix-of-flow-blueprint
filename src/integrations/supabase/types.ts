@@ -158,6 +158,39 @@ export type Database = {
           },
         ]
       }
+      message_outbox: {
+        Row: {
+          appointment_id: string | null
+          body: string
+          created_at: string
+          error: string | null
+          id: string
+          phone: string
+          sent_at: string | null
+          status: string
+        }
+        Insert: {
+          appointment_id?: string | null
+          body: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          phone: string
+          sent_at?: string | null
+          status?: string
+        }
+        Update: {
+          appointment_id?: string | null
+          body?: string
+          created_at?: string
+          error?: string | null
+          id?: string
+          phone?: string
+          sent_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           data: Json
@@ -258,6 +291,27 @@ export type Database = {
         }
         Relationships: []
       }
+      receptionists: {
+        Row: {
+          created_at: string
+          data: Json
+          doctor_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          doctor_id: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          doctor_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
       report_access: {
         Row: {
           doctor_id: string
@@ -342,6 +396,8 @@ export type Database = {
         Args: { method: string; value: string }
         Returns: string
       }
+      reception_can: { Args: { _perm: string }; Returns: boolean }
+      reception_doctor: { Args: never; Returns: string }
       schedule_shifts: { Args: { av: Json; day: string }; Returns: Json }
       set_report_pin: { Args: { pin: string }; Returns: undefined }
       shift_queue_times: {
