@@ -38,7 +38,11 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/doctor", label: "Dashboard", icon: LayoutDashboard },
     { to: "/doctor/appointments", label: "Appointments", icon: CalendarDays },
     { to: "/doctor/availability", label: "Availability", icon: Clock },
+    { to: "/doctor/reception", label: "Reception", icon: Users },
     { to: "/doctor/profile", label: "Profile", icon: User },
+  ],
+  receptionist: [
+    { to: "/reception", label: "Book & Queue", icon: CalendarDays },
   ],
   pharmacy: [
     { to: "/pharmacy", label: "My Medicines", icon: Pill },
