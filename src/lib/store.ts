@@ -10,7 +10,9 @@ import { readReport } from "@/lib/read-report.functions";
 import { scheduleShifts, shiftTiming, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
-export type Role = "patient" | "doctor" | "admin" | "pharmacy";
+export type Role = "patient" | "doctor" | "admin" | "pharmacy" | "receptionist";
+export type ReceptionPermissions = { book: boolean; queue: boolean; checkIn: boolean; cancel: boolean };
+export interface Receptionist { id: string; doctorId: string; name: string; email: string; phone: string; permissions: ReceptionPermissions }
 
 export interface Pharmacy {
   userId: string;
@@ -159,7 +161,9 @@ export interface Appointment {
   queueOrder?: number; // set when a doctor moves a patient within the queue
   patientLat?: number; // where the patient will travel from, marked at booking
   patientLng?: number;
-  leaveAlertAt?: string; // when the 'time to leave' alert was sent
+  leaveAlertAt?: string;
+  walkIn?: { name: string; phone: string; age?: number; gender?: string }; // booked by reception for someone without an account
+  bookedBy?: string; // when the 'time to leave' alert was sent
 }
 
 export interface PrescriptionItem {
@@ -226,6 +230,7 @@ interface State {
   reviews: Review[];
   pharmacies: Pharmacy[];
   medicines: Medicine[];
+  receptionists: Receptionist[];
   sessionUserId: string | null;
 }
 
@@ -292,6 +297,7 @@ function seed(): State {
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
     pharmacies: [], medicines: [],
+    receptionists: [{ id: "u-rec1", doctorId: "u-doc1", name: "Front Desk", email: "desk@sahoolat.test", phone: "03001234567", permissions: { book: true, queue: true, checkIn: true, cancel: false } }],
     sessionUserId: null,
   };
 }
@@ -300,7 +306,7 @@ function seed(): State {
 /** Supabase is used everywhere except unit tests (which run on the seed data). */
 const SB = import.meta.env.MODE !== "test";
 const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
-const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], sessionUserId: null });
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], sessionUserId: null });
 let state: State = SB ? emptyState() : seed();
 let ready = !SB;
 let hydrating = false;
@@ -402,6 +408,8 @@ export async function hydrate(sessionUserId: string | null) {
     if (r.error) console.error("[hydrate]", t.table, r.error.message);
     (next as unknown as Record<string, unknown>)[t.key] = (r.data ?? []).map(t.from);
   });
+  const rec = await supabase.from("receptionists").select("*");
+  next.receptionists = (rec.data ?? []).map((r: { id: string; doctor_id: string; data: Record<string, unknown> }) => ({ ...(r.data as object), id: r.id, doctorId: r.doctor_id }) as Receptionist);
   const notes = await supabase.from("private_notes").select("id, notes");
   const noteMap = new Map((notes.data ?? []).map((n: { id: string; notes: string }) => [n.id, n.notes]));
   next.consultations = next.consultations.map((c) => ({ ...c, privateNotes: noteMap.get(c.appointmentId) ?? "" }));
@@ -459,8 +467,47 @@ export function useStore<T>(sel: (s: State) => T): T {
 export const getState = () => state;
 
 function notify(userId: string, title: string, body: string, link?: string) {
+  if (userId.startsWith("walkin-")) return notifyWalkIn(userId, title, body);
   set((s) => ({ ...s, notifications: [{ id: uid("N"), userId, title, body, at: now(), read: false, link }, ...s.notifications] }));
 }
+
+/** Patients without an account: queue a phone message (sent once WhatsApp is connected) and copy it to reception. */
+function notifyWalkIn(patientId: string, title: string, body: string) {
+  const a = [...state.appointments].reverse().find((x) => x.patientId === patientId);
+  if (!a?.walkIn) return;
+  const text = `${title}: ${body}`;
+  if (SB) void import("./supabase").then(({ supabase }) => supabase.from("message_outbox").insert({ phone: a.walkIn!.phone, body: `Sahoolat — ${text}`, appointment_id: a.id })).then((r) => { if (r?.error) void reportSyncError(r.error.message); });
+  const to = new Set([...state.receptionists.filter((r) => r.doctorId === a.doctorId).map((r) => r.id), ...(a.bookedBy ? [a.bookedBy] : [])]);
+  for (const id of to) set((s) => ({ ...s, notifications: [{ id: uid("N"), userId: id, title: `${a.walkIn!.name} (${a.walkIn!.phone}) — ${title}`, body, at: now(), read: false, link: "/reception" }, ...s.notifications] }));
+}
+
+/** Reception books for someone without an app account; they are queued like everyone else. */
+export async function bookWalkIn(input: { doctorId: string; date: string; reason: string; type: ConsultType; name: string; phone: string; age?: number; gender?: string }) {
+  const me = state.sessionUserId;
+  const rec = state.receptionists.find((r) => r.id === me);
+  if (!rec || rec.doctorId !== input.doctorId || !rec.permissions.book) throw new Error("You are not allowed to book for this doctor");
+  const name = input.name.trim(), phone = input.phone.replace(/[^\d+]/g, "");
+  if (name.length < 2) throw new Error("Enter the patient's name");
+  if (phone.replace(/\D/g, "").length < 10) throw new Error("Enter a valid mobile number");
+  return bookAppointment({ doctorId: input.doctorId, patientId: `walkin-${crypto.randomUUID()}`, type: input.type, date: input.date, reason: input.reason.trim() || "Walk-in", documents: [], memberName: name, walkIn: { name, phone, age: input.age, gender: input.gender }, bookedBy: me ?? undefined });
+}
+
+/** Doctor changes what a reception account may do. */
+export async function updateReceptionPermissions(id: string, permissions: ReceptionPermissions) {
+  const r = state.receptionists.find((x) => x.id === id);
+  if (!r) return;
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { id: _i, doctorId: _d, ...data } = { ...r, permissions };
+    const { error } = await supabase.from("receptionists").update({ data }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
+  const prev = hydrating; hydrating = true;
+  set((s) => ({ ...s, receptionists: s.receptionists.map((x) => (x.id === id ? { ...x, permissions } : x)) }));
+  hydrating = prev;
+}
+export const receptionFor = (userId: string | null | undefined, s: State = state) => s.receptionists.find((r) => r.id === userId);
+export async function refreshAll() { await hydrate(state.sessionUserId); }
 
 // ---------- Selectors / helpers ----------
 export const userById = (id: string) => state.users.find((u) => u.id === id);
@@ -904,7 +951,7 @@ export function deleteDocument(docId: string) {
 }
 
 // ---------- Appointments ----------
-export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number }): Promise<Appointment> {
+export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number; walkIn?: Appointment["walkIn"]; bookedBy?: string }): Promise<Appointment> {
   const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
   const slot = nextBooking(input.doctorId, input.date, previewState);
   if (!slot) throw new Error("No places available on this day. Choose another date.");

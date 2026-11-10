@@ -17,6 +17,7 @@ import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as PatientRouteImport } from './routes/patient'
 import { Route as PharmacyRouteImport } from './routes/pharmacy'
+import { Route as ReceptionRouteImport } from './routes/reception'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
@@ -28,12 +29,14 @@ import { Route as DoctorIndexRouteImport } from './routes/doctor.index'
 import { Route as DoctorAppointmentsRouteImport } from './routes/doctor.appointments'
 import { Route as DoctorAvailabilityRouteImport } from './routes/doctor.availability'
 import { Route as DoctorProfileRouteImport } from './routes/doctor.profile'
+import { Route as DoctorReceptionRouteImport } from './routes/doctor.reception'
 import { Route as PatientIndexRouteImport } from './routes/patient.index'
 import { Route as PatientMedicinesRouteImport } from './routes/patient.medicines'
 import { Route as PatientProfileRouteImport } from './routes/patient.profile'
 import { Route as PatientRecordsRouteImport } from './routes/patient.records'
 import { Route as PharmacyIndexRouteImport } from './routes/pharmacy.index'
 import { Route as PharmacyStoreRouteImport } from './routes/pharmacy.store'
+import { Route as ReceptionIndexRouteImport } from './routes/reception.index'
 import { Route as DoctorConsultationIdRouteImport } from './routes/doctor.consultation.$id'
 import { Route as DoctorPatientsIdRouteImport } from './routes/doctor.patients.$id'
 import { Route as PatientAppointmentsIndexRouteImport } from './routes/patient.appointments.index'
@@ -81,6 +84,11 @@ const PatientRoute = PatientRouteImport.update({
 const PharmacyRoute = PharmacyRouteImport.update({
   id: '/pharmacy',
   path: '/pharmacy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ReceptionRoute = ReceptionRouteImport.update({
+  id: '/reception',
+  path: '/reception',
   getParentRoute: () => rootRouteImport,
 } as any)
 const RegisterRoute = RegisterRouteImport.update({
@@ -138,6 +146,11 @@ const DoctorProfileRoute = DoctorProfileRouteImport.update({
   path: '/profile',
   getParentRoute: () => DoctorRoute,
 } as any)
+const DoctorReceptionRoute = DoctorReceptionRouteImport.update({
+  id: '/reception',
+  path: '/reception',
+  getParentRoute: () => DoctorRoute,
+} as any)
 const PatientIndexRoute = PatientIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -167,6 +180,11 @@ const PharmacyStoreRoute = PharmacyStoreRouteImport.update({
   id: '/store',
   path: '/store',
   getParentRoute: () => PharmacyRoute,
+} as any)
+const ReceptionIndexRoute = ReceptionIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ReceptionRoute,
 } as any)
 const DoctorConsultationIdRoute = DoctorConsultationIdRouteImport.update({
   id: '/consultation/$id',
@@ -219,6 +237,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/patient': typeof PatientRouteWithChildren
   '/pharmacy': typeof PharmacyRouteWithChildren
+  '/reception': typeof ReceptionRouteWithChildren
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
@@ -228,6 +247,7 @@ export interface FileRoutesByFullPath {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/profile': typeof DoctorProfileRoute
+  '/doctor/reception': typeof DoctorReceptionRoute
   '/patient/medicines': typeof PatientMedicinesRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/records': typeof PatientRecordsRoute
@@ -236,6 +256,7 @@ export interface FileRoutesByFullPath {
   '/doctor/': typeof DoctorIndexRoute
   '/patient/': typeof PatientIndexRoute
   '/pharmacy/': typeof PharmacyIndexRoute
+  '/reception/': typeof ReceptionIndexRoute
   '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
   '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
@@ -259,6 +280,7 @@ export interface FileRoutesByTo {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/profile': typeof DoctorProfileRoute
+  '/doctor/reception': typeof DoctorReceptionRoute
   '/patient/medicines': typeof PatientMedicinesRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/records': typeof PatientRecordsRoute
@@ -267,6 +289,7 @@ export interface FileRoutesByTo {
   '/doctor': typeof DoctorIndexRoute
   '/patient': typeof PatientIndexRoute
   '/pharmacy': typeof PharmacyIndexRoute
+  '/reception': typeof ReceptionIndexRoute
   '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
   '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
@@ -286,6 +309,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/patient': typeof PatientRouteWithChildren
   '/pharmacy': typeof PharmacyRouteWithChildren
+  '/reception': typeof ReceptionRouteWithChildren
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/appointments': typeof AdminAppointmentsRoute
@@ -295,6 +319,7 @@ export interface FileRoutesById {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/profile': typeof DoctorProfileRoute
+  '/doctor/reception': typeof DoctorReceptionRoute
   '/patient/medicines': typeof PatientMedicinesRoute
   '/patient/profile': typeof PatientProfileRoute
   '/patient/records': typeof PatientRecordsRoute
@@ -303,6 +328,7 @@ export interface FileRoutesById {
   '/doctor/': typeof DoctorIndexRoute
   '/patient/': typeof PatientIndexRoute
   '/pharmacy/': typeof PharmacyIndexRoute
+  '/reception/': typeof ReceptionIndexRoute
   '/doctor/consultation/$id': typeof DoctorConsultationIdRoute
   '/doctor/patients/$id': typeof DoctorPatientsIdRoute
   '/patient/appointments/$id': typeof PatientAppointmentsIdRoute
@@ -323,6 +349,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/patient'
     | '/pharmacy'
+    | '/reception'
     | '/register'
     | '/reset-password'
     | '/admin/appointments'
@@ -332,6 +359,7 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/profile'
+    | '/doctor/reception'
     | '/patient/medicines'
     | '/patient/profile'
     | '/patient/records'
@@ -340,6 +368,7 @@ export interface FileRouteTypes {
     | '/doctor/'
     | '/patient/'
     | '/pharmacy/'
+    | '/reception/'
     | '/doctor/consultation/$id'
     | '/doctor/patients/$id'
     | '/patient/appointments/$id'
@@ -363,6 +392,7 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/profile'
+    | '/doctor/reception'
     | '/patient/medicines'
     | '/patient/profile'
     | '/patient/records'
@@ -371,6 +401,7 @@ export interface FileRouteTypes {
     | '/doctor'
     | '/patient'
     | '/pharmacy'
+    | '/reception'
     | '/doctor/consultation/$id'
     | '/doctor/patients/$id'
     | '/patient/appointments/$id'
@@ -389,6 +420,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/patient'
     | '/pharmacy'
+    | '/reception'
     | '/register'
     | '/reset-password'
     | '/admin/appointments'
@@ -398,6 +430,7 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/profile'
+    | '/doctor/reception'
     | '/patient/medicines'
     | '/patient/profile'
     | '/patient/records'
@@ -406,6 +439,7 @@ export interface FileRouteTypes {
     | '/doctor/'
     | '/patient/'
     | '/pharmacy/'
+    | '/reception/'
     | '/doctor/consultation/$id'
     | '/doctor/patients/$id'
     | '/patient/appointments/$id'
@@ -425,6 +459,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   PatientRoute: typeof PatientRouteWithChildren
   PharmacyRoute: typeof PharmacyRouteWithChildren
+  ReceptionRoute: typeof ReceptionRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
 }
@@ -485,6 +520,13 @@ declare module '@tanstack/react-router' {
       path: '/pharmacy'
       fullPath: '/pharmacy'
       preLoaderRoute: typeof PharmacyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/reception': {
+      id: '/reception'
+      path: '/reception'
+      fullPath: '/reception'
+      preLoaderRoute: typeof ReceptionRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/register': {
@@ -564,6 +606,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorProfileRouteImport
       parentRoute: typeof DoctorRoute
     }
+    '/doctor/reception': {
+      id: '/doctor/reception'
+      path: '/reception'
+      fullPath: '/doctor/reception'
+      preLoaderRoute: typeof DoctorReceptionRouteImport
+      parentRoute: typeof DoctorRoute
+    }
     '/patient/': {
       id: '/patient/'
       path: '/'
@@ -605,6 +654,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/pharmacy/store'
       preLoaderRoute: typeof PharmacyStoreRouteImport
       parentRoute: typeof PharmacyRoute
+    }
+    '/reception/': {
+      id: '/reception/'
+      path: '/'
+      fullPath: '/reception/'
+      preLoaderRoute: typeof ReceptionIndexRouteImport
+      parentRoute: typeof ReceptionRoute
     }
     '/doctor/consultation/$id': {
       id: '/doctor/consultation/$id'
@@ -687,6 +743,7 @@ interface DoctorRouteChildren {
   DoctorAppointmentsRoute: typeof DoctorAppointmentsRoute
   DoctorAvailabilityRoute: typeof DoctorAvailabilityRoute
   DoctorProfileRoute: typeof DoctorProfileRoute
+  DoctorReceptionRoute: typeof DoctorReceptionRoute
   DoctorIndexRoute: typeof DoctorIndexRoute
   DoctorConsultationIdRoute: typeof DoctorConsultationIdRoute
   DoctorPatientsIdRoute: typeof DoctorPatientsIdRoute
@@ -696,6 +753,7 @@ const DoctorRouteChildren: DoctorRouteChildren = {
   DoctorAppointmentsRoute: DoctorAppointmentsRoute,
   DoctorAvailabilityRoute: DoctorAvailabilityRoute,
   DoctorProfileRoute: DoctorProfileRoute,
+  DoctorReceptionRoute: DoctorReceptionRoute,
   DoctorIndexRoute: DoctorIndexRoute,
   DoctorConsultationIdRoute: DoctorConsultationIdRoute,
   DoctorPatientsIdRoute: DoctorPatientsIdRoute,
@@ -747,6 +805,18 @@ const PharmacyRouteWithChildren = PharmacyRoute._addFileChildren(
   PharmacyRouteChildren,
 )
 
+interface ReceptionRouteChildren {
+  ReceptionIndexRoute: typeof ReceptionIndexRoute
+}
+
+const ReceptionRouteChildren: ReceptionRouteChildren = {
+  ReceptionIndexRoute: ReceptionIndexRoute,
+}
+
+const ReceptionRouteWithChildren = ReceptionRoute._addFileChildren(
+  ReceptionRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
@@ -756,6 +826,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   PatientRoute: PatientRouteWithChildren,
   PharmacyRoute: PharmacyRouteWithChildren,
+  ReceptionRoute: ReceptionRouteWithChildren,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
 }
