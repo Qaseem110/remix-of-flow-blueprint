@@ -254,7 +254,7 @@ BEGIN
   IF used>=cap THEN CONTINUE; END IF;
   start_min := split_part(shift->>'start',':',1)::int*60+split_part(shift->>'start',':',2)::int;
   end_min := split_part(shift->>'end',':',1)::int*60+split_part(shift->>'end',':',2)::int;
-  step_min := greatest(1,(end_min-start_min)/cap);
+  IF coalesce(av->>'consultMinutes','') ~ '^[0-9]+$' AND (av->>'consultMinutes')::int>0 THEN step_min := (av->>'consultMinutes')::int; cap := least(cap, greatest(1,(end_min-start_min)/step_min)); ELSE step_min := greatest(1,(end_min-start_min)/cap); END IF;
   FOR i IN 0..cap-1 LOOP
    candidate := lpad(((start_min+i*step_min)/60)::text,2,'0')||':'||lpad(((start_min+i*step_min)%60)::text,2,'0');
    IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text||' '||candidate)) AND (day+candidate::time) AT TIME ZONE 'Africa/Tripoli'>now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen:=candidate; EXIT; END IF;

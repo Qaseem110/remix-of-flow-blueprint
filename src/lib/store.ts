@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { addDays, addMinutes, format, parse } from "date-fns";
 import { fmtTime } from "@/lib/utils";
 import { readReport } from "@/lib/read-report.functions";
-import { scheduleShifts, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
+import { scheduleShifts, shiftTiming, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
 export type Role = "patient" | "doctor" | "admin" | "pharmacy";
@@ -109,6 +109,7 @@ export interface Availability {
   end: string;
   duration: number; // minutes
   dailyLimit?: number; // appointments shared across online and clinic visits
+  consultMinutes?: number; // minutes the doctor spends per patient
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
   blocked?: string[]; // "yyyy-MM-dd HH:mm" slots the doctor marked unavailable
@@ -489,12 +490,12 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   let cur = parse(`${date} ${shift.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${shift.end}`, "yyyy-MM-dd HH:mm", new Date());
   const usedInShift = bookedToday.filter((a) => a.time >= shift.start && a.time < shift.end).length;
-  const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / shift.capacity));
-  for (let i = 0; i < shift.capacity && cur < end; i++) {
+  const { step: interval, capacity: shiftCap } = shiftTiming(av, shift);
+  for (let i = 0; i < shiftCap && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
     const booked = taken.has(time);
-    out.push({ time, available: usedInShift < shift.capacity && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
+    out.push({ time, available: usedInShift < shiftCap && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
   }
   }
@@ -735,6 +736,7 @@ function validateAvailability(av: Availability) {
 }
 export function saveAvailability(av: Availability) {
   validateAvailability(av);
+  if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
     const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
@@ -744,6 +746,7 @@ export function saveAvailability(av: Availability) {
 /** Await schedule persistence so the editor never reports an unsaved schedule as saved. */
 export async function persistAvailability(av: Availability) {
   validateAvailability(av);
+  if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
   if (SB) {
     const { supabase } = await import("./supabase");
     const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av });

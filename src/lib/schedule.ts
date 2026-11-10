@@ -1,6 +1,8 @@
 export interface Shift { start: string; end: string; capacity: number }
 export interface Schedule {
   days: number[]; start: string; end: string; duration: number; dailyLimit?: number;
+  /** Minutes the doctor spends per patient; when set, queue times are spaced by this value. */
+  consultMinutes?: number;
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
 }
@@ -20,4 +22,10 @@ export function validateShifts(shifts: Shift[]) {
     const previous = sorted[i - 1];
     if (previous && previous.end > shift.start) throw new Error("Shifts cannot overlap");
   });
+}
+/** Minutes between queue numbers in a shift, plus how many patients actually fit. */
+export function shiftTiming(av: Pick<Schedule, "consultMinutes">, shift: Shift) {
+  const span = timeMinutes(shift.end) - timeMinutes(shift.start);
+  if (av.consultMinutes && av.consultMinutes > 0) return { step: av.consultMinutes, capacity: Math.min(shift.capacity, Math.max(1, Math.floor(span / av.consultMinutes))) };
+  return { step: Math.max(1, Math.floor(span / shift.capacity)), capacity: shift.capacity };
 }
