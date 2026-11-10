@@ -78,6 +78,13 @@
       "when": 1794342764227,
       "tag": "0010_retime_queue_on_consult_minutes",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1794343195344,
+      "tag": "0011_close_queue_gaps_on_cancel",
+      "breakpoints": true
     }
   ]
 }
