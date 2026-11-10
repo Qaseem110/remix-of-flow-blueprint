@@ -132,6 +132,38 @@ export type Database = {
           },
         ]
       }
+      lab_messages: {
+        Row: {
+          author_id: string
+          created_at: string
+          data: Json
+          id: string
+          order_id: string
+        }
+        Insert: {
+          author_id?: string
+          created_at?: string
+          data?: Json
+          id: string
+          order_id: string
+        }
+        Update: {
+          author_id?: string
+          created_at?: string
+          data?: Json
+          id?: string
+          order_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_messages_order_id_fkey"
+            columns: ["order_id"]
+            isOneToOne: false
+            referencedRelation: "lab_orders"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lab_orders: {
         Row: {
           appointment_id: string
