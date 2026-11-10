@@ -973,10 +973,10 @@ function keyAt(list: Appointment[], position: number) {
 }
 
 /** A returning patient gets a fresh number; the active queue is renumbered in order (mirrors the database). */
-function renumberAfterReturn(doctorId: string, date: string) {
+function renumberAfterReturn(doctorId: string, date: string, returnedId: string) {
   const day = state.appointments.filter((x) => x.doctorId === doctorId && x.date === date);
   const active = day.filter((x) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status)).sort((x, y) => queueKey(x) - queueKey(y));
-  const returned = active.find((x) => x.queueOrder !== undefined && !Number.isInteger(x.queueOrder)) ?? active[active.length - 1];
+  const returned = active.find((x) => x.id === returnedId)!;
   const others = active.filter((x) => x !== returned);
   const nums = [...others.map((x) => x.queueNumber).sort((p, q) => p - q), Math.max(0, ...day.map((x) => x.queueNumber)) + 1];
   const times = others.map((x) => x.time).sort();
@@ -993,7 +993,7 @@ export function returnToQueue(id: string, position: number) {
   if (!a || a.status !== "No Show") return;
   const list = waitingQueue(dayAppointments(a.doctorId, a.date)).filter((x) => x.id !== id);
   patchAppt(id, { status: "Waiting", queueOrder: keyAt(list, position) });
-  if (!SB) renumberAfterReturn(a.doctorId, a.date);
+  if (!SB) renumberAfterReturn(a.doctorId, a.date, id);
   const ahead = Math.max(0, Math.min(position, list.length));
   notify(a.patientId, "You're back in the queue", ahead === 0 ? "You are next in line." : `${ahead} patient${ahead > 1 ? "s" : ""} ahead of you.`, `/patient/appointments/${id}`);
 }
