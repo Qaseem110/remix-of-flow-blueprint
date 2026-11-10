@@ -7,12 +7,12 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { registerDoctor, registerPatient, registerPharmacy } from "@/lib/store";
+import { registerDoctor, registerPatient, registerPharmacy, registerLab } from "@/lib/store";
 import { AuthFrame } from "./login";
 
 export const Route = createFileRoute("/register")({
-  validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" || s.role === "pharmacy" ? s.role : undefined }) as { role?: "doctor" | "pharmacy" },
-  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor or medical store on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
+  validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" || s.role === "pharmacy" || s.role === "lab" ? s.role : undefined }) as { role?: "doctor" | "pharmacy" | "lab" },
+  head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor, medical store or laboratory on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
   component: Register,
 });
 
@@ -67,10 +67,21 @@ function Register() {
     } catch (err) { toast.error((err as Error).message); }
   };
 
+  const onLab = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
+    if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
+    try {
+      await registerLab({ name: f.name, email: f.email, phone: f.phone, password: f.password, labName: f.labName, address: f.address, city: f.city });
+      toast.success("Account created");
+      navigate({ to: "/lab" });
+    } catch (err) { toast.error((err as Error).message); }
+  };
+
   return (
     <AuthFrame title="Create your account" subtitle="Choose how you'll use Sahoolat.">
       <Tabs defaultValue={role ?? "patient"}>
-        <TabsList className="mb-4 grid w-full grid-cols-3"><TabsTrigger value="patient">Patient</TabsTrigger><TabsTrigger value="doctor">Doctor</TabsTrigger><TabsTrigger value="pharmacy">Medical store</TabsTrigger></TabsList>
+        <TabsList className="mb-4 grid w-full grid-cols-4"><TabsTrigger value="patient">Patient</TabsTrigger><TabsTrigger value="doctor">Doctor</TabsTrigger><TabsTrigger value="pharmacy">Store</TabsTrigger><TabsTrigger value="lab">Laboratory</TabsTrigger></TabsList>
         <TabsContent value="patient">
           <form onSubmit={onPatient} className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2"><F id="name" label="Full name" required /></div>
@@ -114,6 +125,18 @@ function Register() {
             <F id="city" label="City" required />
             <F id="address" label="Store address" required />
             <Button type="submit" className="sm:col-span-2">Create medical store account</Button>
+          </form>
+        </TabsContent>
+        <TabsContent value="lab">
+          <form onSubmit={onLab} className="grid gap-3 sm:grid-cols-2">
+            <div className="sm:col-span-2"><F id="labName" label="Laboratory name" required /></div>
+            <F id="name" label="Contact person" required />
+            <F id="phone" label="Phone / WhatsApp" type="tel" required />
+            <F id="email" label="Email" type="email" required />
+            <F id="password" label="Password" type="password" required />
+            <F id="city" label="City" required />
+            <F id="address" label="Laboratory address" required />
+            <Button type="submit" className="sm:col-span-2">Create laboratory account</Button>
           </form>
         </TabsContent>
       </Tabs>
