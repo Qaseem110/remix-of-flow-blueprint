@@ -3,6 +3,8 @@ export interface Schedule {
   days: number[]; start: string; end: string; duration: number; dailyLimit?: number;
   /** Minutes the doctor spends per patient; when set, queue times are spaced by this value. */
   consultMinutes?: number;
+  /** Patients the doctor sees together at one time (group visits); all share the same time. */
+  patientsPerSlot?: number;
   weeklyShifts?: Record<string, Shift[]>;
   dateOverrides?: Record<string, Shift[]>;
 }
@@ -23,9 +25,14 @@ export function validateShifts(shifts: Shift[]) {
     if (previous && previous.end > shift.start) throw new Error("Shifts cannot overlap");
   });
 }
-/** Minutes between queue numbers in a shift, plus how many patients actually fit. */
-export function shiftTiming(av: Pick<Schedule, "consultMinutes">, shift: Shift) {
+/** Minutes between time slots in a shift, how many patients share each time, and how many fit in total. */
+export function shiftTiming(av: Pick<Schedule, "consultMinutes" | "patientsPerSlot">, shift: Shift) {
   const span = timeMinutes(shift.end) - timeMinutes(shift.start);
-  if (av.consultMinutes && av.consultMinutes > 0) return { step: av.consultMinutes, capacity: Math.min(shift.capacity, Math.max(1, Math.floor(span / av.consultMinutes))) };
-  return { step: Math.max(1, Math.floor(span / shift.capacity)), capacity: shift.capacity };
+  const perSlot = Math.max(1, Math.floor(av.patientsPerSlot ?? 1));
+  if (av.consultMinutes && av.consultMinutes > 0) {
+    const capacity = Math.min(shift.capacity, Math.max(1, Math.floor(span / av.consultMinutes)) * perSlot);
+    return { step: av.consultMinutes, capacity, perSlot, slots: Math.ceil(capacity / perSlot) };
+  }
+  const slots = Math.ceil(shift.capacity / perSlot);
+  return { step: Math.max(1, Math.floor(span / slots)), capacity: shift.capacity, perSlot, slots };
 }
