@@ -64,6 +64,13 @@
       "when": 1793650022971,
       "tag": "0008_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794342532037,
+      "tag": "0009_consult_minutes_allocation",
+      "breakpoints": true
     }
   ]
 }
