@@ -132,6 +132,67 @@ export type Database = {
           },
         ]
       }
+      lab_orders: {
+        Row: {
+          appointment_id: string
+          created_at: string
+          data: Json
+          doctor_id: string
+          id: string
+          lab_id: string
+          patient_id: string
+        }
+        Insert: {
+          appointment_id: string
+          created_at?: string
+          data?: Json
+          doctor_id: string
+          id: string
+          lab_id: string
+          patient_id: string
+        }
+        Update: {
+          appointment_id?: string
+          created_at?: string
+          data?: Json
+          doctor_id?: string
+          id?: string
+          lab_id?: string
+          patient_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "lab_orders_lab_id_fkey"
+            columns: ["lab_id"]
+            isOneToOne: false
+            referencedRelation: "labs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      labs: {
+        Row: {
+          data: Json
+          id: string
+        }
+        Insert: {
+          data?: Json
+          id: string
+        }
+        Update: {
+          data?: Json
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "labs_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medicines: {
         Row: {
           data: Json
