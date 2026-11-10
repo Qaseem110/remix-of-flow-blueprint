@@ -489,12 +489,12 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   let cur = parse(`${date} ${shift.start}`, "yyyy-MM-dd HH:mm", new Date());
   const end = parse(`${date} ${shift.end}`, "yyyy-MM-dd HH:mm", new Date());
   const usedInShift = bookedToday.filter((a) => a.time >= shift.start && a.time < shift.end).length;
-  const interval = Math.max(1, Math.floor((end.getTime() - cur.getTime()) / 60000 / shift.capacity));
-  for (let i = 0; i < shift.capacity && cur < end; i++) {
+  const { step: interval, capacity: shiftCap } = shiftTiming(av, shift);
+  for (let i = 0; i < shiftCap && cur < end; i++) {
     const time = format(cur, "HH:mm");
     const blocked = dayOff || (av.blocked?.includes(`${date} ${time}`) ?? false);
     const booked = taken.has(time);
-    out.push({ time, available: usedInShift < shift.capacity && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
+    out.push({ time, available: usedInShift < shiftCap && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
   }
   }
