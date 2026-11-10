@@ -563,7 +563,7 @@ export function queueInfo(appointmentId: string, s: State = state) {
 }
 
 function nextQueueNumber(doctorId: string, date: string, s: State) {
-  return s.appointments.filter((a) => a.doctorId === doctorId && a.date === date).reduce((m, a) => Math.max(m, a.queueNumber), 0) + 1;
+  return s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !BLOCKING.includes(a.status)).reduce((m, a) => Math.max(m, a.queueNumber), 0) + 1;
 }
 
 function patchAppt(id: string, p: Partial<Appointment>) {
@@ -866,10 +866,22 @@ export async function bookAppointment(input: { memberId?: string; memberName?: s
   return a;
 }
 
+/** Later waiting patients move up one place, taking the previous number and time (mirrors the database). */
+function closeQueueGap(a: Appointment) {
+  if (SB) return; // the database does this and pushes the new numbers back
+  const later = state.appointments.filter((x) => x.doctorId === a.doctorId && x.date === a.date && x.id !== a.id && ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status) && x.queueNumber > a.queueNumber).sort((x, y) => x.queueNumber - y.queueNumber);
+  let q = a.queueNumber, t = a.time;
+  const moves = new Map<string, { queueNumber: number; time: string }>();
+  for (const x of later) { moves.set(x.id, { queueNumber: q, time: t }); q = x.queueNumber; t = x.time; }
+  set((s) => ({ ...s, appointments: s.appointments.map((x) => (moves.has(x.id) ? { ...x, ...moves.get(x.id)! } : x)) }));
+}
+
 export function cancelAppointment(id: string, by: Role, reason = "") {
   const a = state.appointments.find((x) => x.id === id);
   if (!a) return;
+  const wasActive = !FINISHED.includes(a.status);
   patchAppt(id, { status: "Cancelled", cancelledBy: by, cancelReason: reason });
+  if (wasActive) closeQueueGap(a);
   const msg = `${id} on ${a.date} at ${fmtTime(a.time)} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
   if (by !== "patient") notify(a.patientId, "Appointment cancelled", msg, `/patient/appointments/${id}`);
   if (by !== "doctor") notify(a.doctorId, "Appointment cancelled", msg, `/doctor/appointments`);
@@ -943,7 +955,9 @@ export function joinOnline(id: string) {
 
 export function markNoShow(id: string) {
   const a = state.appointments.find((x) => x.id === id);
+  const wasActive = !!a && !FINISHED.includes(a.status);
   patchAppt(id, { status: "No Show" });
+  if (a && wasActive) closeQueueGap(a);
   if (a) {
     notify(a.patientId, "Marked as no-show", `You missed ${id}. You can book a new appointment anytime.`, `/patient/appointments/${id}`);
     notifyApproaching(a.doctorId, a.date);
