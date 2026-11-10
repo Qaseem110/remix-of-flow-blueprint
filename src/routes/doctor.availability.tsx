@@ -25,6 +25,7 @@ function ScheduleForm({ av }: { av: Schedule }) {
   const [overrides, setOverrides] = useState<Record<string, Shift[]>>(av.dateOverrides ?? {});
   const [date, setDate] = useState(todayStr());
   const [blockDate, setBlockDate] = useState(todayStr());
+  const [consult, setConsult] = useState(av.consultMinutes ? String(av.consultMinutes) : "");
   const [busy, setBusy] = useState(false);
   const [dirty, setDirty] = useState(false);
   const changeDay = (day: string, shifts: Shift[]) => { setWeek((w) => ({ ...w, [day]: shifts })); setDirty(true); };
@@ -32,7 +33,7 @@ function ScheduleForm({ av }: { av: Schedule }) {
   const save = async () => {
     setBusy(true);
     try {
-      await persistAvailability({ ...av, weeklyShifts: week, dateOverrides: overrides, days: DAYS.map((_, i) => i).filter((i) => week[String(i)]?.length) });
+      await persistAvailability({ ...av, weeklyShifts: week, dateOverrides: overrides, consultMinutes: consult ? Number(consult) : undefined, days: DAYS.map((_, i) => i).filter((i) => week[String(i)]?.length) });
       setDirty(false); toast.success("Schedule saved");
     } catch (error) { toast.error((error as Error).message); } finally { setBusy(false); }
   };
@@ -42,6 +43,7 @@ function ScheduleForm({ av }: { av: Schedule }) {
       <div className="mb-5 flex flex-wrap items-center justify-between gap-3 border-b pb-4">
         <div className="flex flex-wrap gap-5">
           {dp && <><label className="flex items-center gap-2 text-sm"><Switch checked={dp.online} onCheckedChange={(v) => updateDoctorProfile(av.doctorId, { online: v })} />Online</label><label className="flex items-center gap-2 text-sm"><Switch checked={dp.clinic} onCheckedChange={(v) => updateDoctorProfile(av.doctorId, { clinic: v })} />In-clinic</label></>}
+          <div className="flex items-center gap-2"><Label htmlFor="consult-minutes" className="text-sm">Time per patient</Label><Input id="consult-minutes" type="number" min={1} max={240} placeholder="Auto" className="h-9 w-20" value={consult} onChange={(e) => { setConsult(e.target.value); setDirty(true); }} /><span className="text-sm text-muted-foreground">min</span></div>
         </div>
         <Button onClick={save} disabled={busy || !dirty}>{busy ? "Saving…" : "Save schedule"}</Button>
       </div>

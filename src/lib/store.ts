@@ -6,7 +6,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 import { addDays, addMinutes, format, parse } from "date-fns";
 import { fmtTime } from "@/lib/utils";
 import { readReport } from "@/lib/read-report.functions";
-import { scheduleShifts, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
+import { scheduleShifts, shiftTiming, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
 export type Role = "patient" | "doctor" | "admin" | "pharmacy";
@@ -735,6 +735,7 @@ function validateAvailability(av: Availability) {
 }
 export function saveAvailability(av: Availability) {
   validateAvailability(av);
+  if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
     const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
@@ -744,6 +745,7 @@ export function saveAvailability(av: Availability) {
 /** Await schedule persistence so the editor never reports an unsaved schedule as saved. */
 export async function persistAvailability(av: Availability) {
   validateAvailability(av);
+  if (av.consultMinutes !== undefined && (!Number.isInteger(av.consultMinutes) || av.consultMinutes < 1 || av.consultMinutes > 240)) throw new Error("Time per patient must be between 1 and 240 minutes");
   if (SB) {
     const { supabase } = await import("./supabase");
     const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av });
