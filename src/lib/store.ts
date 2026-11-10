@@ -756,6 +756,8 @@ export async function persistAvailability(av: Availability) {
   hydrating = true;
   saveAvailability(av);
   hydrating = previous;
+  // Changing time-per-patient re-times upcoming queues in the database; pull the new times.
+  if (SB) await hydrate(state.sessionUserId);
 }
 function patchAvailability(doctorId: string, fn: (a: Availability) => Availability) {
   set((s) => ({ ...s, availability: s.availability.map((a) => (a.doctorId === doctorId ? fn(a) : a)) }));
