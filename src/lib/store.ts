@@ -1,3 +1,4 @@
+import { dueDoses } from "./medicine-reminders";
 /**
  * Mock data layer (in-memory). Every exported function mirrors a future
  * backend call so it can be swapped for self-hosted Supabase later.
@@ -172,6 +173,7 @@ export interface PrescriptionItem {
   frequency: string;
   duration: string;
   instructions: string;
+  times?: string[]; // daily reminder times "HH:mm" for the patient
 }
 
 export interface Consultation {
@@ -1192,6 +1194,22 @@ export function runReminders(userId: string) {
     const key = (k: string) => state.notifications.some((n) => n.userId === userId && n.title === k && n.body.includes(a.id));
     if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${a.id} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, `/patient/appointments/${a.id}`);
     if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${a.id} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
+  });
+}
+
+/** In-app + browser alert when a prescribed dose time arrives. */
+export function runMedicineReminders(userId: string) {
+  const now = new Date();
+  state.consultations.filter((c) => c.patientId === userId && c.completedAt && c.prescription?.length).forEach((c) => {
+    dueDoses(c.prescription, c.completedAt!, now).forEach(({ key, item, time }) => {
+      const tag = `[${c.appointmentId}|${key}]`;
+      if (state.notifications.some((n) => n.userId === userId && n.title === "Medicine time" && n.body.includes(tag))) return;
+      const body = `Time to take ${item.medicine} — ${item.dosage || "as prescribed"} (${fmtTime(time)}).${item.instructions ? " " + item.instructions : ""} ${tag}`;
+      notify(userId, "Medicine time", body, "/patient/records");
+      try {
+        if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted") new Notification("Medicine time", { body: body.replace(tag, "").trim() });
+      } catch { /* browser alert optional */ }
+    });
   });
 }
 
