@@ -344,6 +344,10 @@ export type Database = {
       }
       schedule_shifts: { Args: { av: Json; day: string }; Returns: Json }
       set_report_pin: { Args: { pin: string }; Returns: undefined }
+      shift_queue_times: {
+        Args: { _date: string; _doctor: string; _minutes: number }
+        Returns: undefined
+      }
       unlock_patient_reports: {
         Args: { patient: string; pin: string }
         Returns: boolean
