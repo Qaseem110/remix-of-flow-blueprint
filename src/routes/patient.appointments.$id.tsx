@@ -7,6 +7,7 @@ import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, QueueCard, RescheduleDialog } from "@/components/app/widgets";
 import { addAppointmentDocs, canJoin, checkIn, readAndMakeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { LeaveAlert } from "@/components/app/LeaveAlert";
 import { ReviewForm } from "@/components/app/Reviews";
 import { fmtPrice } from "@/lib/utils";
 
@@ -61,6 +62,7 @@ function ApptDetail() {
             {a.rescheduledTo && <div className="flex justify-between"><dt className="text-muted-foreground">Moved to</dt><dd><Link className="text-primary" to="/patient/appointments/$id" params={{ id: a.rescheduledTo }}>{a.rescheduledTo}</Link></dd></div>}
             {a.status === "Cancelled" && <div className="flex justify-between"><dt className="text-muted-foreground">Cancelled by</dt><dd className="capitalize">{a.cancelledBy}{a.cancelReason ? ` — ${a.cancelReason}` : ""}</dd></div>}
           </dl>
+          {a.date === todayStr() && ["Confirmed", "Pending"].includes(a.status) && <LeaveAlert a={a} />}
           <div className="mt-6 flex flex-wrap gap-2">
             {a.type === "online" && active && (canJoin(a)
               ? <Button onClick={() => navigate({ to: "/patient/consultation/$id", params: { id: a.id } })}><Video className="mr-1 h-4 w-4" /> Join Consultation</Button>

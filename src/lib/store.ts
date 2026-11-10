@@ -2,6 +2,7 @@
  * Mock data layer (in-memory). Every exported function mirrors a future
  * backend call so it can be swapped for self-hosted Supabase later.
  */
+import { distanceKm, travelMinutes } from "./geo";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { addDays, addMinutes, format, parse } from "date-fns";
 import { fmtTime } from "@/lib/utils";
@@ -76,6 +77,8 @@ export interface DoctorProfile {
   languages: string[];
   clinicName: string;
   clinicAddress: string;
+  clinicLat?: number; // clinic GPS location, set by the doctor
+  clinicLng?: number;
   city: string;
   about: string;
   online: boolean;
@@ -152,6 +155,7 @@ export interface Appointment {
   memberId?: string; // set when booked for a linked family member
   memberName?: string;
   queueOrder?: number; // set when a doctor moves a patient within the queue
+  leaveAlertAt?: string; // when the 'time to leave' alert was sent
 }
 
 export interface PrescriptionItem {
@@ -568,6 +572,31 @@ function nextQueueNumber(doctorId: string, date: string, s: State) {
 
 function patchAppt(id: string, p: Partial<Appointment>) {
   set((s) => ({ ...s, appointments: s.appointments.map((a) => (a.id === id ? { ...a, ...p } : a)) }));
+}
+
+/** Minutes until the patient's turn: patients ahead × time per patient, never earlier than the booked time. */
+export function minutesUntilTurn(id: string, s: State = state) {
+  const a = s.appointments.find((x) => x.id === id);
+  const q = queueInfo(id, s);
+  if (!a || !q) return null;
+  const per = s.availability.find((v) => v.doctorId === a.doctorId)?.consultMinutes ?? 15;
+  const byQueue = q.ahead * per;
+  const byTime = (slotDateTime(a).getTime() - Date.now()) / 60000;
+  return Math.max(0, Math.round(Math.max(byQueue, byTime)));
+}
+/** Patient shared location: send one 'time to leave' alert when travel time ≥ time left before their turn. */
+export function checkLeaveAlert(id: string, pos: { lat: number; lng: number }) {
+  const a = state.appointments.find((x) => x.id === id);
+  if (!a || a.type !== "clinic" || a.date !== todayStr() || a.leaveAlertAt || !["Confirmed", "Pending"].includes(a.status)) return null;
+  const d = state.doctors.find((x) => x.userId === a.doctorId);
+  if (d?.clinicLat == null || d.clinicLng == null) return null;
+  const km = distanceKm(pos, { lat: d.clinicLat, lng: d.clinicLng });
+  const travel = travelMinutes(km);
+  const left = minutesUntilTurn(id);
+  if (left == null || km < 0.3 || travel < left) return { km, travel, left, sent: false };
+  patchAppt(id, { leaveAlertAt: now() });
+  notify(a.patientId, "Time to leave for your appointment", `You are about ${km.toFixed(1)} km (~${travel} min) from the clinic and your turn (Queue #${a.queueNumber}) is in about ${left} min. Please leave now.`, `/patient/appointments/${id}`);
+  return { km, travel, left, sent: true };
 }
 
 function notifyApproaching(doctorId: string, date: string) {
