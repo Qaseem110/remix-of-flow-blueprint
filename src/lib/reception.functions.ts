@@ -29,6 +29,10 @@ export const createReceptionist = createServerFn({ method: "POST" })
     if (error || !created.user) throw new Error(error?.message ?? "Could not create the account");
     const { error: e2 } = await supabaseAdmin.from("receptionists").insert({ id: created.user.id, doctor_id: context.userId, data: { name: data.name, email: data.email, phone: data.phone, permissions: data.permissions } });
     if (e2) { await supabaseAdmin.auth.admin.deleteUser(created.user.id); throw new Error(e2.message); }
+    const uid = created.user.id;
+    const { error: e3 } = await supabaseAdmin.from("profiles").update({ role: "receptionist", data: { id: uid, role: "receptionist", name: data.name, email: data.email, phone: data.phone, active: true, createdAt: new Date().toISOString() } }).eq("id", uid);
+    if (e3) { await supabaseAdmin.from("receptionists").delete().eq("id", uid); await supabaseAdmin.auth.admin.deleteUser(uid); throw new Error(e3.message); }
+    await supabaseAdmin.from("patients").delete().eq("id", uid);
     return { id: created.user.id };
   });
 
