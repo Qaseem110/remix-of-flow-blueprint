@@ -48,9 +48,8 @@ end $$;
 drop trigger if exists renumber_queue on public.appointments;
 create trigger renumber_queue after insert or update on public.appointments for each row execute function public.renumber_queue();
 
--- 4) Block double-booking of the same doctor slot
-create unique index if not exists one_booking_per_slot on public.appointments (doctor_id, (data->>'date'), (data->>'time'))
-  where data->>'status' not in ('Cancelled','Rescheduled','No Show');
+-- 4) Shared slot times are allowed (group consultations); queue numbers stay unique via allocation
+drop index if exists public.one_booking_per_slot;
 
 -- 5) Clinic check-in kiosk without signing in (by appointment ID or phone, today only)
 create or replace function public.kiosk_check_in(method text, value text) returns text
