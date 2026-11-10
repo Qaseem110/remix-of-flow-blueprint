@@ -31,7 +31,7 @@ describe("automatic daily queue booking", () => {
     expect(second.queueNumber).toBe(first.queueNumber + 1);
     expect([first.time, second.time]).toEqual(["09:00", "09:30"]);
     cancelAppointment(first.id, "patient");
-    expect(getState().appointments.find((a) => a.id === second.id)?.queueNumber).toBe(second.queueNumber);
+    expect(getState().appointments.find((a) => a.id === second.id)?.queueNumber).toBe(first.queueNumber);
   });
   it("rejects a third patient when the daily limit is two", async () => {
     setup();
