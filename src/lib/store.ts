@@ -11,7 +11,7 @@ import { readReport } from "@/lib/read-report.functions";
 import { scheduleShifts, shiftTiming, timeMinutes, validateShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 export { scheduleShifts, weekdayShifts, type Shift } from "@/lib/schedule";
 
-export type Role = "patient" | "doctor" | "admin" | "pharmacy" | "receptionist";
+export type Role = "patient" | "doctor" | "admin" | "pharmacy" | "receptionist" | "lab";
 export type ReceptionPermissions = { book: boolean; queue: boolean; checkIn: boolean; cancel: boolean };
 export interface Receptionist { id: string; doctorId: string; name: string; email: string; phone: string; permissions: ReceptionPermissions }
 
@@ -24,6 +24,32 @@ export interface Pharmacy {
   lat?: number;
   lng?: number;
   hours?: string;
+}
+export interface Lab {
+  userId: string;
+  labName: string;
+  phone: string;
+  address: string;
+  city: string;
+  tests?: string; // tests offered, free text
+  hours?: string;
+}
+export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled";
+export interface LabOrder {
+  id: string;
+  labId: string;
+  patientId: string;
+  doctorId: string;
+  appointmentId: string; // the doctor appointment whose prescription authorises the test
+  memberName?: string;
+  tests: string;
+  date: string; // yyyy-MM-dd
+  notes?: string;
+  orderedBy: "doctor" | "patient";
+  status: LabOrderStatus;
+  documents: DocFile[];
+  createdAt: string;
+  completedAt?: string;
 }
 export interface Medicine {
   id: string;
@@ -185,6 +211,7 @@ export interface Consultation {
   privateNotes: string; // doctor-only
   summary: string; // patient-visible
   prescription: PrescriptionItem[];
+  labTests?: string; // tests the doctor recommends
   documents: DocFile[];
   followUpRequired: boolean;
   followUpTiming: string;
@@ -233,6 +260,8 @@ interface State {
   pharmacies: Pharmacy[];
   medicines: Medicine[];
   receptionists: Receptionist[];
+  labs: Lab[];
+  labOrders: LabOrder[];
   sessionUserId: string | null;
 }
 
@@ -298,7 +327,7 @@ function seed(): State {
     users, doctors, patients, availability, appointments, consultations, notifications,
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
-    pharmacies: [], medicines: [],
+    pharmacies: [], medicines: [], labs: [], labOrders: [],
     receptionists: [{ id: "u-rec1", doctorId: "u-doc1", name: "Front Desk", email: "desk@sahoolat.test", phone: "03001234567", permissions: { book: true, queue: true, checkIn: true, cancel: false } }],
     sessionUserId: null,
   };
@@ -308,7 +337,7 @@ function seed(): State {
 /** Supabase is used everywhere except unit tests (which run on the seed data). */
 const SB = import.meta.env.MODE !== "test";
 const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
-const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], sessionUserId: null });
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], labs: [], labOrders: [], sessionUserId: null });
 let state: State = SB ? emptyState() : seed();
 let ready = !SB;
 let hydrating = false;
@@ -322,7 +351,7 @@ function set(fn: (s: State) => State) {
 }
 
 // ---------- Supabase sync ----------
-type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines";
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines" | "labs" | "labOrders";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
   { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
@@ -334,6 +363,8 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
   { key: "pharmacies", table: "pharmacies", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "medicines", table: "medicines", id: (m) => m.id, row: (m) => ({ id: m.id, pharmacy_id: m.pharmacyId, data: m }), from: (r) => ({ ...r.data, id: r.id, pharmacyId: r.pharmacy_id }) },
+  { key: "labs", table: "labs", id: (l) => l.userId, row: (l) => ({ id: l.userId, data: l }), from: (r) => ({ ...r.data, userId: r.id }) },
+  { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -415,13 +446,14 @@ export async function hydrate(sessionUserId: string | null) {
   const notes = await supabase.from("private_notes").select("id, notes");
   const noteMap = new Map((notes.data ?? []).map((n: { id: string; notes: string }) => [n.id, n.notes]));
   next.consultations = next.consultations.map((c) => ({ ...c, privateNotes: noteMap.get(c.appointmentId) ?? "" }));
-  const paths = [...next.appointments, ...next.consultations].flatMap((x) => x.documents.map((d) => d.path)).filter((p): p is string => !!p);
+  const paths = [...next.appointments, ...next.consultations, ...next.labOrders].flatMap((x) => x.documents.map((d) => d.path)).filter((p): p is string => !!p);
   if (paths.length) {
     const { data: signed } = await supabase.storage.from("documents").createSignedUrls(paths, 60 * 60 * 6);
     const urls = new Map((signed ?? []).map((x) => [x.path, x.signedUrl]));
     const sign = (docs: DocFile[]) => docs.map((d) => (d.path && urls.get(d.path) ? { ...d, url: urls.get(d.path)! } : d));
     next.appointments = next.appointments.map((a) => ({ ...a, documents: sign(a.documents) }));
     next.consultations = next.consultations.map((c) => ({ ...c, documents: sign(c.documents) }));
+    next.labOrders = next.labOrders.map((o) => ({ ...o, documents: sign(o.documents) }));
   }
   const s = results[TABLES.length] as { data: { data: Settings } | null };
   next.settings = { ...DEFAULT_SETTINGS, ...(s.data?.data ?? {}) };
@@ -800,6 +832,88 @@ export async function registerPharmacy(input: { name: string; email: string; pho
   set((s) => ({ ...s, users: [...s.users, { id, role: "pharmacy", name, email, phone, password, active: true, createdAt: now() }], pharmacies: [...s.pharmacies, { userId: id, phone, ...p }], sessionUserId: id }));
   return id;
 }
+export async function registerLab(input: { name: string; email: string; phone: string; password: string; labName: string; address: string; city: string }): Promise<string> {
+  const { name, email, phone, password, ...p } = input;
+  if (SB) return signUp(email, password, { role: "lab", name, phone, profile: p });
+  if (state.users.some((u) => u.email.toLowerCase() === email.toLowerCase())) throw new Error("Email already registered");
+  const id = uid("u");
+  set((s) => ({ ...s, users: [...s.users, { id, role: "lab", name, email, phone, password, active: true, createdAt: now() }], labs: [...s.labs, { userId: id, phone, ...p }], sessionUserId: id }));
+  return id;
+}
+export function updateLab(id: string, p: Partial<Lab>) {
+  set((s) => ({ ...s, labs: s.labs.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
+}
+/** Consultations that carry a doctor's prescription or test recommendation (required to book a lab test). */
+export function prescribedConsultations(patientId: string, s: State = state) {
+  return s.consultations.filter((c) => c.patientId === patientId && (c.prescription.length > 0 || !!c.labTests?.trim()));
+}
+async function writeRow(table: string, row: Record<string, unknown>, insert: boolean) {
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  const { error } = insert ? await supabase.from(table).insert(row as never) : await supabase.from(table).update(row as never).eq("id", row.id as string);
+  if (error) throw new Error(error.message);
+}
+const labOrderTable = () => TABLES.find((t) => t.key === "labOrders")!;
+function commitLabOrder(o: LabOrder) {
+  hydrating = true;
+  try { set((s) => ({ ...s, labOrders: s.labOrders.some((x) => x.id === o.id) ? s.labOrders.map((x) => (x.id === o.id ? o : x)) : [o, ...s.labOrders] })); }
+  finally { hydrating = false; }
+}
+/** Doctor orders a test, or patient books one against their own prescription. Awaits the server write. */
+export async function createLabOrder(input: { labId: string; appointmentId: string; tests: string; date: string; notes?: string }): Promise<LabOrder> {
+  const me = state.users.find((u) => u.id === state.sessionUserId);
+  if (!me) throw new Error("Please sign in");
+  if (!state.labs.some((l) => l.userId === input.labId)) throw new Error("Choose a laboratory");
+  if (!input.tests.trim()) throw new Error("Enter the tests to perform");
+  if (!input.date) throw new Error("Choose a date");
+  let doctorId: string, patientId: string, memberName: string | undefined;
+  if (me.role === "doctor") {
+    const a = state.appointments.find((x) => x.id === input.appointmentId && x.doctorId === me.id);
+    if (!a) throw new Error("Appointment not found");
+    doctorId = me.id; patientId = a.patientId; memberName = a.memberName;
+  } else if (me.role === "patient") {
+    const c = prescribedConsultations(me.id).find((x) => x.appointmentId === input.appointmentId);
+    if (!c) throw new Error("A doctor's prescription is required to book a lab test");
+    doctorId = c.doctorId; patientId = me.id; memberName = state.appointments.find((a) => a.id === c.appointmentId)?.memberName;
+  } else throw new Error("Only doctors and patients can book lab tests");
+  const o: LabOrder = { id: uid("LAB"), labId: input.labId, patientId, doctorId, appointmentId: input.appointmentId, memberName, tests: input.tests.trim(), date: input.date, notes: input.notes?.trim() || undefined, orderedBy: me.role, status: "Requested", documents: [], createdAt: now() };
+  await writeRow("lab_orders", labOrderTable().row(o), true);
+  commitLabOrder(o);
+  const lab = state.labs.find((l) => l.userId === o.labId);
+  notify(o.labId, "New lab test request", `${o.id}: ${o.tests} on ${o.date}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
+  if (me.role === "doctor") notify(patientId, "Lab test ordered", `${me.name} sent ${o.tests} to ${lab?.labName ?? "a laboratory"} for ${o.date}.`, "/patient/labs");
+  return o;
+}
+export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
+  const o = state.labOrders.find((x) => x.id === id);
+  if (!o) throw new Error("Order not found");
+  const next = { ...o, status };
+  await writeRow("lab_orders", labOrderTable().row(next), false);
+  commitLabOrder(next);
+  if (status === "Cancelled") notify(state.sessionUserId === o.labId ? o.patientId : o.labId, "Lab test cancelled", `${o.id}: ${o.tests}.`, state.sessionUserId === o.labId ? "/patient/labs" : "/lab");
+  else if (status === "Sample collected") notify(o.patientId, "Sample collected", `${o.id}: your sample for ${o.tests} was collected.`, "/patient/labs");
+}
+/** Lab uploads results; files are stored permanently and appear in the patient's health records. */
+export async function uploadLabResults(id: string, files: FileList | File[]) {
+  const o = state.labOrders.find((x) => x.id === id);
+  if (!o || o.labId !== state.sessionUserId) throw new Error("Only the assigned laboratory can upload results");
+  const docs = makeDocs(files, "lab", "Lab Report");
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    for (const d of docs) {
+      const path = `lab/${o.id}/${d.id}-${d.name.replace(/[^\w.-]/g, "_")}`;
+      const { error } = await supabase.storage.from("documents").upload(path, pendingFiles.get(d.id)!, { contentType: d.mime, upsert: false });
+      if (error) throw new Error(`${d.name}: ${error.message}`);
+      d.path = path; pendingFiles.delete(d.id);
+    }
+  }
+  const next: LabOrder = { ...o, documents: [...o.documents, ...docs], status: "Completed", completedAt: o.completedAt ?? now() };
+  await writeRow("lab_orders", labOrderTable().row(next), false);
+  commitLabOrder(next);
+  const lab = state.labs.find((l) => l.userId === o.labId);
+  notify(o.patientId, "Lab report ready", `${lab?.labName ?? "The laboratory"} uploaded your ${o.tests} report. See Health Records.`, "/patient/records");
+  notify(o.doctorId, "Lab report ready", `${o.tests} report for ${o.memberName ?? userById(o.patientId)?.name ?? "your patient"} is available.`, `/doctor/consultation/${o.appointmentId}`);
+}
 export function updatePharmacy(id: string, p: Partial<Pharmacy>) {
   set((s) => ({ ...s, pharmacies: s.pharmacies.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
 }
@@ -938,6 +1052,7 @@ export async function persistPatientDocs(id: string, docs: DocFile[]): Promise<A
 
 /** Delete a document. Only the role that uploaded it (patient or doctor) may delete it. */
 export function deleteDocument(docId: string) {
+  if (state.labOrders.some((o) => o.documents.some((x) => x.id === docId))) throw new Error("Lab reports cannot be deleted");
   const all = [...state.appointments, ...state.consultations].flatMap((x) => x.documents);
   const d = all.find((x) => x.id === docId);
   if (!d) return;
