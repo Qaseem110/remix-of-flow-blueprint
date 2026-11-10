@@ -38,6 +38,14 @@ function DocProfile() {
     reader.onerror = () => toast.error("Could not read your profile picture. Please try again.");
     reader.readAsDataURL(file);
   };
+  const setLocation = () => {
+    if (!navigator.geolocation) return toast.error("Location isn't available on this device");
+    navigator.geolocation.getCurrentPosition(
+      (p) => { updateDoctorProfile(user.id, { clinicLat: p.coords.latitude, clinicLng: p.coords.longitude }); toast.success("Clinic location saved — stand inside your clinic when you set this"); },
+      () => toast.error("Location permission was denied. Allow location for this site in your browser."),
+      { enableHighAccuracy: true, timeout: 20000 },
+    );
+  };
   const fields: [string, string, string | number, string?][] = [
     ["name", "Name", user.name], ["phone", "Phone", user.phone], ["specialization", "Specialization", d.specialization], ["qualification", "Qualification", d.qualification],
     ["licenseNumber", "License / registration no.", d.licenseNumber], ["experience", "Experience (years)", d.experience, "number"], ["fee", `Consultation fee (${CURRENCY})`, d.fee, "number"],
@@ -53,6 +61,10 @@ function DocProfile() {
         </div>
         {fields.map(([n, l, v, t]) => <div key={n}><Label htmlFor={n}>{l}</Label><Input id={n} name={n} type={t ?? "text"} defaultValue={v} /></div>)}
         <div className="sm:col-span-2"><Label htmlFor="about">About</Label><Textarea id="about" name="about" rows={4} defaultValue={d.about} /></div>
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border p-3 sm:col-span-2">
+          <div className="flex-1 text-sm"><p className="font-medium">Clinic location (GPS)</p><p className="text-muted-foreground">{d.clinicLat != null ? `Saved: ${d.clinicLat.toFixed(5)}, ${d.clinicLng?.toFixed(5)}` : "Not set. Patients use it to get a 'time to leave' alert."}</p></div>
+          <Button type="button" variant="outline" onClick={setLocation}>Use my current location</Button>
+        </div>
         <Button className="sm:col-span-2">Save profile</Button>
       </form>
     </div>
