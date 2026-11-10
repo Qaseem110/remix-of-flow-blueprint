@@ -972,12 +972,28 @@ function keyAt(list: Appointment[], position: number) {
   return (queueKey(list[pos - 1]) + queueKey(list[pos])) / 2;
 }
 
+/** A returning patient gets a fresh number; the active queue is renumbered in order (mirrors the database). */
+function renumberAfterReturn(doctorId: string, date: string, returnedId: string) {
+  const day = state.appointments.filter((x) => x.doctorId === doctorId && x.date === date);
+  const active = day.filter((x) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status)).sort((x, y) => queueKey(x) - queueKey(y));
+  const returned = active.find((x) => x.id === returnedId)!;
+  const others = active.filter((x) => x !== returned);
+  const nums = [...others.map((x) => x.queueNumber).sort((p, q) => p - q), Math.max(0, ...day.map((x) => x.queueNumber)) + 1];
+  const times = others.map((x) => x.time).sort();
+  const step = state.availability.find((v) => v.doctorId === doctorId)?.consultMinutes ?? 15;
+  const last = times[times.length - 1];
+  if (last) { const m = Number(last.slice(0, 2)) * 60 + Number(last.slice(3, 5)) + step; times.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`); } else times.push(returned.time);
+  const next = new Map(active.map((x, i) => [x.id, { queueNumber: nums[i], time: times[i], queueOrder: undefined }]));
+  set((s) => ({ ...s, appointments: s.appointments.map((x) => (next.has(x.id) ? { ...x, ...next.get(x.id)! } : x)) }));
+}
+
 /** Bring an absent (no-show) patient back into today's queue; position = patients ahead of them (0 = next). */
 export function returnToQueue(id: string, position: number) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a || a.status !== "No Show") return;
   const list = waitingQueue(dayAppointments(a.doctorId, a.date)).filter((x) => x.id !== id);
   patchAppt(id, { status: "Waiting", queueOrder: keyAt(list, position) });
+  if (!SB) renumberAfterReturn(a.doctorId, a.date, id);
   const ahead = Math.max(0, Math.min(position, list.length));
   notify(a.patientId, "You're back in the queue", ahead === 0 ? "You are next in line." : `${ahead} patient${ahead > 1 ? "s" : ""} ahead of you.`, `/patient/appointments/${id}`);
 }
