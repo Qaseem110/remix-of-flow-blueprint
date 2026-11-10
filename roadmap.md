@@ -21,3 +21,4 @@
 - [x] Enforce shift hours and patient limits in automatic booking and the database.
 - [x] Update doctor schedule editor, dashboard limit and patient schedule display.
 - [x] Test split shifts, overrides, limits and schedule saving (30 tests passed; doctor saved two shifts and read them back after refresh; test override removed).
+- [ ] WhatsApp booking + leave-now messages (queue number, travel time) — waiting for user to connect WhatsApp Business
