@@ -297,6 +297,7 @@ function seed(): State {
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
     pharmacies: [], medicines: [],
+    receptionists: [{ id: "u-rec1", doctorId: "u-doc1", name: "Front Desk", email: "desk@sahoolat.test", phone: "03001234567", permissions: { book: true, queue: true, checkIn: true, cancel: false } }],
     sessionUserId: null,
   };
 }
