@@ -148,6 +148,13 @@
       "when": 1794858848098,
       "tag": "0020_lab_appointment_scheduling",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794858898703,
+      "tag": "0021_lab_slot_availability_counts",
+      "breakpoints": true
     }
   ]
 }
