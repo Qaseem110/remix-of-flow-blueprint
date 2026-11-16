@@ -20,18 +20,21 @@ export type Database = {
           doctor_id: string
           id: string
           patient_id: string
+          tracking_number: string | null
         }
         Insert: {
           data?: Json
           doctor_id: string
           id: string
           patient_id: string
+          tracking_number?: string | null
         }
         Update: {
           data?: Json
           doctor_id?: string
           id?: string
           patient_id?: string
+          tracking_number?: string | null
         }
         Relationships: []
       }
@@ -173,6 +176,7 @@ export type Database = {
           id: string
           lab_id: string
           patient_id: string
+          tracking_number: string | null
         }
         Insert: {
           appointment_id: string
@@ -182,6 +186,7 @@ export type Database = {
           id: string
           lab_id: string
           patient_id: string
+          tracking_number?: string | null
         }
         Update: {
           appointment_id?: string
@@ -191,6 +196,7 @@ export type Database = {
           id?: string
           lab_id?: string
           patient_id?: string
+          tracking_number?: string | null
         }
         Relationships: [
           {
@@ -486,6 +492,10 @@ export type Database = {
       has_report_pin: { Args: { patient: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
       kiosk_check_in: {
+        Args: { method: string; value: string }
+        Returns: string
+      }
+      kiosk_check_in_tracking: {
         Args: { method: string; value: string }
         Returns: string
       }
