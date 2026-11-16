@@ -893,7 +893,7 @@ export async function getLabSlots(labId: string, date: string, excludeId?: strin
   const { data, error } = await supabase.rpc("lab_slot_usage", { target_lab: labId, target_date: date });
   if (error) throw new Error(error.message);
   const current = state.labOrders.find((o) => o.id === excludeId);
-  return labSlots(schedule, date, (data ?? []).map((r) => ({ date, time: r.booked_time, slotMinutes: r.duration, status: "Requested", count: r.bookings - (current?.date === date && current.time === r.booked_time && (current.slotMinutes ?? schedule?.slotMinutes) === r.duration ? 1 : 0) })));
+  return labSlots(schedule, date, (data ?? []).map((r: { booked_time: string; duration: number; bookings: number }) => ({ date, time: r.booked_time, slotMinutes: r.duration, status: "Requested", count: r.bookings - (current?.date === date && current.time === r.booked_time && (current.slotMinutes ?? schedule?.slotMinutes) === r.duration ? 1 : 0) })));
 }
 /** Consultations that carry a doctor's prescription or test recommendation (required to book a lab test). */
 export function prescribedConsultations(patientId: string, s: State = state) {
