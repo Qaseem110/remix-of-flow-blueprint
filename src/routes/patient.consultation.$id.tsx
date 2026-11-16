@@ -25,6 +25,7 @@ function PatientRoom() {
   }, [a?.status]); // eslint-disable-line react-hooks/exhaustive-deps
   if (!user || !a || !doc || a.patientId !== user.id) return <p>Consultation not found.</p>;
   if (a.type !== "online") return <p>This is an in-clinic appointment.</p>;
+  if (["Expired", "Cancelled", "No Show", "Rescheduled"].includes(a.status)) return <p>This appointment has ended.</p>;
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []); e.target.value = "";
     if (!files.length || uploading) return;

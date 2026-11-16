@@ -21,7 +21,7 @@ export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNod
         <div>
           <p className="flex items-center gap-2 font-semibold"><FlaskConical className="h-4 w-4 text-primary" />{o.tests}</p>
           <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
-          <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({o.appointmentId}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
+          <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
           {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tone[o.status]}`}>{o.status}</span>

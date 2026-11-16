@@ -24,7 +24,7 @@ function CheckIn() {
     try {
       const r = await kioskCheckIn(method, value);
       setValue("");
-      if (r.appointment) setDone(r.appointment); else toast.success(`Checked in — ${r.id}. Please wait to be called.`);
+      if (r.appointment) setDone(r.appointment); else toast.success("Checked in. Please wait to be called.");
     } catch (err) { toast.error((err as Error).message); }
   };
 

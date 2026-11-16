@@ -40,10 +40,11 @@ function Console() {
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (a && user && a.doctorId === user.id) setC(ensureConsultation(id));
+    if (a && user && a.doctorId === user.id && a.status !== "Expired") setC(ensureConsultation(id));
     else setC(null);
   }, [id, a?.id, user?.id]);
   if (!user || !a || !patient || a.doctorId !== user.id) return <p>Consultation not found.</p>;
+  if (a.status === "Expired") return <p>This appointment has ended. Patient reports remain in their health records.</p>;
   if (!c || c.appointmentId !== id) return <p role="status" className="text-muted-foreground">Loading consultation…</p>;
   const done = a.status === "Completed";
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });

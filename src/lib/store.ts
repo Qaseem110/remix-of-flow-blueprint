@@ -514,7 +514,7 @@ export function useStore<T>(sel: (s: State) => T): T {
 export const getState = () => state;
 /** Public numeric tracking number is separate from immutable record links. */
 export function trackingNumber(record: { id: string; trackingNumber?: string }) {
-  return record.trackingNumber ?? (/^\d+$/.test(record.id) ? record.id : record.id.replace(/\D/g, ""));
+  return record.trackingNumber ?? state.appointments.find((a) => a.id === record.id)?.trackingNumber ?? (/^\d+$/.test(record.id) ? record.id : record.id.replace(/\D/g, ""));
 }
 function numericTrackingNumber() {
   const bytes = crypto.getRandomValues(new Uint8Array(16));
@@ -1165,7 +1165,7 @@ export async function rescheduleAppointment(id: string, date: string): Promise<A
   const old = state.appointments.find((x) => x.id === id);
   if (!old) throw new Error("Appointment not found");
   const fresh = await bookAppointment({ doctorId: old.doctorId, patientId: old.patientId, memberId: old.memberId, memberName: old.memberName, type: old.type, date, reason: old.reason, documents: old.documents, followUpOf: old.followUpOf, payment: old.payment, rescheduledFrom: id });
-  const msg = `${id} moved to ${date} at ${fmtTime(fresh.time)} (Queue #${fresh.queueNumber}).`;
+  const msg = `${trackingNumber(old)} moved to ${date} at ${fmtTime(fresh.time)} (Queue #${fresh.queueNumber}).`;
   notify(old.patientId, "Appointment rescheduled", msg, `/patient/appointments/${fresh.id}`);
   notify(old.doctorId, "Appointment rescheduled", msg, `/doctor/appointments`);
   return fresh;
@@ -1210,6 +1210,7 @@ export function markWaiting(id: string) {
 export function callPatient(id: string) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a) return;
+  if (a.date < todayStr()) throw new Error("This appointment has ended");
   if (a.type === "clinic") {
     patchAppt(id, { status: "In Consultation" });
     notify(a.patientId, "It's your turn", `Please proceed to ${userById(a.doctorId)?.name}'s room.`, `/patient/appointments/${id}`);
