@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -28,7 +29,7 @@ function ApptDetail() {
   const allowed = useStore((s) => s.settings.allowedFileTypes);
   if (!a || !doc || !dp) return <p>Appointment not found.</p>;
   const changeable = a.status === "Confirmed" || a.status === "Pending";
-  const active = !["Completed", "Cancelled", "No Show", "Rescheduled"].includes(a.status);
+  const active = !["Completed", "Cancelled", "No Show", "Rescheduled", "Expired"].includes(a.status);
 
   const upload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []); e.target.value = "";
@@ -47,7 +48,7 @@ function ApptDetail() {
       <div className="grid gap-6 lg:grid-cols-[1.3fr_1fr]">
         <section className="rounded-2xl border bg-card p-6 shadow-soft">
           <div className="flex items-start justify-between">
-            <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Appointment ID</p><p className="font-display text-3xl font-semibold">{a.id}</p></div>
+            <div><p className="text-xs uppercase tracking-wider text-muted-foreground">Tracking number</p><p className="break-all font-display text-3xl font-semibold">{trackingNumber(a)}</p></div>
             <StatusBadge status={a.status} />
           </div>
           <dl className="mt-6 space-y-3 text-sm">
@@ -55,11 +56,11 @@ function ApptDetail() {
             <div className="flex justify-between"><dt className="text-muted-foreground">Date & time</dt><dd className="flex items-center gap-1 font-medium"><CalendarDays className="h-4 w-4" />{format(slotDateTime(a), "EEEE d MMM yyyy, h:mm a")}</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Type</dt><dd><TypeBadge type={a.type} /></dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">{a.type === "online" ? "Consultation link" : "Clinic location"}</dt>
-              <dd className="text-right font-medium">{a.type === "online" ? <span className="flex items-center gap-1"><Video className="h-4 w-4" />sahoolat.app/room/{a.id}</span> : <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{dp.clinicName}, {dp.clinicAddress}, {dp.city}</span>}</dd></div>
+              <dd className="text-right font-medium">{a.type === "online" ? <span className="flex items-center gap-1"><Video className="h-4 w-4" />sahoolat.app/room/{trackingNumber(a)}</span> : <span className="flex items-center gap-1"><MapPin className="h-4 w-4" />{dp.clinicName}, {dp.clinicAddress}, {dp.city}</span>}</dd></div>
             <div className="flex justify-between gap-4"><dt className="text-muted-foreground">Reason</dt><dd className="text-right">{a.reason}</dd></div>
             <div className="flex justify-between"><dt className="text-muted-foreground">Payment</dt><dd>{fmtPrice(dp.fee)} · {a.payment === "card" ? "Card" : a.type === "online" ? "Pay later" : "Pay at clinic"}</dd></div>
-            {a.rescheduledFrom && <div className="flex justify-between"><dt className="text-muted-foreground">Rescheduled from</dt><dd>{a.rescheduledFrom}</dd></div>}
-            {a.rescheduledTo && <div className="flex justify-between"><dt className="text-muted-foreground">Moved to</dt><dd><Link className="text-primary" to="/patient/appointments/$id" params={{ id: a.rescheduledTo }}>{a.rescheduledTo}</Link></dd></div>}
+            {a.rescheduledFrom && <div className="flex justify-between"><dt className="text-muted-foreground">Rescheduled from</dt><dd>{trackingNumber({ id: a.rescheduledFrom })}</dd></div>}
+            {a.rescheduledTo && <div className="flex justify-between"><dt className="text-muted-foreground">Moved to</dt><dd><Link className="text-primary" to="/patient/appointments/$id" params={{ id: a.rescheduledTo }}>{trackingNumber({ id: a.rescheduledTo })}</Link></dd></div>}
             {a.status === "Cancelled" && <div className="flex justify-between"><dt className="text-muted-foreground">Cancelled by</dt><dd className="capitalize">{a.cancelledBy}{a.cancelReason ? ` — ${a.cancelReason}` : ""}</dd></div>}
           </dl>
           {a.date === todayStr() && ["Confirmed", "Pending"].includes(a.status) && <LeaveAlert a={a} />}

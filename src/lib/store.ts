@@ -1,3 +1,4 @@
+import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
 import { dueDoses } from "./medicine-reminders";
 /**
  * Mock data layer (in-memory). Every exported function mirrors a future
@@ -37,6 +38,7 @@ export interface Lab {
 export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled";
 export interface LabOrder {
   id: string;
+  trackingNumber?: string;
   labId: string;
   patientId: string;
   doctorId: string;
@@ -82,11 +84,12 @@ export type AppointmentStatus =
   | "Completed"
   | "Cancelled"
   | "No Show"
-  | "Rescheduled";
+  | "Rescheduled"
+  | "Expired";
 
 export const ALL_STATUSES: AppointmentStatus[] = [
   "Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Join",
-  "In Consultation", "Completed", "Cancelled", "No Show", "Rescheduled",
+  "In Consultation", "Completed", "Cancelled", "No Show", "Rescheduled", "Expired",
 ];
 
 export interface User {
@@ -173,6 +176,7 @@ export interface DocFile {
 
 export interface Appointment {
   id: string;
+  trackingNumber?: string;
   doctorId: string;
   patientId: string;
   type: ConsultType;
@@ -275,7 +279,7 @@ interface State {
 
 const uid = (p: string) => `${p}-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const now = () => new Date().toISOString();
-export const todayStr = () => format(new Date(), "yyyy-MM-dd");
+export const todayStr = clinicDate;
 
 // ---------- Seed ----------
 function seed(): State {
@@ -366,13 +370,13 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "doctors", table: "doctors", id: (d) => d.userId, row: (d) => ({ id: d.userId, data: d }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "patients", table: "patients", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "availability", table: "availability", id: (a) => a.doctorId, row: (a) => ({ id: a.doctorId, data: a }), from: (r) => ({ ...r.data, doctorId: r.id }) },
-  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: { ...a, documents: stripDocs(a.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id }) },
+  { key: "appointments", table: "appointments", id: (a) => a.id, row: (a) => ({ id: a.id, doctor_id: a.doctorId, patient_id: a.patientId, data: { ...a, documents: stripDocs(a.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, trackingNumber: r.tracking_number, status: appointmentStatus(r.data.date, r.data.status) }) },
   { key: "consultations", table: "consultations", id: (c) => c.appointmentId, row: (c) => ({ id: c.appointmentId, doctor_id: c.doctorId, patient_id: c.patientId, data: { ...c, documents: stripDocs(c.documents) } }), from: (r) => ({ prescription: [], documents: [], ...r.data, appointmentId: r.id }) },
   { key: "notifications", table: "notifications", id: (n) => n.id, row: (n) => ({ id: n.id, user_id: n.userId, data: n }), from: (r) => ({ ...r.data, id: r.id }) },
   { key: "pharmacies", table: "pharmacies", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "medicines", table: "medicines", id: (m) => m.id, row: (m) => ({ id: m.id, pharmacy_id: m.pharmacyId, data: m }), from: (r) => ({ ...r.data, id: r.id, pharmacyId: r.pharmacy_id }) },
   { key: "labs", table: "labs", id: (l) => l.userId, row: (l) => ({ id: l.userId, data: l }), from: (r) => ({ ...r.data, userId: r.id }) },
-  { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
+  { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, trackingNumber: r.tracking_number, labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
   { key: "labMessages", table: "lab_messages", id: (m) => m.id, row: (m) => ({ id: m.id, order_id: m.orderId, author_id: m.authorId, data: m }), from: (r) => ({ ...r.data, id: r.id, orderId: r.order_id, authorId: r.author_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
@@ -508,6 +512,14 @@ export function useStore<T>(sel: (s: State) => T): T {
   return useSyncExternalStore(subscribe, get, get);
 }
 export const getState = () => state;
+/** Public numeric tracking number is separate from immutable record links. */
+export function trackingNumber(record: { id: string; trackingNumber?: string }) {
+  return record.trackingNumber ?? (/^\d+$/.test(record.id) ? record.id : record.id.replace(/\D/g, ""));
+}
+function numericTrackingNumber() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  return BigInt("0x" + Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("")).toString();
+}
 
 function notify(userId: string, title: string, body: string, link?: string) {
   if (userId.startsWith("walkin-")) return notifyWalkIn(userId, title, body);
@@ -623,7 +635,7 @@ export function visibleDoctors(s: State = state) {
 }
 
 // ---------- Queue ----------
-const FINISHED: AppointmentStatus[] = ["Completed", "Cancelled", "No Show", "Rescheduled"];
+const FINISHED: AppointmentStatus[] = ["Completed", "Cancelled", "No Show", "Rescheduled", "Expired"];
 
 export function dayAppointments(doctorId: string, date: string, s: State = state) {
   return s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && a.status !== "Rescheduled" && a.status !== "Cancelled").sort((a, b) => a.time.localeCompare(b.time));
@@ -631,7 +643,7 @@ export function dayAppointments(doctorId: string, date: string, s: State = state
 
 /** In the active queue: online confirmed/waiting/ready, clinic only once checked in. */
 export function inActiveQueue(a: Appointment) {
-  if (FINISHED.includes(a.status)) return false;
+  if (FINISHED.includes(appointmentStatus(a.date, a.status))) return false;
   if (a.type === "clinic") return ["Checked-In", "Waiting", "In Consultation"].includes(a.status);
   return ["Confirmed", "Waiting", "Ready to Join", "In Consultation"].includes(a.status);
 }
@@ -885,11 +897,16 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
     if (!c) throw new Error("A doctor's prescription is required to book a lab test");
     doctorId = c.doctorId; patientId = me.id; memberName = state.appointments.find((a) => a.id === c.appointmentId)?.memberName;
   } else throw new Error("Only doctors and patients can book lab tests");
-  const o: LabOrder = { id: uid("LAB"), labId: input.labId, patientId, doctorId, appointmentId: input.appointmentId, memberName, tests: input.tests.trim(), date: input.date, notes: input.notes?.trim() || undefined, orderedBy: me.role, status: "Requested", documents: [], createdAt: now() };
-  await writeRow("lab_orders", labOrderTable().row(o), true);
+  let o: LabOrder = { id: numericTrackingNumber(), labId: input.labId, patientId, doctorId, appointmentId: input.appointmentId, memberName, tests: input.tests.trim(), date: input.date, notes: input.notes?.trim() || undefined, orderedBy: me.role, status: "Requested", documents: [], createdAt: now() };
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { data, error } = await supabase.from("lab_orders").insert(labOrderTable().row(o) as never).select("*").single();
+    if (error) throw new Error(error.message);
+    o = labOrderTable().from(data) as LabOrder;
+  }
   commitLabOrder(o);
   const lab = state.labs.find((l) => l.userId === o.labId);
-  notify(o.labId, "New lab test request", `${o.id}: ${o.tests} on ${o.date}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
+  notify(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
   if (me.role === "doctor") notify(patientId, "Lab test ordered", `${me.name} sent ${o.tests} to ${lab?.labName ?? "a laboratory"} for ${o.date}.`, "/patient/labs");
   return o;
 }
@@ -899,8 +916,8 @@ export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
   const next = { ...o, status };
   await writeRow("lab_orders", labOrderTable().row(next), false);
   commitLabOrder(next);
-  if (status === "Cancelled") notify(state.sessionUserId === o.labId ? o.patientId : o.labId, "Lab test cancelled", `${o.id}: ${o.tests}.`, state.sessionUserId === o.labId ? "/patient/labs" : "/lab");
-  else if (status === "Sample collected") notify(o.patientId, "Sample collected", `${o.id}: your sample for ${o.tests} was collected.`, "/patient/labs");
+  if (status === "Cancelled") notify(state.sessionUserId === o.labId ? o.patientId : o.labId, "Lab test cancelled", `${trackingNumber(o)}: ${o.tests}.`, state.sessionUserId === o.labId ? "/patient/labs" : "/lab");
+  else if (status === "Sample collected") notify(o.patientId, "Sample collected", `${trackingNumber(o)}: your sample for ${o.tests} was collected.`, "/patient/labs");
 }
 /** Lab uploads results; files are stored permanently and appear in the patient's health records. */
 export async function uploadLabResults(id: string, files: FileList | File[]) {
@@ -1095,7 +1112,7 @@ export async function bookAppointment(input: { memberId?: string; memberName?: s
   const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
   const slot = nextBooking(input.doctorId, input.date, previewState);
   if (!slot) throw new Error("No places available on this day. Choose another date.");
-  const id = "APT-" + crypto.randomUUID();
+  const id = numericTrackingNumber();
   let a: Appointment = { ...input, time: slot.time, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
   if (SB) {
     const { supabase } = await import("./supabase");
@@ -1118,7 +1135,7 @@ export async function bookAppointment(input: { memberId?: string; memberName?: s
   hydrating = previousHydrating;
   const doc = userById(input.doctorId);
   const pat = userById(input.patientId);
-  notify(input.patientId, "Appointment confirmed", `${id} with ${doc?.name} on ${a.date} at ${fmtTime(a.time)} — Queue #${a.queueNumber}.`, `/patient/appointments/${id}`);
+  notify(input.patientId, "Appointment confirmed", `${trackingNumber(a)} with ${doc?.name} on ${a.date} at ${fmtTime(a.time)} — Queue #${a.queueNumber}.`, `/patient/appointments/${id}`);
   notify(input.doctorId, "New appointment", `${input.memberName ?? pat?.name} booked ${a.date} at ${fmtTime(a.time)} — Queue #${a.queueNumber}.`, `/doctor/appointments`);
   return a;
 }
@@ -1139,7 +1156,7 @@ export function cancelAppointment(id: string, by: Role, reason = "") {
   const wasActive = !FINISHED.includes(a.status);
   patchAppt(id, { status: "Cancelled", cancelledBy: by, cancelReason: reason });
   if (wasActive) closeQueueGap(a);
-  const msg = `${id} on ${a.date} at ${fmtTime(a.time)} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
+  const msg = `${trackingNumber(a)} on ${a.date} at ${fmtTime(a.time)} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
   if (by !== "patient") notify(a.patientId, "Appointment cancelled", msg, `/patient/appointments/${id}`);
   if (by !== "doctor") notify(a.doctorId, "Appointment cancelled", msg, `/doctor/appointments`);
 }
@@ -1159,7 +1176,7 @@ export function checkIn(method: "appointmentId" | "phone", value: string): Appoi
   if (!state.settings.checkInMethods[method]) throw new Error("This check-in method is disabled");
   const t = todayStr();
   let a: Appointment | undefined;
-  if (method === "appointmentId") a = state.appointments.find((x) => x.id.toUpperCase() === value.trim().toUpperCase());
+  if (method === "appointmentId") a = state.appointments.find((x) => (x.id.toUpperCase() === value.trim().toUpperCase() || trackingNumber(x) === value.trim()));
   else {
     const u = state.users.find((x) => x.phone.replace(/\s/g, "") === value.replace(/\s/g, ""));
     a = u && state.appointments.filter((x) => x.patientId === u.id && x.date === t && x.type === "clinic" && x.status === "Confirmed").sort((x, y) => x.time.localeCompare(y.time))[0];
@@ -1178,7 +1195,7 @@ export function checkIn(method: "appointmentId" | "phone", value: string): Appoi
 export async function kioskCheckIn(method: "appointmentId" | "phone", value: string): Promise<{ id: string; appointment?: Appointment }> {
   if (!SB) { const a = checkIn(method, value); return { id: a.id, appointment: a }; }
   const { supabase } = await import("./supabase");
-  const { data, error } = await supabase.rpc("kiosk_check_in", { method, value });
+  const { data, error } = await supabase.rpc("kiosk_check_in_tracking", { method, value });
   if (error) throw new Error(error.message);
   const id = data as string;
   await hydrate(state.sessionUserId);
@@ -1268,7 +1285,7 @@ export function moveInQueue(id: string, dir: -1 | 1) {
 }
 
 export function canJoin(a: Appointment) {
-  if (a.type !== "online") return false;
+  if (a.type !== "online" || a.date < todayStr()) return false;
   if (a.status === "Ready to Join" || a.status === "In Consultation") return true;
   if (!["Confirmed", "Waiting"].includes(a.status)) return false;
   const diff = (slotDateTime(a).getTime() - Date.now()) / 60000;
@@ -1330,8 +1347,8 @@ export function runReminders(userId: string) {
   mine.forEach((a) => {
     const mins = (slotDateTime(a).getTime() - Date.now()) / 60000;
     const key = (k: string) => state.notifications.some((n) => n.userId === userId && n.title === k && n.body.includes(a.id));
-    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${a.id} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, `/patient/appointments/${a.id}`);
-    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${a.id} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
+    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${trackingNumber(a)} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, `/patient/appointments/${a.id}`);
+    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${trackingNumber(a)} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
   });
 }
 

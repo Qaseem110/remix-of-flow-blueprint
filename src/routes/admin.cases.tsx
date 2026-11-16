@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -21,7 +22,7 @@ function Cases() {
   const name = (id: string) => s.users.find((u) => u.id === id)?.name ?? "—";
   const list = s.appointments
     .filter((a) => a.type === "online" || recorded.has(a.id) || s.consultations.some((c) => c.appointmentId === a.id))
-    .filter((a) => !q || `${a.id} ${name(a.doctorId)} ${a.memberName ?? name(a.patientId)}`.toLowerCase().includes(q.toLowerCase()))
+    .filter((a) => !q || `${trackingNumber(a)} ${name(a.doctorId)} ${a.memberName ?? name(a.patientId)}`.toLowerCase().includes(q.toLowerCase()))
     .sort((a, b) => slotDateTime(b).getTime() - slotDateTime(a).getTime());
   return (
     <div className="mx-auto max-w-6xl">
@@ -32,7 +33,7 @@ function Cases() {
         {list.map((a) => (
           <div key={a.id} className="rounded-2xl border bg-card">
             <button className="flex w-full flex-wrap items-center gap-3 p-4 text-left" onClick={() => setOpen(open === a.id ? null : a.id)}>
-              <span className="font-mono text-xs text-muted-foreground">{a.id}</span>
+              <span className="font-mono text-xs text-muted-foreground">{trackingNumber(a)}</span>
               <span className="font-medium">{a.memberName ?? name(a.patientId)}</span>
               <span className="text-sm text-muted-foreground">with {name(a.doctorId)}</span>
               <span className="text-sm text-muted-foreground">{a.date} · {fmtTime(a.time)}</span>

@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { Badge } from "@/components/ui/badge";
 import { cn, fmtTime } from "@/lib/utils";
 import type { AppointmentStatus, DocFile } from "@/lib/store";
@@ -19,6 +20,7 @@ const statusStyle: Record<AppointmentStatus, string> = {
   Cancelled: "bg-destructive/12 text-destructive",
   "No Show": "bg-destructive/12 text-destructive",
   Rescheduled: "bg-muted text-muted-foreground line-through",
+  Expired: "bg-muted text-muted-foreground",
 };
 
 export function StatusBadge({ status }: { status: AppointmentStatus }) {
@@ -82,7 +84,7 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
                   Uploaded by {d.uploadedBy === "patient" ? "patient" : d.uploadedBy === "doctor" ? "doctor" : d.uploadedBy === "lab" ? "laboratory" : d.uploadedBy}
                   {d.uploadedAt && <> · {format(new Date(d.uploadedAt), "d MMM yyyy, h:mm a")}</>} · {(d.size / 1024).toFixed(0)} KB
                 </p>
-                {doctor && <p className="text-xs"><span className="text-muted-foreground">Doctor:</span> {doctor.name}{a && <span className="text-muted-foreground"> · Visit {a.date} {fmtTime(a.time)} ({a.id})</span>}</p>}
+                {doctor && <p className="text-xs"><span className="text-muted-foreground">Doctor:</span> {doctor.name}{a && <span className="text-muted-foreground"> · Visit {a.date} {fmtTime(a.time)} ({trackingNumber(a)})</span>}</p>}
                 {a?.reason && <p className="text-xs"><span className="text-muted-foreground">Reason:</span> {a.reason}</p>}
                 {diagnosis && <p className="text-xs"><span className="text-muted-foreground">Diagnosis:</span> {diagnosis}</p>}
               </div>

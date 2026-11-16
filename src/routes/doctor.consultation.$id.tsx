@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { DoctorLabOrder } from "@/components/app/DoctorLabOrder";
 import { suggestTimes } from "@/lib/medicine-reminders";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -71,7 +72,7 @@ function Console() {
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
+        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{trackingNumber(a)} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
           {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}

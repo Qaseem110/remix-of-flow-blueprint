@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -39,7 +40,7 @@ function AdminAppts() {
           <tbody>
             {list.map((a) => (
               <tr key={a.id} className="border-t">
-                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">{name(a.doctorId)}</td><td className="p-3">{name(a.patientId)}</td>
+                <td className="p-3 font-medium">{trackingNumber(a)}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">{name(a.doctorId)}</td><td className="p-3">{name(a.patientId)}</td>
                 <td className="p-3"><TypeBadge type={a.type} /></td><td className="p-3"><StatusBadge status={a.status} /></td>
                 <td className="p-3 text-right">{["Confirmed", "Pending", "Checked-In", "Waiting"].includes(a.status) && <CancelDialog appt={a} by="admin" trigger={<Button size="sm" variant="ghost" className="text-destructive">Cancel</Button>} />}</td>
               </tr>

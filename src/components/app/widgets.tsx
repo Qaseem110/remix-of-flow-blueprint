@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { useEffect, useMemo, useState } from "react";
 import { addDays, format, parse } from "date-fns";
 import { toast } from "sonner";
@@ -46,7 +47,7 @@ export function RescheduleDialog({ appt, onDone, trigger }: { appt: Appointment;
     setBusy(true);
     try {
       const n = await rescheduleAppointment(appt.id, date);
-      toast.success(`Rescheduled — new ID ${n.id}`);
+      toast.success(`Rescheduled — new ID ${trackingNumber(n)}`);
       setOpen(false);
       onDone?.(n.id);
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
