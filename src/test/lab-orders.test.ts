@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { createLabOrder, deleteDocument, getState, login, registerLab, uploadLabResults } from "@/lib/store";
+import { createLabOrder, deleteDocument, getState, login, registerLab, saveLabSchedule, uploadLabResults } from "@/lib/store";
 
 let labId = "";
 beforeEach(async () => {
   vi.stubGlobal("URL", { createObjectURL: () => "blob:test" });
   labId = await registerLab({ name: "Lab Owner", email: `lab${Math.random()}@t.test`, phone: "0300", password: "secret1", labName: "City Lab", address: "Main road", city: "Lahore" });
+  await saveLabSchedule(labId, { slotMinutes: 30, weeklyShifts: {}, dateOverrides: { "2026-12-01": [{ start: "09:00", end: "12:00", capacity: 10 }] } });
 });
 const asPatient = async () => {
   await login("patient@demo.com", "demo123");
@@ -20,7 +21,7 @@ describe("laboratory tests", () => {
   it("lab reports uploaded by the lab cannot be deleted and reach the patient", async () => {
     const me = await asPatient();
     const rx = getState().consultations.find((c) => c.patientId === me && c.prescription.length > 0)!;
-    const o = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "CBC", date: "2026-12-01" });
+    const o = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "CBC", date: "2026-12-01", time: "09:00" });
     const lab = getState().users.find((u) => u.id === labId)!;
     await login(lab.email, "secret1");
     await uploadLabResults(o.id, [new File(["x"], "cbc.pdf", { type: "application/pdf" })]);
@@ -36,7 +37,7 @@ describe("lab report discussion", () => {
     const { postLabMessage } = await import("@/lib/store");
     const me = await asPatient();
     const rx = getState().consultations.find((c) => c.patientId === me && c.prescription.length > 0)!;
-    const o = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "LFT", date: "2026-12-01" });
+    const o = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "LFT", date: "2026-12-01", time: "09:00" });
     await postLabMessage(o.id, "Is this normal?");
     expect(getState().labMessages.filter((m) => m.orderId === o.id)).toHaveLength(1);
     const lab = getState().users.find((u) => u.id === labId)!;

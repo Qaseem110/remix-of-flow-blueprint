@@ -33,6 +33,7 @@ import { Route as DoctorLabsRouteImport } from './routes/doctor.labs'
 import { Route as DoctorProfileRouteImport } from './routes/doctor.profile'
 import { Route as DoctorReceptionRouteImport } from './routes/doctor.reception'
 import { Route as LabIndexRouteImport } from './routes/lab.index'
+import { Route as LabAvailabilityRouteImport } from './routes/lab.availability'
 import { Route as LabDetailsRouteImport } from './routes/lab.details'
 import { Route as PatientIndexRouteImport } from './routes/patient.index'
 import { Route as PatientLabsRouteImport } from './routes/patient.labs'
@@ -171,6 +172,11 @@ const LabIndexRoute = LabIndexRouteImport.update({
   path: '/',
   getParentRoute: () => LabRoute,
 } as any)
+const LabAvailabilityRoute = LabAvailabilityRouteImport.update({
+  id: '/availability',
+  path: '/availability',
+  getParentRoute: () => LabRoute,
+} as any)
 const LabDetailsRoute = LabDetailsRouteImport.update({
   id: '/details',
   path: '/details',
@@ -280,6 +286,7 @@ export interface FileRoutesByFullPath {
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
+  '/lab/availability': typeof LabAvailabilityRoute
   '/lab/details': typeof LabDetailsRoute
   '/patient/labs': typeof PatientLabsRoute
   '/patient/medicines': typeof PatientMedicinesRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
+  '/lab/availability': typeof LabAvailabilityRoute
   '/lab/details': typeof LabDetailsRoute
   '/patient/labs': typeof PatientLabsRoute
   '/patient/medicines': typeof PatientMedicinesRoute
@@ -361,6 +369,7 @@ export interface FileRoutesById {
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
+  '/lab/availability': typeof LabAvailabilityRoute
   '/lab/details': typeof LabDetailsRoute
   '/patient/labs': typeof PatientLabsRoute
   '/patient/medicines': typeof PatientMedicinesRoute
@@ -406,6 +415,7 @@ export interface FileRouteTypes {
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
+    | '/lab/availability'
     | '/lab/details'
     | '/patient/labs'
     | '/patient/medicines'
@@ -443,6 +453,7 @@ export interface FileRouteTypes {
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
+    | '/lab/availability'
     | '/lab/details'
     | '/patient/labs'
     | '/patient/medicines'
@@ -486,6 +497,7 @@ export interface FileRouteTypes {
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
+    | '/lab/availability'
     | '/lab/details'
     | '/patient/labs'
     | '/patient/medicines'
@@ -693,6 +705,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LabIndexRouteImport
       parentRoute: typeof LabRoute
     }
+    '/lab/availability': {
+      id: '/lab/availability'
+      path: '/availability'
+      fullPath: '/lab/availability'
+      preLoaderRoute: typeof LabAvailabilityRouteImport
+      parentRoute: typeof LabRoute
+    }
     '/lab/details': {
       id: '/lab/details'
       path: '/details'
@@ -859,11 +878,13 @@ const DoctorRouteWithChildren =
   DoctorRoute._addFileChildren(DoctorRouteChildren)
 
 interface LabRouteChildren {
+  LabAvailabilityRoute: typeof LabAvailabilityRoute
   LabDetailsRoute: typeof LabDetailsRoute
   LabIndexRoute: typeof LabIndexRoute
 }
 
 const LabRouteChildren: LabRouteChildren = {
+  LabAvailabilityRoute: LabAvailabilityRoute,
   LabDetailsRoute: LabDetailsRoute,
   LabIndexRoute: LabIndexRoute,
 }
