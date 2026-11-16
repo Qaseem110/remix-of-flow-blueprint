@@ -915,6 +915,13 @@ function commitLabOrder(o: LabOrder) {
   try { set((s) => ({ ...s, labOrders: s.labOrders.some((x) => x.id === o.id) ? s.labOrders.map((x) => (x.id === o.id ? o : x)) : [o, ...s.labOrders] })); }
   finally { hydrating = false; }
 }
+async function notifyLabAppointment(userId: string, title: string, body: string, link: string) {
+  const n = { id: uid("N"), userId, title, body, at: now(), read: false, link };
+  await writeRow("notifications", { id: n.id, user_id: userId, data: n }, true);
+  hydrating = true;
+  try { set((s) => ({ ...s, notifications: [n, ...s.notifications] })); }
+  finally { hydrating = false; }
+}
 /** Doctor orders a test, or patient books one against their own prescription. Awaits the server write. */
 export async function createLabOrder(input: { labId: string; appointmentId: string; tests: string; date: string; time?: string; notes?: string }): Promise<LabOrder> {
   const me = state.users.find((u) => u.id === state.sessionUserId);
@@ -945,8 +952,8 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
   }
   commitLabOrder(o);
   const lab = state.labs.find((l) => l.userId === o.labId);
-  notify(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date} at ${fmtTime(o.time ?? "")}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
-  notify(patientId, "Lab appointment booked", `${o.tests} at ${lab?.labName ?? "the laboratory"} on ${o.date} at ${fmtTime(o.time ?? "")}. Tracking: ${trackingNumber(o)}.`, "/patient/labs");
+  await notifyLabAppointment(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date} at ${fmtTime(o.time ?? "")}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
+  await notifyLabAppointment(patientId, "Lab appointment booked", `${o.tests} at ${lab?.labName ?? "the laboratory"} on ${o.date} at ${fmtTime(o.time ?? "")}. Tracking: ${trackingNumber(o)}.`, "/patient/labs");
   return o;
 }
 export async function scheduleLabOrder(id: string, date: string, time: string) {
@@ -957,8 +964,8 @@ export async function scheduleLabOrder(id: string, date: string, time: string) {
   const next = { ...order, date, time, slotMinutes: state.labs.find((l) => l.userId === order.labId)?.schedule?.slotMinutes };
   await writeRow("lab_orders", labOrderTable().row(next), false);
   commitLabOrder(next);
-  notify(order.patientId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}. Tracking: ${trackingNumber(order)}.`, "/patient/labs");
-  notify(order.doctorId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}.`, "/doctor/labs");
+  await notifyLabAppointment(order.patientId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}. Tracking: ${trackingNumber(order)}.`, "/patient/labs");
+  await notifyLabAppointment(order.doctorId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}.`, "/doctor/labs");
 }
 export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
   const o = state.labOrders.find((x) => x.id === id);
