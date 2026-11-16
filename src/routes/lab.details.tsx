@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/app/common";
-import { updateLab, useSession, useStore } from "@/lib/store";
+import { updateLab, useSession, useStore, type Lab } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/lab/details")({
@@ -21,7 +21,7 @@ function LabDetails() {
   return <LabDetailsForm key={user.id} lab={l} userId={user.id} />;
 }
 
-function LabDetailsForm({ lab: l, userId }: { lab: NonNullable<ReturnType<typeof useStore>["labs"][number]>; userId: string }) {
+function LabDetailsForm({ lab: l, userId }: { lab: Lab; userId: string }) {
   const [tests, setTests] = useState(() => (l.tests ?? "").split(/[,\n]/).map((test) => test.trim()).filter(Boolean));
   const [newTest, setNewTest] = useState("");
   const addTest = () => {
