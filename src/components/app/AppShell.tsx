@@ -52,6 +52,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
   ],
   lab: [
     { to: "/lab", label: "Test Requests", icon: FlaskConical },
+    { to: "/lab/availability", label: "Availability", icon: Clock },
     { to: "/lab/details", label: "Lab Details", icon: Store },
   ],
   admin: [
