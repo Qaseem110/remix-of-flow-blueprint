@@ -1,4 +1,5 @@
 import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
+import { labSlots, validateLabSchedule, type LabSchedule } from "./lab-schedule";
 import { dueDoses } from "./medicine-reminders";
 /**
  * Mock data layer (in-memory). Every exported function mirrors a future
@@ -34,6 +35,7 @@ export interface Lab {
   city: string;
   tests?: string; // tests offered, free text
   hours?: string;
+  schedule?: LabSchedule;
 }
 export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled" | "Expired";
 export interface LabOrder {
@@ -46,6 +48,8 @@ export interface LabOrder {
   memberName?: string;
   tests: string;
   date: string; // yyyy-MM-dd
+  time?: string; // legacy orders remain untimed until scheduled by the lab
+  slotMinutes?: number;
   notes?: string;
   orderedBy: "doctor" | "patient";
   status: LabOrderStatus;
@@ -871,6 +875,26 @@ export async function registerLab(input: { name: string; email: string; phone: s
 export function updateLab(id: string, p: Partial<Lab>) {
   set((s) => ({ ...s, labs: s.labs.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
 }
+export async function saveLabSchedule(id: string, schedule: LabSchedule) {
+  if (state.sessionUserId !== id) throw new Error("Only the laboratory can set its availability");
+  validateLabSchedule(schedule);
+  const lab = state.labs.find((l) => l.userId === id);
+  if (!lab) throw new Error("Laboratory not found");
+  const next = { ...lab, schedule };
+  await writeRow("labs", { id, data: next }, false);
+  hydrating = true;
+  try { set((s) => ({ ...s, labs: s.labs.map((l) => l.userId === id ? next : l) })); }
+  finally { hydrating = false; }
+}
+export async function getLabSlots(labId: string, date: string, excludeId?: string) {
+  const schedule = state.labs.find((l) => l.userId === labId)?.schedule;
+  if (!SB) return labSlots(schedule, date, state.labOrders.filter((o) => o.labId === labId && o.id !== excludeId));
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.rpc("lab_slot_usage", { target_lab: labId, target_date: date });
+  if (error) throw new Error(error.message);
+  const current = state.labOrders.find((o) => o.id === excludeId);
+  return labSlots(schedule, date, (data ?? []).map((r: { booked_time: string; duration: number; bookings: number }) => ({ date, time: r.booked_time, slotMinutes: r.duration, status: "Requested", count: r.bookings - (current?.date === date && current.time === r.booked_time && (current.slotMinutes ?? schedule?.slotMinutes) === r.duration ? 1 : 0) })));
+}
 /** Consultations that carry a doctor's prescription or test recommendation (required to book a lab test). */
 export function prescribedConsultations(patientId: string, s: State = state) {
   return s.consultations.filter((c) => c.patientId === patientId && (c.prescription.length > 0 || !!c.labTests?.trim()));
@@ -881,14 +905,25 @@ async function writeRow(table: string, row: Record<string, unknown>, insert: boo
   const { error } = insert ? await supabase.from(table).insert(row as never) : await supabase.from(table).update(row as never).eq("id", row.id as string);
   if (error) throw new Error(error.message);
 }
-const labOrderTable = () => TABLES.find((t) => t.key === "labOrders")!;
+const labOrderTable = () => {
+  const table = TABLES.find((t) => t.key === "labOrders");
+  if (!table) throw new Error("Lab orders are unavailable");
+  return table;
+};
 function commitLabOrder(o: LabOrder) {
   hydrating = true;
   try { set((s) => ({ ...s, labOrders: s.labOrders.some((x) => x.id === o.id) ? s.labOrders.map((x) => (x.id === o.id ? o : x)) : [o, ...s.labOrders] })); }
   finally { hydrating = false; }
 }
+async function notifyLabAppointment(userId: string, title: string, body: string, link: string) {
+  const n = { id: uid("N"), userId, title, body, at: now(), read: false, link };
+  await writeRow("notifications", { id: n.id, user_id: userId, data: n }, true);
+  hydrating = true;
+  try { set((s) => ({ ...s, notifications: [n, ...s.notifications] })); }
+  finally { hydrating = false; }
+}
 /** Doctor orders a test, or patient books one against their own prescription. Awaits the server write. */
-export async function createLabOrder(input: { labId: string; appointmentId: string; tests: string; date: string; notes?: string }): Promise<LabOrder> {
+export async function createLabOrder(input: { labId: string; appointmentId: string; tests: string; date: string; time?: string; notes?: string }): Promise<LabOrder> {
   const me = state.users.find((u) => u.id === state.sessionUserId);
   if (!me) throw new Error("Please sign in");
   if (!state.labs.some((l) => l.userId === input.labId)) throw new Error("Choose a laboratory");
@@ -904,7 +939,11 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
     if (!c) throw new Error("A doctor's prescription is required to book a lab test");
     doctorId = c.doctorId; patientId = me.id; memberName = state.appointments.find((a) => a.id === c.appointmentId)?.memberName;
   } else throw new Error("Only doctors and patients can book lab tests");
-  let o: LabOrder = { id: numericTrackingNumber(), labId: input.labId, patientId, doctorId, appointmentId: input.appointmentId, memberName, tests: input.tests.trim(), date: input.date, notes: input.notes?.trim() || undefined, orderedBy: me.role, status: "Requested", documents: [], createdAt: now() };
+  if (!input.time) throw new Error("Choose an available lab appointment time");
+  const schedule = state.labs.find((l) => l.userId === input.labId)?.schedule;
+  if (!schedule) throw new Error("This laboratory has not set its availability yet");
+  if (!(await getLabSlots(input.labId, input.date)).some((s) => s.time === input.time && s.available)) throw new Error("The laboratory is unavailable at this time");
+  let o: LabOrder = { id: numericTrackingNumber(), labId: input.labId, patientId, doctorId, appointmentId: input.appointmentId, memberName, tests: input.tests.trim(), date: input.date, time: input.time, slotMinutes: schedule.slotMinutes, notes: input.notes?.trim() || undefined, orderedBy: me.role, status: "Requested", documents: [], createdAt: now() };
   if (SB) {
     const { supabase } = await import("./supabase");
     const { data, error } = await supabase.from("lab_orders").insert(labOrderTable().row(o) as never).select("*").single();
@@ -913,9 +952,20 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
   }
   commitLabOrder(o);
   const lab = state.labs.find((l) => l.userId === o.labId);
-  notify(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
-  if (me.role === "doctor") notify(patientId, "Lab test ordered", `${me.name} sent ${o.tests} to ${lab?.labName ?? "a laboratory"} for ${o.date}.`, "/patient/labs");
+  await notifyLabAppointment(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date} at ${fmtTime(o.time ?? "")}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
+  await notifyLabAppointment(patientId, "Lab appointment booked", `${o.tests} at ${lab?.labName ?? "the laboratory"} on ${o.date} at ${fmtTime(o.time ?? "")}. Tracking: ${trackingNumber(o)}.`, "/patient/labs");
   return o;
+}
+export async function scheduleLabOrder(id: string, date: string, time: string) {
+  const order = state.labOrders.find((o) => o.id === id);
+  if (!order || order.labId !== state.sessionUserId) throw new Error("Only the laboratory can change the appointment time");
+  if (order.status !== "Requested") throw new Error("Only pending test appointments can be scheduled");
+  if (!(await getLabSlots(order.labId, date, id)).some((s) => s.time === time && s.available)) throw new Error("The laboratory is unavailable at this time");
+  const next = { ...order, date, time, slotMinutes: state.labs.find((l) => l.userId === order.labId)?.schedule?.slotMinutes };
+  await writeRow("lab_orders", labOrderTable().row(next), false);
+  commitLabOrder(next);
+  await notifyLabAppointment(order.patientId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}. Tracking: ${trackingNumber(order)}.`, "/patient/labs");
+  await notifyLabAppointment(order.doctorId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}.`, "/doctor/labs");
 }
 export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
   const o = state.labOrders.find((x) => x.id === id);

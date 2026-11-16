@@ -1,3 +1,8 @@
+# Lab appointment scheduling
+- [x] Add laboratory weekly hours, split shifts, date overrides and slot capacity.
+- [x] Require available date/time for patient and doctor bookings; allow labs to schedule older untimed requests.
+- [x] Enforce booking capacity in the database; 15 tests passed. Lab dashboard to availability save/refresh, two patient bookings, lab rescheduling and received patient alerts verified at desktop/mobile with light/dark classes. Saved notifications are awaited; full slot excluded. Temporary test data removed.
+
 # Tracking numbers and past appointments
 - [x] Use numeric tracking numbers for existing and new doctor/lab appointments, including check-in; saved patient tracking verified in browser.
 - [x] Close past active doctor appointments and unattended lab bookings while preserving medical history; 18 tests passed. Numeric items verified at 390/1280 in light and dark; browser expiry display not verified.

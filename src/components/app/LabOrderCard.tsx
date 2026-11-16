@@ -2,6 +2,7 @@ import { trackingNumber } from "@/lib/store";
 import { FileText, FlaskConical } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore, type LabOrder } from "@/lib/store";
+import { fmtTime } from "@/lib/utils";
 
 const tone: Record<LabOrder["status"], string> = {
   Requested: "bg-warning/15 text-warning-foreground",
@@ -21,7 +22,7 @@ export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNod
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="flex items-center gap-2 font-semibold"><FlaskConical className="h-4 w-4 text-primary" />{o.tests}</p>
-          <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
+          <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {o.time ? fmtTime(o.time) : "Time awaiting laboratory"} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
           <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
           {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
         </div>

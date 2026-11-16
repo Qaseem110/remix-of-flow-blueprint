@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { PageHeader } from "@/components/app/common";
 import { LabOrderCard } from "@/components/app/LabOrderCard";
 import { LabDiscussion } from "@/components/app/LabDiscussion";
+import { LabAppointmentTime } from "@/components/app/LabAppointmentTime";
 import { createLabOrder, memberOf, prescribedConsultations, setLabOrderStatus, useActiveMember, useSession, useStore, type Lab } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
@@ -18,18 +19,19 @@ export const Route = createFileRoute("/patient/labs")({
 });
 
 function PatientLabs() {
-  const user = useSession()!;
+  const user = useSession();
   const s = useStore((x) => x);
   const member = useActiveMember();
   const mine = (apptId: string) => memberOf(s.appointments.find((a) => a.id === apptId)) === member;
-  const orders = s.labOrders.filter((o) => o.patientId === user.id && mine(o.appointmentId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-  const rx = prescribedConsultations(user.id, s).filter((c) => mine(c.appointmentId));
+  const orders = s.labOrders.filter((o) => o.patientId === user?.id && mine(o.appointmentId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const rx = prescribedConsultations(user?.id ?? "", s).filter((c) => mine(c.appointmentId));
   const [q, setQ] = useState("");
   const labs = s.labs.filter((l) => !q || `${l.labName} ${l.city} ${l.tests ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   const [pick, setPick] = useState<Lab | null>(null);
   const [appt, setAppt] = useState("");
   const [tests, setTests] = useState("");
   const [date, setDate] = useState("");
+  const [time, setTime] = useState("");
   const [busy, setBusy] = useState(false);
   const chooseRx = (id: string) => {
     setAppt(id);
@@ -39,10 +41,11 @@ function PatientLabs() {
   const book = async () => {
     if (!pick) return;
     setBusy(true);
-    try { await createLabOrder({ labId: pick.userId, appointmentId: appt, tests, date }); toast.success("Lab test booked"); setPick(null); setAppt(""); setTests(""); setDate(""); }
+    try { await createLabOrder({ labId: pick.userId, appointmentId: appt, tests, date, time }); toast.success("Lab test booked"); setPick(null); setAppt(""); setTests(""); setDate(""); setTime(""); }
     catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   const docName = (id: string) => s.users.find((u) => u.id === id)?.name ?? "Doctor";
+  if (!user) return null;
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <PageHeader title="Lab tests" subtitle="Book tests at a laboratory. A doctor's prescription is required." />
@@ -67,7 +70,7 @@ function PatientLabs() {
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
-              <Button size="sm" className="mt-3" onClick={() => setPick(l)}>Book test</Button>
+              <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button>
             </article>
           ))}
         </div>
@@ -82,8 +85,8 @@ function PatientLabs() {
                   <SelectContent>{rx.map((c) => <SelectItem key={c.appointmentId} value={c.appointmentId}>{docName(c.doctorId)} · {c.appointmentId} · {c.diagnosis || "Consultation"}</SelectItem>)}</SelectContent></Select>
               </div>
               <div><Label>Tests</Label><Input value={tests} onChange={(e) => setTests(e.target.value)} placeholder="e.g. CBC, LFT" /></div>
-              <div><Label>Date</Label><Input type="date" value={date} min={new Date().toISOString().slice(0, 10)} onChange={(e) => setDate(e.target.value)} /></div>
-              <div className="flex gap-2 sm:col-span-2"><Button disabled={busy || !appt} onClick={book}>Confirm booking</Button><Button variant="ghost" onClick={() => setPick(null)}>Close</Button></div>
+              <LabAppointmentTime labId={pick.userId} date={date} time={time} onDate={setDate} onTime={setTime} />
+              <div className="flex gap-2 sm:col-span-2"><Button disabled={busy || !appt || !date || !time} onClick={book}>Confirm booking</Button><Button variant="ghost" onClick={() => setPick(null)}>Close</Button></div>
             </div>
           )}
         </section>

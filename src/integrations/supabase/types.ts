@@ -499,6 +499,14 @@ export type Database = {
         Args: { method: string; value: string }
         Returns: string
       }
+      lab_slot_usage: {
+        Args: { target_date: string; target_lab: string }
+        Returns: {
+          booked_time: string
+          bookings: number
+          duration: number
+        }[]
+      }
       reception_can: { Args: { _perm: string }; Returns: boolean }
       reception_doctor: { Args: never; Returns: string }
       schedule_shifts: { Args: { av: Json; day: string }; Returns: Json }
