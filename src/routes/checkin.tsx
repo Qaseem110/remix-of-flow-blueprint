@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -23,7 +24,7 @@ function CheckIn() {
     try {
       const r = await kioskCheckIn(method, value);
       setValue("");
-      if (r.appointment) setDone(r.appointment); else toast.success(`Checked in — ${r.id}. Please wait to be called.`);
+      if (r.appointment) setDone(r.appointment); else toast.success("Checked in. Please wait to be called.");
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -46,10 +47,10 @@ function CheckIn() {
         ) : (
           <Tabs defaultValue={methods.appointmentId ? "appointmentId" : "phone"} className="mt-6">
             <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="appointmentId" disabled={!methods.appointmentId}>Appointment ID</TabsTrigger>
+              <TabsTrigger value="appointmentId" disabled={!methods.appointmentId}>Tracking number</TabsTrigger>
               <TabsTrigger value="phone" disabled={!methods.phone}>Phone number</TabsTrigger>
             </TabsList>
-            <TabsContent value="appointmentId"><form onSubmit={submit("appointmentId")} className="mt-4 space-y-3"><Input placeholder="e.g. APT-1004" value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg">Check in</Button></form></TabsContent>
+            <TabsContent value="appointmentId"><form onSubmit={submit("appointmentId")} className="mt-4 space-y-3"><Input inputMode="numeric" pattern="[0-9]+" placeholder="e.g. 100001" value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg">Check in</Button></form></TabsContent>
             <TabsContent value="phone"><form onSubmit={submit("phone")} className="mt-4 space-y-3"><Input type="tel" placeholder="+2189..." value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg">Check in</Button></form></TabsContent>
           </Tabs>
         )}

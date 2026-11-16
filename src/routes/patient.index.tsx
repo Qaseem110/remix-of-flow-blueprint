@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { CalendarDays, ClipboardList, MapPin, Search, Video } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -75,7 +76,7 @@ function PatientDashboard() {
           <div className="space-y-2">
             {upcoming.slice(1).map((a) => (
               <Link key={a.id} to="/patient/appointments/$id" params={{ id: a.id }} className="flex items-center justify-between rounded-xl border bg-card p-4 hover:border-primary">
-                <div><p className="font-medium">{s.users.find((u) => u.id === a.doctorId)?.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "EEE d MMM, h:mm a")} · {a.id}</p></div>
+                <div><p className="font-medium">{s.users.find((u) => u.id === a.doctorId)?.name}</p><p className="text-sm text-muted-foreground">{format(slotDateTime(a), "EEE d MMM, h:mm a")} · {trackingNumber(a)}</p></div>
                 <div className="flex items-center gap-3"><TypeBadge type={a.type} /><StatusBadge status={a.status} /></div>
               </Link>
             ))}

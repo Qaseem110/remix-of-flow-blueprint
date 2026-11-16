@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -37,11 +38,11 @@ function DoctorAppointments() {
           <tbody>
             {list.map((a) => (
               <tr key={a.id} className="border-t">
-                <td className="p-3 font-medium">{a.id}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">#{a.queueNumber}</td>
+                <td className="p-3 font-medium">{trackingNumber(a)}</td><td className="p-3">{a.date}</td><td className="p-3">{fmtTime(a.time)}</td><td className="p-3">#{a.queueNumber}</td>
                 <td className="p-3"><Link className="text-primary" to="/doctor/patients/$id" params={{ id: a.patientId }}>{name(a.patientId, a.id)}</Link></td>
                 <td className="p-3"><TypeBadge type={a.type} /></td><td className="max-w-48 truncate p-3">{a.reason}</td><td className="p-3"><StatusBadge status={a.status} /></td>
                 <td className="whitespace-nowrap p-3 text-right">
-                  {!["Cancelled", "Rescheduled", "No Show"].includes(a.status) && <Button size="sm" variant="outline" asChild><Link to="/doctor/consultation/$id" params={{ id: a.id }}>{a.status === "Completed" ? "Record" : "Open"}</Link></Button>}
+                  {!["Cancelled", "Rescheduled", "No Show", "Expired"].includes(a.status) && <Button size="sm" variant="outline" asChild><Link to="/doctor/consultation/$id" params={{ id: a.id }}>{a.status === "Completed" ? "Record" : "Open"}</Link></Button>}
                   {["Confirmed", "Pending"].includes(a.status) && <CancelDialog appt={a} by="doctor" trigger={<Button size="sm" variant="ghost" className="text-destructive">Cancel</Button>} />}
                   {["Confirmed", "Checked-In", "Waiting"].includes(a.status) && <Button size="sm" variant="ghost" onClick={() => markNoShow(a.id)}>No-show</Button>}
                 </td>

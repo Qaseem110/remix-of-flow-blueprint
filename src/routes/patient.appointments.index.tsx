@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { format } from "date-fns";
 import { Button } from "@/components/ui/button";
@@ -28,7 +29,7 @@ function MyAppointments() {
     return (
       <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
         <div className="w-20 text-center"><p className="text-xs uppercase text-muted-foreground">{format(slotDateTime(a), "EEE")}</p><p className="font-display text-2xl font-semibold">{format(slotDateTime(a), "d MMM")}</p><p className="text-sm">{fmtTime(a.time)}</p></div>
-        <div className="min-w-0 flex-1"><p className="font-medium">{doc?.name}</p><p className="text-sm text-muted-foreground">{a.id} · {a.reason}</p><TypeBadge type={a.type} /></div>
+        <div className="min-w-0 flex-1"><p className="font-medium">{doc?.name}</p><p className="text-sm text-muted-foreground">{trackingNumber(a)} · {a.reason}</p><TypeBadge type={a.type} /></div>
         <StatusBadge status={a.status} />
         <div className="flex gap-2">
           <Button size="sm" variant="outline" asChild><Link to="/patient/appointments/$id" params={{ id: a.id }}>Open</Link></Button>

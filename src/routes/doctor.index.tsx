@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -94,7 +95,7 @@ function DoctorDashboard() {
                 <Initials name={name(a.patientId, a.id)} className="h-9 w-9 text-sm" />
                 <div className="min-w-0 flex-1">
                   <Link to="/doctor/patients/$id" params={{ id: a.patientId }} className="font-medium hover:text-primary">{name(a.patientId, a.id)}</Link>
-                  <p className="text-xs text-muted-foreground">#{a.queueNumber} · {a.id} · <TypeBadge type={a.type} /></p>
+                  <p className="text-xs text-muted-foreground">#{a.queueNumber} · {trackingNumber(a)} · <TypeBadge type={a.type} /></p>
                 </div>
                 <StatusBadge status={a.status} />
                 {inActiveQueue(a) && a.status !== "In Consultation" && a.status !== "Ready to Join" && <Button size="sm" onClick={() => start(a.id)}>Start</Button>}

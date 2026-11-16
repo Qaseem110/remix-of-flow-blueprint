@@ -1,3 +1,7 @@
+# Tracking numbers and past appointments
+- [x] Use numeric tracking numbers for existing and new doctor/lab appointments, including check-in; saved patient tracking verified in browser.
+- [x] Close past active doctor appointments and unattended lab bookings while preserving medical history; 18 tests passed. Numeric items verified at 390/1280 in light and dark; browser expiry display not verified.
+
 # Dashboard sign-out and page transitions
 - [x] Guard incomplete doctor sessions/profiles, remove stale photo errors, and preload menu pages; signed-in doctor navigation and availability tabs verified without errors (6 tests passed).
 - [x] Keep Sign out visible on every dashboard at all screen sizes.

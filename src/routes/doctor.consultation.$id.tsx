@@ -1,3 +1,4 @@
+import { trackingNumber } from "@/lib/store";
 import { DoctorLabOrder } from "@/components/app/DoctorLabOrder";
 import { suggestTimes } from "@/lib/medicine-reminders";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
@@ -39,10 +40,11 @@ function Console() {
   const [uploading, setUploading] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
-    if (a && user && a.doctorId === user.id) setC(ensureConsultation(id));
+    if (a && user && a.doctorId === user.id && a.status !== "Expired") setC(ensureConsultation(id));
     else setC(null);
   }, [id, a?.id, user?.id]);
   if (!user || !a || !patient || a.doctorId !== user.id) return <p>Consultation not found.</p>;
+  if (a.status === "Expired") return <p>This appointment has ended. Patient reports remain in their health records.</p>;
   if (!c || c.appointmentId !== id) return <p role="status" className="text-muted-foreground">Loading consultation…</p>;
   const done = a.status === "Completed";
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });
@@ -71,7 +73,7 @@ function Console() {
   return (
     <div className="mx-auto max-w-7xl">
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{a.id} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
+        <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{trackingNumber(a)} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
           {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
