@@ -35,7 +35,7 @@ export interface Lab {
   tests?: string; // tests offered, free text
   hours?: string;
 }
-export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled";
+export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled" | "Expired";
 export interface LabOrder {
   id: string;
   trackingNumber?: string;
@@ -357,7 +357,7 @@ const listeners = new Set<() => void>();
 function emit() { listeners.forEach((l) => l()); }
 function set(fn: (s: State) => State) {
   const prev = state;
-  state = fn(state);
+  state = expireAppointments(fn(state));
   emit();
   if (SB && !hydrating) void syncDiff(prev, state);
 }
@@ -376,7 +376,7 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "pharmacies", table: "pharmacies", id: (p) => p.userId, row: (p) => ({ id: p.userId, data: p }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "medicines", table: "medicines", id: (m) => m.id, row: (m) => ({ id: m.id, pharmacy_id: m.pharmacyId, data: m }), from: (r) => ({ ...r.data, id: r.id, pharmacyId: r.pharmacy_id }) },
   { key: "labs", table: "labs", id: (l) => l.userId, row: (l) => ({ id: l.userId, data: l }), from: (r) => ({ ...r.data, userId: r.id }) },
-  { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, trackingNumber: r.tracking_number, labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
+  { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, trackingNumber: r.tracking_number, status: appointmentStatus(r.data.date, r.data.status), labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
   { key: "labMessages", table: "lab_messages", id: (m) => m.id, row: (m) => ({ id: m.id, order_id: m.orderId, author_id: m.authorId, data: m }), from: (r) => ({ ...r.data, id: r.id, orderId: r.order_id, authorId: r.author_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
@@ -512,6 +512,13 @@ export function useStore<T>(sel: (s: State) => T): T {
   return useSyncExternalStore(subscribe, get, get);
 }
 export const getState = () => state;
+function expireAppointments(s: State): State {
+  const today = todayStr();
+  return { ...s,
+    appointments: s.appointments.map((a) => ({ ...a, status: appointmentStatus(a.date, a.status, today) })),
+    labOrders: s.labOrders.map((o) => ({ ...o, status: appointmentStatus(o.date, o.status, today) })),
+  };
+}
 /** Public numeric tracking number is separate from immutable record links. */
 export function trackingNumber(record: { id: string; trackingNumber?: string }) {
   return record.trackingNumber ?? state.appointments.find((a) => a.id === record.id)?.trackingNumber ?? (/^\d+$/.test(record.id) ? record.id : record.id.replace(/\D/g, ""));
@@ -913,6 +920,7 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
 export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
   const o = state.labOrders.find((x) => x.id === id);
   if (!o) throw new Error("Order not found");
+  if (appointmentStatus(o.date, o.status) === "Expired") throw new Error("This lab appointment has ended. Book a new appointment.");
   const next = { ...o, status };
   await writeRow("lab_orders", labOrderTable().row(next), false);
   commitLabOrder(next);

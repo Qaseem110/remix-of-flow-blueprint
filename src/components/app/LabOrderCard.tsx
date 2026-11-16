@@ -8,6 +8,7 @@ const tone: Record<LabOrder["status"], string> = {
   "Sample collected": "bg-primary/10 text-primary",
   Completed: "bg-success/15 text-success",
   Cancelled: "bg-muted text-muted-foreground",
+  Expired: "bg-muted text-muted-foreground",
 };
 
 /** Summary of one lab test request, shared by patient, doctor and lab views. */

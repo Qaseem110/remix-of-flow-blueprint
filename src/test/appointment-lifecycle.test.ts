@@ -22,4 +22,9 @@ describe("appointment tracking and expiration", () => {
   it("uses the clinic date even before UTC midnight", () => {
     expect(clinicDate(new Date("2026-11-16T22:30:00Z"))).toBe("2026-11-17");
   });
+  it("closes missed lab bookings but preserves collected samples and completed reports", () => {
+    expect(appointmentStatus("2026-11-15", "Requested", "2026-11-16")).toBe("Expired");
+    expect(appointmentStatus("2026-11-15", "Sample collected", "2026-11-16")).toBe("Sample collected");
+    expect(appointmentStatus("2026-11-15", "Completed", "2026-11-16")).toBe("Completed");
+  });
 });
