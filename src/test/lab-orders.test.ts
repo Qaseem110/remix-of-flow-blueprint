@@ -32,6 +32,16 @@ describe("laboratory tests", () => {
   });
 });
 
+describe("lab tokens", () => {
+  it("each booking on the same lab day gets the next token number", async () => {
+    const me = await asPatient();
+    const rx = getState().consultations.find((c) => c.patientId === me && c.prescription.length > 0)!;
+    const a = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "CBC", date: "2026-12-01", time: "09:00" });
+    const b = await createLabOrder({ labId, appointmentId: rx.appointmentId, tests: "LFT", date: "2026-12-01", time: "09:30" });
+    expect([a.token, b.token]).toEqual([1, 2]);
+  });
+});
+
 describe("lab report discussion", () => {
   it("patient and prescribing doctor can discuss; the lab cannot", async () => {
     const { postLabMessage } = await import("@/lib/store");

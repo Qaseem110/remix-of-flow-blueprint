@@ -155,6 +155,13 @@
       "when": 1794858898703,
       "tag": "0021_lab_slot_availability_counts",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794947827683,
+      "tag": "0022_lab_tokens",
+      "breakpoints": true
     }
   ]
 }

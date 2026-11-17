@@ -21,6 +21,7 @@ export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNod
     <article className="rounded-2xl border bg-card p-5 shadow-soft">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
+          {o.token && <p className="font-display text-2xl font-semibold text-primary">Token #{o.token}</p>}
           <p className="flex items-center gap-2 font-semibold"><FlaskConical className="h-4 w-4 text-primary" />{o.tests}</p>
           <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {o.time ? fmtTime(o.time) : "Time awaiting laboratory"} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
           <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>

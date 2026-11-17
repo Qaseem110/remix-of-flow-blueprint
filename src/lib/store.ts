@@ -41,6 +41,7 @@ export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "C
 export interface LabOrder {
   id: string;
   trackingNumber?: string;
+  token?: number; // per-lab, per-day token
   labId: string;
   patientId: string;
   doctorId: string;
@@ -949,20 +950,30 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
     const { data, error } = await supabase.from("lab_orders").insert(labOrderTable().row(o) as never).select("*").single();
     if (error) throw new Error(error.message);
     o = labOrderTable().from(data) as LabOrder;
-  }
+  } else o = { ...o, token: nextLabToken(o.labId, o.date) };
   commitLabOrder(o);
   const lab = state.labs.find((l) => l.userId === o.labId);
   await notifyLabAppointment(o.labId, "New lab test request", `${trackingNumber(o)}: ${o.tests} on ${o.date} at ${fmtTime(o.time ?? "")}${me.role === "doctor" ? ` — ordered by ${me.name}` : ""}.`, "/lab");
-  await notifyLabAppointment(patientId, "Lab appointment booked", `${o.tests} at ${lab?.labName ?? "the laboratory"} on ${o.date} at ${fmtTime(o.time ?? "")}. Tracking: ${trackingNumber(o)}.`, "/patient/labs");
+  await notifyLabAppointment(patientId, "Lab appointment booked", `${o.tests} at ${lab?.labName ?? "the laboratory"} on ${o.date} at ${fmtTime(o.time ?? "")}. Token #${o.token ?? "—"} · Tracking: ${trackingNumber(o)}. Please arrive at your time.`, "/patient/labs");
   return o;
+}
+/** Next lab token for a day (local mirror; the database assigns the authoritative one). */
+export function nextLabToken(labId: string, date: string, exceptId?: string) {
+  return Math.max(0, ...state.labOrders.filter((o) => o.labId === labId && o.date === date && o.id !== exceptId).map((o) => o.token ?? 0)) + 1;
 }
 export async function scheduleLabOrder(id: string, date: string, time: string) {
   const order = state.labOrders.find((o) => o.id === id);
   if (!order || order.labId !== state.sessionUserId) throw new Error("Only the laboratory can change the appointment time");
   if (order.status !== "Requested") throw new Error("Only pending test appointments can be scheduled");
   if (!(await getLabSlots(order.labId, date, id)).some((s) => s.time === time && s.available)) throw new Error("The laboratory is unavailable at this time");
-  const next = { ...order, date, time, slotMinutes: state.labs.find((l) => l.userId === order.labId)?.schedule?.slotMinutes };
+  let next: LabOrder = { ...order, date, time, slotMinutes: state.labs.find((l) => l.userId === order.labId)?.schedule?.slotMinutes };
+  if (date !== order.date) next.token = nextLabToken(order.labId, date, id);
   await writeRow("lab_orders", labOrderTable().row(next), false);
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { data } = await supabase.from("lab_orders").select("*").eq("id", id).maybeSingle();
+    if (data) next = labOrderTable().from(data) as LabOrder;
+  }
   commitLabOrder(next);
   await notifyLabAppointment(order.patientId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}. Tracking: ${trackingNumber(order)}.`, "/patient/labs");
   await notifyLabAppointment(order.doctorId, "Lab appointment time updated", `${order.tests}: ${date} at ${fmtTime(time)}.`, "/doctor/labs");
