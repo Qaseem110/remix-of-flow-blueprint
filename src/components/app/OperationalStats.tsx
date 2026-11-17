@@ -1,0 +1,3 @@
+import { useStore } from '@/lib/store';
+import { Stat } from './common';
+export function OperationalStats(){const s=useStore(s=>s);const total=s.appointments.length;const attended=s.appointments.filter(a=>a.status==='Completed').length;const cancelled=s.appointments.filter(a=>a.status==='Cancelled').length;const reviewed=s.labOrders.filter(o=>o.status==='Completed').length;return <section className="mt-6 grid gap-3 sm:grid-cols-4"><Stat label="Completed visits" value={attended}/><Stat label="Attendance rate" value={total?`${Math.round(attended/total*100)}%`:'—'}/><Stat label="Cancelled visits" value={cancelled}/><Stat label="Completed lab orders" value={reviewed}/></section>}

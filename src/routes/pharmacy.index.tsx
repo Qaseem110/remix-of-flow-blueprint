@@ -17,15 +17,17 @@ export const Route = createFileRoute("/pharmacy/")({
   component: Inventory,
 });
 
-type Draft = { id?: string; name: string; formula: string; strength: string; form: string; packSize: string; price: string; inStock: boolean };
-const blank: Draft = { name: "", formula: "", strength: "", form: "Tablet", packSize: "", price: "", inStock: true };
+type Draft = { id?: string; name: string; formula: string; strength: string; form: string; packSize: string; price: string; inStock: boolean; quantity: string; expiry: string; lowStock: string; prescriptionRequired: boolean };
+const blank: Draft = { name: "", formula: "", strength: "", form: "Tablet", packSize: "", price: "", inStock: true, quantity: "", expiry: "", lowStock: "5", prescriptionRequired: false };
 
 function Inventory() {
-  const user = useSession()!;
-  const meds = useStore((s) => s.medicines.filter((m) => m.pharmacyId === user.id));
+  const user = useSession();
+  const meds = useStore((s) => s.medicines.filter((m) => m.pharmacyId === user?.id));
   const [draft, setDraft] = useState<Draft | null>(null);
   const [scanning, setScanning] = useState(false);
   const [q, setQ] = useState("");
+
+  if (!user) return null;
 
   const scan = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; e.target.value = "";
@@ -36,7 +38,7 @@ function Inventory() {
       const { scanMedicine } = await import("@/lib/scan-medicine.functions");
       const info = await scanMedicine({ data: { dataUrl } });
       if (!info) { toast.error("Couldn't read the photo — please fill the details yourself."); setDraft({ ...blank }); return; }
-      setDraft({ name: info.name, formula: info.formula, strength: info.strength, form: info.form || "Tablet", packSize: info.packSize, price: info.price != null ? String(info.price) : "", inStock: true });
+      setDraft({ ...blank, name: info.name, formula: info.formula, strength: info.strength, form: info.form || "Tablet", packSize: info.packSize, price: info.price != null ? String(info.price) : "", inStock: true });
       toast.success("Photo read — check the details and save");
     } catch (err) { toast.error((err as Error).message); setDraft({ ...blank }); }
     finally { setScanning(false); }
@@ -46,11 +48,11 @@ function Inventory() {
     e.preventDefault();
     if (!draft) return;
     try {
-      saveMedicine({ id: draft.id, pharmacyId: user.id, name: draft.name, formula: draft.formula || undefined, strength: draft.strength, form: draft.form, packSize: draft.packSize || undefined, price: Number(draft.price), inStock: draft.inStock });
+      saveMedicine({ id: draft.id, pharmacyId: user.id, name: draft.name, formula: draft.formula || undefined, strength: draft.strength, form: draft.form, packSize: draft.packSize || undefined, price: Number(draft.price), inStock: draft.inStock, quantity: draft.quantity === "" ? undefined : Number(draft.quantity), expiry: draft.expiry || undefined, lowStock: Number(draft.lowStock), prescriptionRequired: draft.prescriptionRequired });
       toast.success("Medicine saved"); setDraft(null);
     } catch (err) { toast.error((err as Error).message); }
   };
-  const edit = (m: Medicine) => setDraft({ id: m.id, name: m.name, formula: m.formula ?? "", strength: m.strength, form: m.form, packSize: m.packSize ?? "", price: String(m.price), inStock: m.inStock });
+  const edit = (m: Medicine) => setDraft({ id: m.id, name: m.name, formula: m.formula ?? "", strength: m.strength, form: m.form, packSize: m.packSize ?? "", price: String(m.price), inStock: m.inStock, quantity: m.quantity === undefined ? "" : String(m.quantity), expiry: m.expiry ?? "", lowStock: String(m.lowStock ?? 5), prescriptionRequired: m.prescriptionRequired ?? false });
   const shown = meds.filter((m) => `${m.name} ${m.formula ?? ""}`.toLowerCase().includes(q.toLowerCase()));
   const F = (k: keyof Draft, label: string, type = "text") => (
     <div><Label htmlFor={k}>{label}</Label><Input id={k} type={type} value={String(draft?.[k] ?? "")} onChange={(e) => setDraft((d) => d && { ...d, [k]: e.target.value })} required={k === "name" || k === "price"} min={type === "number" ? 0 : undefined} step="any" /></div>
@@ -75,7 +77,7 @@ function Inventory() {
             {shown.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-muted-foreground">No medicines yet. Scan a photo or add one manually.</td></tr>}
             {shown.map((m) => (
               <tr key={m.id} className="border-t">
-                <td className="p-3"><p className="font-medium">{m.name}</p>{m.formula && <p className="text-xs text-muted-foreground">{m.formula}</p>}</td>
+                <td className="p-3"><p className="font-medium">{m.name}</p><p className="text-xs text-muted-foreground">Quantity: {m.quantity ?? "Not set"}{m.expiry ? ` · Expires ${m.expiry}` : ""}</p>{m.quantity !== undefined && m.quantity <= (m.lowStock ?? 5) && <p className="text-xs text-destructive">Low stock</p>}{m.formula && <p className="text-xs text-muted-foreground">{m.formula}</p>}</td>
                 <td className="p-3">{m.strength}</td>
                 <td className="p-3">{m.form}{m.packSize ? ` · ${m.packSize}` : ""}</td>
                 <td className="p-3">{fmtPrice(m.price)}</td>
@@ -90,7 +92,7 @@ function Inventory() {
         </table>
       </div>
       <Dialog open={!!draft} onOpenChange={(o) => !o && setDraft(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader><DialogTitle>{draft?.id ? "Edit medicine" : "Add medicine"}</DialogTitle></DialogHeader>
           <form onSubmit={save} className="grid gap-3 sm:grid-cols-2">
             <div className="sm:col-span-2">{F("name", "Medicine name")}</div>
@@ -99,6 +101,10 @@ function Inventory() {
             {F("form", "Form (Tablet, Syrup…)")}
             {F("packSize", "Pack size (optional)")}
             {F("price", `Price (${CURRENCY})`, "number")}
+            {F("quantity", "Stock quantity", "number")}
+            {F("lowStock", "Low-stock warning at", "number")}
+            {F("expiry", "Expiry date", "date")}
+            <label className="flex items-center gap-2 text-sm"><Switch checked={draft?.prescriptionRequired ?? false} onCheckedChange={(v) => setDraft((d) => d && { ...d, prescriptionRequired: v })} />Prescription required</label>
             <label className="flex items-center gap-2 text-sm sm:col-span-2"><Switch checked={draft?.inStock ?? true} onCheckedChange={(v) => setDraft((d) => d && { ...d, inStock: v })} />Available in stock</label>
             <Button className="sm:col-span-2">Save</Button>
           </form>

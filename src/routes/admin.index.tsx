@@ -1,3 +1,4 @@
+import { OperationalStats } from "@/components/app/OperationalStats";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -43,7 +44,8 @@ function Verification() {
         <Stat label="Patients" value={s.patients.length} />
         <Stat label="Appointments today" value={s.appointments.filter((a) => a.date === todayStr()).length} />
       </div>
-      <h2 className="mb-3 text-xl font-semibold">Pending verification</h2>
+      <OperationalStats />
+      <h2 className="mb-3 mt-6 text-xl font-semibold">Pending verification</h2>
       <div className="space-y-3">{pending.length ? pending.map((d) => <Card key={d.userId} d={d} />) : <p className="text-muted-foreground">No pending registrations.</p>}</div>
       <h2 className="mb-3 mt-8 text-xl font-semibold">Reviewed</h2>
       <div className="space-y-3">{reviewed.map((d) => <Card key={d.userId} d={d} />)}</div>

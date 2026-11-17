@@ -50,10 +50,12 @@ function Cases() {
 
 function CaseFile({ id }: { id: string }) {
   const s = useStore((s) => s);
-  const a = s.appointments.find((x) => x.id === id)!;
+  const a = s.appointments.find((x) => x.id === id);
   const c = s.consultations.find((x) => x.appointmentId === id);
   const [recs, setRecs] = useState<CallRecording[] | null>(null);
-  useEffect(() => { void listCallRecordings(id).then(setRecs); }, [id]);
+  const [error, setError] = useState('');
+  useEffect(() => { void listCallRecordings(id).then(setRecs).catch((e: Error) => { setError(e.message); setRecs([]); }); }, [id]);
+  if (!a) return null;
   const name = (uid: string) => s.users.find((u) => u.id === uid)?.name ?? "—";
   const Row = ({ k, v }: { k: string; v?: string }) => v ? <p className="text-sm"><span className="text-muted-foreground">{k}: </span>{v}</p> : null;
   return (
@@ -82,13 +84,15 @@ function CaseFile({ id }: { id: string }) {
       </section>
       <section className="md:col-span-2">
         <h3 className="mb-2 font-display font-semibold">Call voice recordings</h3>
+        {error && <p className="text-sm text-destructive">{error}</p>}
         {recs === null ? <p className="text-sm text-muted-foreground">Loading…</p> : recs.length === 0 ? <p className="text-sm text-muted-foreground">No recordings.</p> : (
           <div className="space-y-2">
             {recs.map((r) => (
               <div key={r.id} className="flex flex-wrap items-center gap-3 rounded-xl border p-2">
                 <span className="w-48 text-xs"><b className="capitalize">{r.role}</b> · {name(r.uploaderId)}<br /><span className="text-muted-foreground">{new Date(r.startedAt).toLocaleString()}</span></span>
                 <audio controls preload="none" src={r.url} className="h-9 flex-1" />
-                <Button asChild size="sm" variant="outline"><a href={r.url} download>Download</a></Button>
+                <span className="text-xs text-muted-foreground">Expires {new Date(r.expiresAt).toLocaleDateString()}</span>
+                <Button asChild size="sm" variant="outline"><a href={r.downloadUrl} download>Download</a></Button>
               </div>
             ))}
           </div>

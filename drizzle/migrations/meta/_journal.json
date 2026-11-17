@@ -183,6 +183,48 @@
       "when": 1794949778241,
       "tag": "0025_validate_lab_test_details",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794950498809,
+      "tag": "0026_platform_care_workflows",
+      "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1794950772102,
+      "tag": "0027_care_privacy_and_document_audit",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1794950911868,
+      "tag": "0028_validate_care_workflows_and_waitlist",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794951078780,
+      "tag": "0029_care_notifications_and_recording_consent",
+      "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1794951145939,
+      "tag": "0030_verify_prescription_reservations",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794951388980,
+      "tag": "0031_recording_calendar_month_retention",
+      "breakpoints": true
     }
   ]
 }

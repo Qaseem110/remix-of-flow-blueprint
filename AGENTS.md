@@ -10,6 +10,8 @@
 <!-- LOVABLE:END -->
 
 ## Project rules
+- Recording expiry is database-assigned; a managed authenticated job deletes expired files through Storage API before metadata, and signed links cannot outlive expiry. Why: retention survives closed dashboards without deleting case history.
+- Extended care workflows use store-owned operations over RLS-protected care and medical-safety records; audit trails are database-triggered and authorization uses user_roles. Why: private family information and provider review decisions must survive refresh without trusting UI roles.
 - Laboratory test catalogues live in the existing lab JSON data, with validated structured entries and a names-only search fallback; details saves are awaited. Why: required pricing/details persist without losing legacy listings or changing schedules.
 - Reception attendance and whole-day cancellation use authenticated database RPCs through the store; doctor summaries use private settings and daily SQL schedules, with discussion messages queued by insert triggers. Why: permission checks and durable notices must not depend on an open dashboard or WhatsApp being connected.
 - Patient call uploads require successful content-based naming and use the store's awaited storage-and-metadata operation; report inference uses the AI Gateway SDK inside its authenticated server function. Why: original filenames and premature upload success must not silently replace report reading or persistence.

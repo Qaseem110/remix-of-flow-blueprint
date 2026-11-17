@@ -11,6 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
 import { addAppointmentDocs, readAndMakeDocs, memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { MedicalTimeline } from "@/components/app/MedicalTimeline";
 
 export const Route = createFileRoute("/patient/records")({
   head: () => meta("Health records", "Consultation history, prescriptions and documents."),
@@ -73,7 +74,8 @@ function Records() {
     <div className="mx-auto max-w-5xl">
       <PageHeader title="Health records" subtitle="Everything from your consultations, in one place." />
       <Tabs defaultValue="history">
-        <TabsList><TabsTrigger value="history">Consultation history</TabsTrigger><TabsTrigger value="rx">Prescriptions</TabsTrigger><TabsTrigger value="docs">Documents / Reports</TabsTrigger></TabsList>
+        <TabsList className="flex h-auto flex-wrap"><TabsTrigger value="timeline">Medical timeline</TabsTrigger><TabsTrigger value="history">Consultation history</TabsTrigger><TabsTrigger value="rx">Prescriptions</TabsTrigger><TabsTrigger value="docs">Documents / Reports</TabsTrigger></TabsList>
+        <TabsContent value="timeline"><MedicalTimeline /></TabsContent>
 
         <TabsContent value="history" className="space-y-4">
           {records.length === 0 && <p className="text-muted-foreground">No completed consultations yet.</p>}

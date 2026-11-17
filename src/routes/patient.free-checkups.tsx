@@ -1,3 +1,4 @@
+import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -41,6 +42,7 @@ function FreeCheckups() {
             <p className="font-display text-2xl font-semibold text-primary">Token #{b.token}</p>
             <p className="font-medium">{doctor(v.doctorId).u?.name} · {v.date}, {fmtTime(v.start)}</p>
             <p className="text-sm text-muted-foreground">{v.status === "Cancelled" ? "Cancelled by doctor" : v.mode === "online" ? "Online" : `${v.location}${v.city ? `, ${v.city}` : ""}`} · {b.memberName ?? "Me"} · {b.status}</p>
+            {v.mode === "online" && v.status === "Open" && b.status === "Booked" && <VolunteerCall bookingId={b.id} name={b.memberName ?? user.name} />}
             {b.status === "Booked" && v.status === "Open" && <Button size="sm" variant="ghost" className="mt-2 text-destructive" onClick={() => setVolunteerBookingStatus(b.id, "Cancelled").then(() => toast.success("Booking cancelled"), (e) => toast.error(e.message))}>Cancel booking</Button>}
           </article>;
         })}</div>

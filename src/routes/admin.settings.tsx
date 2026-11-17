@@ -5,6 +5,7 @@ import { Switch } from "@/components/ui/switch";
 import { PageHeader } from "@/components/app/common";
 import { updateSettings, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { AdminSecurity } from "@/components/app/AdminSecurity";
 
 export const Route = createFileRoute("/admin/settings")({
   head: () => meta("System settings", "Doctor verification, check-in methods, join window and file types."),
@@ -16,6 +17,7 @@ function SettingsPage() {
   return (
     <div className="mx-auto max-w-2xl">
       <PageHeader title="System settings" />
+      <AdminSecurity />
       <div className="space-y-5 rounded-2xl border bg-card p-6 shadow-soft">
         <label className="flex items-center justify-between"><div><p className="font-medium">Doctor verification</p><p className="text-sm text-muted-foreground">New doctors stay hidden until an admin approves them.</p></div><Switch checked={st.doctorVerification} onCheckedChange={(v) => updateSettings({ doctorVerification: v })} /></label>
         <div className="border-t pt-5">

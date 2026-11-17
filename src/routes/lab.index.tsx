@@ -9,6 +9,7 @@ import { LabOrderCard } from "@/components/app/LabOrderCard";
 import { LabAppointmentTime } from "@/components/app/LabAppointmentTime";
 import { scheduleLabOrder, setLabOrderStatus, uploadLabResults, useSession, useStore, type LabOrder } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { LabProgress } from "@/components/app/LabProgress";
 
 export const Route = createFileRoute("/lab/")({
   head: () => meta("Test requests", "Lab test requests from doctors and patients."),
@@ -31,13 +32,14 @@ function LabHome() {
   const done = orders.filter((o) => ["Completed", "Cancelled", "Expired"].includes(o.status));
   const card = (o: LabOrder) => (
     <LabOrderCard key={o.id} o={o}>
+      {!['Cancelled','Expired'].includes(o.status) && <LabProgress order={o} />}
       {o.status === "Requested" && <Button size="sm" variant="outline" onClick={() => { setEditing(o.id); setDate(o.date); setTime(""); }}>{o.time ? "Change date / time" : "Set date / time"}</Button>}
       {editing === o.id && <div className="grid w-full gap-3 sm:grid-cols-2"><LabAppointmentTime labId={o.labId} date={date} time={time} onDate={setDate} onTime={setTime} excludeId={o.id} /><div className="flex gap-2"><Button disabled={!time || busy === o.id} onClick={() => run(o.id, async () => { await scheduleLabOrder(o.id, date, time); setEditing(null); }, "Appointment time sent to patient")}>Save time</Button><Button variant="ghost" onClick={() => setEditing(null)}>Close</Button></div></div>}
       {o.status === "Requested" && <Button size="sm" variant="outline" disabled={busy === o.id} onClick={() => run(o.id, () => setLabOrderStatus(o.id, "Sample collected"), "Marked as sample collected")}>Sample collected</Button>}
       {!["Cancelled", "Expired"].includes(o.status) && (
         <label className={`inline-flex cursor-pointer items-center gap-1 rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground ${busy === o.id ? "pointer-events-none opacity-60" : ""}`}>
           <Upload className="h-4 w-4" />{o.documents.length ? "Upload more" : "Upload report"}
-          <input type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; if (f.length) void run(o.id, () => uploadLabResults(o.id, f), "Report sent to the patient"); }} />
+          <input type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={(e) => { const f = Array.from(e.target.files ?? []); e.target.value = ""; if (f.length) void run(o.id, () => uploadLabResults(o.id, f, o.documents.length ? o.documents[o.documents.length - 1]?.id : undefined), "Report sent to the patient"); }} />
         </label>
       )}
     </LabOrderCard>

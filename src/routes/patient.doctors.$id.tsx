@@ -1,3 +1,4 @@
+import { DoctorBranches } from "@/components/app/DoctorBranches";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Building2, GraduationCap, Languages, MapPin, Video, Wallet, Briefcase } from "lucide-react";
@@ -8,6 +9,7 @@ import { weekdayShifts, nextBooking, nextAvailableDate, todayStr, useStore } fro
 import { meta } from "@/lib/meta";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 import { fmtPrice, fmtTime } from "@/lib/utils";
+import { ProviderActions } from "@/components/app/ProviderActions";
 
 export const Route = createFileRoute("/patient/doctors/$id")({
   head: () => meta("Doctor profile", "Doctor details, fees, languages and available appointment dates."),
@@ -47,6 +49,7 @@ function DoctorProfile() {
           <Button variant="secondary" size="lg" asChild><Link to="/patient/book/$doctorId" params={{ doctorId: id }}>Book Appointment</Link></Button>
         </div>
       </div>
+      <ProviderActions providerId={id} name={u.name} doctor /><DoctorBranches doctorId={id} />
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.3fr]">
         <div className="space-y-4">
           <div className="rounded-2xl border bg-card p-5">

@@ -9,6 +9,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { navUrdu } from "./AccountPreferences";
 
 function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
   const members = useStore((s) => s.patients.find((p) => p.userId === userId)?.members) ?? [];
@@ -27,6 +28,7 @@ function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
 
 const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboard }[]> = {
   patient: [
+    { to: "/patient/care", label: "Care services", icon: HeartPulse },
     { to: "/patient", label: "Dashboard", icon: LayoutDashboard },
     { to: "/patient/doctors", label: "Find Doctor", icon: Search },
     { to: "/patient/appointments", label: "My Appointments", icon: CalendarDays },
@@ -37,6 +39,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/patient/profile", label: "Profile", icon: User },
   ],
   doctor: [
+    { to: "/doctor/care", label: "Care services", icon: HeartPulse },
     { to: "/doctor", label: "Dashboard", icon: LayoutDashboard },
     { to: "/doctor/appointments", label: "Appointments", icon: CalendarDays },
     { to: "/doctor/availability", label: "Availability", icon: Clock },
@@ -46,18 +49,23 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/doctor/profile", label: "Profile", icon: User },
   ],
   receptionist: [
+    { to: "/reception/care", label: "Help & activity", icon: HeartPulse },
     { to: "/reception", label: "Book & Queue", icon: CalendarDays },
   ],
   pharmacy: [
+    { to: "/pharmacy/care", label: "Requests & credentials", icon: HeartPulse },
     { to: "/pharmacy", label: "My Medicines", icon: Pill },
     { to: "/pharmacy/store", label: "Store Details", icon: Store },
   ],
   lab: [
+    { to: "/lab/care", label: "Services & credentials", icon: HeartPulse },
     { to: "/lab", label: "Test Requests", icon: FlaskConical },
     { to: "/lab/availability", label: "Availability", icon: Clock },
     { to: "/lab/details", label: "Lab Details", icon: Store },
   ],
   admin: [
+    { to: "/admin/operations", label: "Operations & privacy", icon: ClipboardList },
+    { to: "/admin/care", label: "Care management", icon: HeartPulse },
     { to: "/admin", label: "Verification", icon: ShieldCheck },
     { to: "/admin/users", label: "Users & Doctors", icon: Users },
     { to: "/admin/appointments", label: "Appointments", icon: CalendarDays },
@@ -95,13 +103,15 @@ function Notifications({ userId }: { userId: string }) {
 }
 
 function SideNav({ role }: { role: Role }) {
+  const [language, setLanguage] = useState("en");
+  useEffect(() => { const read = () => setLanguage(localStorage.getItem("sahoolat-language") ?? "en"); read(); window.addEventListener("sahoolat-preferences", read); return () => window.removeEventListener("sahoolat-preferences", read); }, []);
   return (
     <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
           className="flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
           activeProps={{ className: "bg-sidebar-accent !text-sidebar-primary font-semibold" }}>
-          <n.icon className="h-4 w-4" />{n.label}
+          <n.icon className="h-4 w-4" />{language === "ur" ? navUrdu[n.label] ?? n.label : n.label}
         </Link>
       ))}
     </nav>
@@ -126,13 +136,13 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   };
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  useEffect(() => { const apply = () => { document.documentElement.classList.toggle("dark", localStorage.getItem("sahoolat-theme") === "dark"); document.documentElement.classList.toggle("large-text", localStorage.getItem("sahoolat-large") === "true"); document.documentElement.lang = localStorage.getItem("sahoolat-language") ?? "en"; }; apply(); window.addEventListener("sahoolat-preferences", apply); return () => window.removeEventListener("sahoolat-preferences", apply); }, []);
   useEffect(() => {
     if (user?.role === "patient") runReminders(user.id);
   }, [user?.id, user?.role]);
   useEffect(() => {
     if (user?.role !== "patient" || !ready) return;
     const id = user.id;
-    if (typeof window !== "undefined" && "Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
     runMedicineReminders(id);
     const t = setInterval(() => runMedicineReminders(id), 60_000);
     return () => clearInterval(t);

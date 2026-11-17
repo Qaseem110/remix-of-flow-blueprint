@@ -8,6 +8,7 @@ import { ReportPinSettings } from "@/components/app/ReportPin";
 import { FamilyMembers } from "@/components/app/FamilyMembers";
 import { updatePatientProfile, updateUser, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { MedicalSafety } from "@/components/app/MedicalSafety";
 
 export const Route = createFileRoute("/patient/profile")({
   head: () => meta("My profile", "Update your personal and medical details."),
@@ -15,9 +16,9 @@ export const Route = createFileRoute("/patient/profile")({
 });
 
 function PatientProfile() {
-  const user = useSession()!;
-  const p = useStore((s) => s.patients.find((x) => x.userId === user.id));
-  if (!p) return null;
+  const user = useSession();
+  const p = useStore((s) => s.patients.find((x) => x.userId === user?.id));
+  if (!user || !p) return null;
   const save = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -37,6 +38,7 @@ function PatientProfile() {
         <Button className="sm:col-span-2">Save changes</Button>
       </form>
       <ReportPinSettings userId={user.id} />
+      <MedicalSafety />
       <FamilyMembers userId={user.id} />
     </div>
   );

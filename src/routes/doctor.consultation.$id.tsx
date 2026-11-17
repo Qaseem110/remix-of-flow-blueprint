@@ -1,3 +1,5 @@
+import { ReferralForm } from "@/components/app/ReferralForm";
+import { PrescriptionTemplates } from "@/components/app/PrescriptionTemplates";
 import { trackingNumber } from "@/lib/store";
 import { DoctorLabOrder } from "@/components/app/DoctorLabOrder";
 import { suggestTimes } from "@/lib/medicine-reminders";
@@ -20,6 +22,7 @@ import { MedicineInput } from "@/components/app/MedicineInput";
 import { addConsultationDocs, callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
+import { ConsultationTemplates } from "@/components/app/ConsultationTemplates";
 
 export const Route = createFileRoute("/doctor/consultation/$id")({
   head: () => meta("Consultation", "Conduct the consultation and complete notes, diagnosis, prescription and follow-up."),
@@ -84,6 +87,7 @@ function Console() {
           {a.type === "online" && !done && <VideoRoom roomId={a.id} selfName={user.name} otherName={a.memberName ?? patient.name} onLeave={() => navigate({ to: "/doctor" })} />}
           <section className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
             <h2 className="text-lg font-semibold">Consultation record</h2>
+            {!done && <ConsultationTemplates onApply={(notes) => upd({ privateNotes: [c.privateNotes, notes].filter(Boolean).join("\n") })} />}
             <div><Label>Symptoms / chief complaint</Label><Textarea disabled={done} value={c.symptoms} onChange={(e) => upd({ symptoms: e.target.value })} /></div>
             <div><Label>Diagnosis</Label><Input disabled={done} value={c.diagnosis} onChange={(e) => upd({ diagnosis: e.target.value })} /></div>
             <div><Label>Clinical / consultation notes <span className="text-xs text-warning-foreground">(private — doctors only)</span></Label><Textarea disabled={done} rows={3} value={c.privateNotes} onChange={(e) => upd({ privateNotes: e.target.value })} className="bg-warning/10" /></div>
@@ -108,6 +112,7 @@ function Console() {
             </div>
 
             <div>
+              {!done && <PrescriptionTemplates items={c.prescription} onApply={(items) => upd({ prescription: [...c.prescription, ...items] })} />}
               <Label>Lab tests</Label>
               <Input disabled={done} placeholder="Recommended tests, e.g. CBC, LFT, Ultrasound abdomen" value={c.labTests ?? ""} onChange={(e) => upd({ labTests: e.target.value })} />
               <p className="mt-1 text-xs text-muted-foreground">The patient can also book these at any laboratory using this prescription.</p>
@@ -125,9 +130,10 @@ function Console() {
               <div className="mt-2"><DocList docs={c.documents} empty="No documents uploaded." /></div>
             </div>
 
+            <ReferralForm appointment={a} />
             <div className="rounded-xl bg-muted p-4">
               <label className="flex items-center justify-between text-sm font-medium"><span>Follow-up required</span><Switch disabled={done} checked={c.followUpRequired} onCheckedChange={(v) => upd({ followUpRequired: v })} /></label>
-              {c.followUpRequired && <Input disabled={done} className="mt-3" placeholder="Recommended timing, e.g. In 2 weeks" value={c.followUpTiming} onChange={(e) => upd({ followUpTiming: e.target.value })} />}
+              {c.followUpRequired && <><Input disabled={done} className="mt-3" placeholder="Recommended timing, e.g. In 2 weeks" value={c.followUpTiming} onChange={(e) => upd({ followUpTiming: e.target.value })} /><Label htmlFor="follow-up-date">Follow-up date</Label><Input id="follow-up-date" type="date" disabled={done} value={c.followUpDate ?? ""} onChange={(e) => upd({ followUpDate: e.target.value })} /></>}
             </div>
 
             {done ? <p className="flex items-center gap-2 text-success"><CheckCircle2 className="h-5 w-5" /> Completed — record shared with patient.</p> : (

@@ -1,3 +1,4 @@
+import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -108,6 +109,7 @@ function SessionCard({ v, onEdit }: { v: VolunteerSession; onEdit?: () => void }
       {list.length > 0 && <ul className="mt-3 divide-y rounded-xl border">
         {list.map((b) => <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
           <span className="min-w-0"><b>Token #{b.token}</b> · {name(b)} · <span className="text-muted-foreground">{b.reason}</span></span>
+          {v.mode === "online" && b.status === "Booked" && <VolunteerCall bookingId={b.id} name={s.users.find(u => u.id === v.doctorId)?.name ?? "Doctor"} />}
           {b.status === "Booked" ? <span className="flex gap-1">
             <Button size="sm" variant="secondary" onClick={() => act(() => setVolunteerBookingStatus(b.id, "Attended"))}>Checked</Button>
             <Button size="sm" variant="ghost" onClick={() => act(() => setVolunteerBookingStatus(b.id, "Missed"))}>Absent</Button>

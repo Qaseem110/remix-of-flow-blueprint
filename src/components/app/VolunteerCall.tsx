@@ -1,0 +1,4 @@
+import { useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Dialog,DialogContent,DialogHeader,DialogTitle } from '@/components/ui/dialog';
+export function VolunteerCall({bookingId,name}:{bookingId:string;name:string}){const [open,setOpen]=useState(false);const src=`https://vdo.ninja/?room=${encodeURIComponent('sahoolatvol'+bookingId)}&label=${encodeURIComponent(name)}&webcam&quality=1`;return <><Button size="sm" onClick={()=>setOpen(true)}>Join free consultation</Button><Dialog open={open} onOpenChange={setOpen}><DialogContent className="max-w-4xl"><DialogHeader><DialogTitle>Free online consultation</DialogTitle></DialogHeader>{open&&<iframe title="Volunteer video consultation" src={src} allow="camera; microphone; autoplay; fullscreen" className="aspect-video w-full border-0"/>}</DialogContent></Dialog></>}

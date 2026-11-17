@@ -89,8 +89,8 @@ export function DocList({ docs, empty = "No documents" }: { docs: DocFile[]; emp
                 {diagnosis && <p className="text-xs"><span className="text-muted-foreground">Diagnosis:</span> {diagnosis}</p>}
               </div>
               <div className="flex shrink-0 gap-2">
-                <button type="button" onClick={() => setPreview(d)} className="text-primary hover:text-primary-glow" aria-label={`Preview ${d.name}`}><Eye className="h-4 w-4" /></button>
-                <a href={d.url} download={d.name} target="_blank" rel="noreferrer" className="text-primary hover:text-primary-glow" aria-label={`Download ${d.name}`}><Download className="h-4 w-4" /></a>
+                <button type="button" onClick={() => { void import('@/lib/store').then(({ recordDocumentAccess }) => recordDocumentAccess(d.id, 'Preview')).catch(() => {}); setPreview(d); }} className="text-primary hover:text-primary-glow" aria-label={`Preview ${d.name}`}><Eye className="h-4 w-4" /></button>
+                <a href={d.url} onClick={() => void import('@/lib/store').then(({ recordDocumentAccess }) => recordDocumentAccess(d.id, 'Download')).catch(() => {})} download={d.name} target="_blank" rel="noreferrer" className="text-primary hover:text-primary-glow" aria-label={`Download ${d.name}`}><Download className="h-4 w-4" /></a>
                 {me?.role === d.uploadedBy && d.uploadedBy !== "lab" && <button type="button" onClick={() => del(d)} className="text-destructive hover:opacity-80" aria-label={`Delete ${d.name}`}><Trash2 className="h-4 w-4" /></button>}
               </div>
             </li>

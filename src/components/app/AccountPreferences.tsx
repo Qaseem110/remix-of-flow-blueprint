@@ -1,0 +1,12 @@
+import { useEffect, useState } from 'react';
+import { Sun, Moon, Languages, Type, Bell } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { toast } from 'sonner';
+export const navUrdu:Record<string,string>={'Dashboard':'ڈیش بورڈ','Find Doctor':'ڈاکٹر تلاش کریں','My Appointments':'میری اپائنٹمنٹس','Health Records':'صحت کے ریکارڈ','Find Medicine':'دوا تلاش کریں','Lab Tests':'لیب ٹیسٹ','Free Checkups':'مفت معائنہ','Profile':'پروفائل','Care services':'نگہداشت','Appointments':'اپائنٹمنٹس','Availability':'دستیابی','Lab Reports':'لیب رپورٹس','Reception':'استقبالیہ','Volunteer':'رضاکار','Test Requests':'ٹیسٹ درخواستیں'};
+export function AccountPreferences(){
+ const [lang,setLang]=useState('en');const [dark,setDark]=useState(false);const [large,setLarge]=useState(false);
+ useEffect(()=>{setLang(localStorage.getItem('sahoolat-language')??'en');setDark(localStorage.getItem('sahoolat-theme')==='dark');setLarge(localStorage.getItem('sahoolat-large')==='true')},[]);
+ const apply=(key:string,value:string)=>{localStorage.setItem(key,value);window.dispatchEvent(new Event('sahoolat-preferences'));};
+ return <div className="flex flex-wrap items-center gap-2 border-y py-3"><Select value={lang} onValueChange={(v)=>{setLang(v);apply('sahoolat-language',v)}}><SelectTrigger className="w-32" aria-label="Language"><Languages className="size-4"/><SelectValue/></SelectTrigger><SelectContent><SelectItem value="en">English</SelectItem><SelectItem value="ur">اردو</SelectItem></SelectContent></Select><Button variant="outline" size="icon" title="Change theme" aria-label="Change theme" onClick={()=>{setDark(!dark);apply('sahoolat-theme',dark?'light':'dark')}}>{dark?<Sun/>:<Moon/>}</Button><Button variant={large?'secondary':'outline'} title="Larger text" aria-label="Larger text" onClick={()=>{setLarge(!large);apply('sahoolat-large',String(!large))}}><Type/></Button><Button variant="outline" onClick={async()=>{if(window.top!==window.self)return toast.info('Open this site in its own tab to enable notifications');if(!('Notification'in window))return toast.error('Notifications are not supported');const result=await Notification.requestPermission();toast.info(result==='granted'?'Browser alerts enabled while the site is open':'Allow notifications in your browser site settings');}}><Bell/>Browser alerts</Button></div>;
+}

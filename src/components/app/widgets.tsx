@@ -110,14 +110,15 @@ export function VideoRoom({ roomId, selfName, onLeave }: { roomId: string; selfN
     // Fixed per room: changing src would reload the call and drop it.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId]);
-  const recording = useCallRecorder(roomId);
+  const [consented, setConsented] = useState(false);
+  const recording = useCallRecorder(roomId, consented);
   return (
     <div className="space-y-2">
       <div className="relative aspect-video w-full overflow-hidden rounded-2xl bg-sidebar">
         <iframe key={roomId} title="Video consultation" src={src} allow="camera; microphone; autoplay; fullscreen; display-capture; speaker-selection" className="absolute inset-0 h-full w-full border-0" />
       </div>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-xs text-muted-foreground">{recording ? "● This consultation's audio is being recorded for the medical case file." : "Audio recording unavailable (microphone not allowed)."}</p>
+        <div>{!consented && <Button size="sm" variant="outline" onClick={() => void import("@/lib/store").then(({ saveCareItem }) => saveCareItem("consent", { title: "Consultation audio recording", appointmentId: roomId, details: "I agree to microphone recording for the private admin case file.", status: "Granted" })).then(() => setConsented(true)).catch((e: Error) => toast.error(e.message))}>Consent to audio recording</Button>}<p className="text-xs text-muted-foreground">{recording ? "● This consultation's audio is being recorded for the medical case file." : consented ? "Audio recording unavailable (microphone not allowed)." : "Audio recording has not started."}</p></div>
         <Button variant="destructive" size="sm" onClick={onLeave}><PhoneOff className="mr-1 h-4 w-4" />Leave</Button>
       </div>
     </div>
@@ -125,9 +126,10 @@ export function VideoRoom({ roomId, selfName, onLeave }: { roomId: string; selfN
 }
 
 /** Records this participant's microphone in 2-minute segments and uploads each, so a dropped tab loses little. */
-function useCallRecorder(appointmentId: string) {
+function useCallRecorder(appointmentId: string, enabled: boolean) {
   const [active, setActive] = useState(false);
   useEffect(() => {
+    if (!enabled) return;
     let stopped = false;
     let stream: MediaStream | null = null;
     let rec: MediaRecorder | null = null;
@@ -141,7 +143,7 @@ function useCallRecorder(appointmentId: string) {
       r.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
       r.onstop = () => {
         const blob = new Blob(chunks, { type: r.mimeType || "audio/webm" });
-        void uploadCallRecording(appointmentId, blob, startedAt).catch(() => {});
+        void uploadCallRecording(appointmentId, blob, startedAt).catch(() => toast.error("Audio segment could not be saved. Your case recording may be incomplete."));
       };
       r.start(1000);
       rec = r;
@@ -164,6 +166,6 @@ function useCallRecorder(appointmentId: string) {
       flush();
       stream?.getTracks().forEach((t) => t.stop());
     };
-  }, [appointmentId]);
+  }, [appointmentId, enabled]);
   return active;
 }

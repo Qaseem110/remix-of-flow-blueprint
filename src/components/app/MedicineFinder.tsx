@@ -1,8 +1,13 @@
+import { MedicineReservation } from "./MedicineReservation";
+import { ProviderActions } from "./ProviderActions";
 import { useState } from "react";
 import { MapPin, Phone, Search, Store, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { searchMedicines, useStore, type Pharmacy } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { saveCareItem } from "@/lib/store";
 import { fmtPrice } from "@/lib/utils";
 
 export const mapsUrl = (p: Pharmacy) =>
@@ -31,11 +36,12 @@ export function MedicineFinder() {
             <div className="min-w-0 space-y-1">
               <p className="font-semibold">{m.name} <span className="font-normal text-muted-foreground">{m.strength}</span></p>
               <p className="text-xs text-muted-foreground">{[m.formula, m.form, m.packSize].filter(Boolean).join(" · ")}</p>
+              <ProviderActions providerId={p.userId} name={p.storeName} />
               <p className="flex items-center gap-1 pt-1 text-sm"><Store className="h-4 w-4 text-primary" />{p.storeName}</p>
               <p className="flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3.5 w-3.5" />{p.address}, {p.city}{p.hours ? ` · ${p.hours}` : ""}</p>
             </div>
             <div className="flex flex-col items-end gap-2">
-              <Badge variant="secondary" className="text-sm">{fmtPrice(m.price)}</Badge>
+              <Badge variant="secondary" className="text-sm">{fmtPrice(m.price)}</Badge><p className="text-xs text-muted-foreground">Stock updated: {new Date(m.updatedAt).toLocaleDateString()}</p>{m.prescriptionRequired && <p className="text-xs">Prescription required at pickup</p>}<MedicineReservation medicine={m} />
               <div className="flex flex-wrap justify-end gap-2 text-sm">
                 <a href={`tel:${p.phone}`} className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-primary"><Phone className="h-3.5 w-3.5" />Call</a>
                 <a href={wa(p.phone)} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-primary"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>

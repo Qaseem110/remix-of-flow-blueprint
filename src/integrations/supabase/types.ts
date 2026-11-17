@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      activity_log: {
+        Row: {
+          action: string
+          actor_id: string | null
+          created_at: string
+          id: string
+          record_id: string | null
+          resource: string
+          subject_id: string | null
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          resource: string
+          subject_id?: string | null
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          created_at?: string
+          id?: string
+          record_id?: string | null
+          resource?: string
+          subject_id?: string | null
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           data: Json
@@ -65,6 +95,7 @@ export type Database = {
         Row: {
           appointment_id: string
           created_at: string
+          expires_at: string
           id: string
           path: string
           role: string
@@ -74,6 +105,7 @@ export type Database = {
         Insert: {
           appointment_id: string
           created_at?: string
+          expires_at: string
           id?: string
           path: string
           role?: string
@@ -83,11 +115,39 @@ export type Database = {
         Update: {
           appointment_id?: string
           created_at?: string
+          expires_at?: string
           id?: string
           path?: string
           role?: string
           started_at?: string
           uploader_id?: string
+        }
+        Relationships: []
+      }
+      care_items: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          kind: string
+          owner_id: string
+          recipient_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id: string
+          kind: string
+          owner_id: string
+          recipient_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          kind?: string
+          owner_id?: string
+          recipient_id?: string | null
         }
         Relationships: []
       }
@@ -265,6 +325,24 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      medical_safety: {
+        Row: {
+          data: Json
+          member_id: string
+          patient_id: string
+        }
+        Insert: {
+          data?: Json
+          member_id?: string
+          patient_id: string
+        }
+        Update: {
+          data?: Json
+          member_id?: string
+          patient_id?: string
+        }
+        Relationships: []
       }
       medicines: {
         Row: {
@@ -518,6 +596,21 @@ export type Database = {
         }
         Relationships: []
       }
+      user_roles: {
+        Row: {
+          role: string
+          user_id: string
+        }
+        Insert: {
+          role: string
+          user_id: string
+        }
+        Update: {
+          role?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       volunteer_bookings: {
         Row: {
           created_at: string
@@ -576,6 +669,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_second_factor_ready: { Args: never; Returns: boolean }
       cancel_doctor_day: {
         Args: { reason: string; target_date: string }
         Returns: number
@@ -609,6 +703,10 @@ export type Database = {
       }
       reception_can: { Args: { _perm: string }; Returns: boolean }
       reception_doctor: { Args: never; Returns: string }
+      record_document_access: {
+        Args: { access_action: string; document_id: string }
+        Returns: undefined
+      }
       schedule_shifts: { Args: { av: Json; day: string }; Returns: Json }
       set_report_pin: { Args: { pin: string }; Returns: undefined }
       shift_queue_times: {

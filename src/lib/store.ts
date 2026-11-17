@@ -85,6 +85,10 @@ export interface LabOrder {
   documents: DocFile[];
   createdAt: string;
   completedAt?: string;
+  sampleStage?: string;
+  reviewedBy?: string;
+  criticalNote?: string;
+  criticalAcknowledgedAt?: string;
 }
 export interface LabMessage {
   id: string;
@@ -105,6 +109,10 @@ export interface Medicine {
   inStock: boolean;
   image?: string;
   updatedAt: string;
+  quantity?: number;
+  lowStock?: number;
+  expiry?: string;
+  prescriptionRequired?: boolean;
 }
 export type ConsultType = "online" | "clinic";
 export type AppointmentStatus =
@@ -222,6 +230,8 @@ export interface DocFile {
   uploadedAt: string;
   path?: string; // server storage path once uploaded
   title?: string; // report name read from the document
+  version?: number;
+  correctionOf?: string;
   reportDate?: string; // date printed on the report (yyyy-MM-dd)
 }
 
@@ -277,6 +287,7 @@ export interface Consultation {
   documents: DocFile[];
   followUpRequired: boolean;
   followUpTiming: string;
+  followUpDate?: string;
   completedAt?: string;
 }
 
@@ -1051,15 +1062,15 @@ export async function setLabOrderStatus(id: string, status: LabOrderStatus) {
   else if (status === "Sample collected") notify(o.patientId, "Sample collected", `${trackingNumber(o)}: your sample for ${o.tests} was collected.`, "/patient/labs");
 }
 /** Lab uploads results; files are stored permanently and appear in the patient's health records. */
-export async function uploadLabResults(id: string, files: FileList | File[]) {
+export async function uploadLabResults(id: string, files: FileList | File[], correctionOf?: string) {
   const o = state.labOrders.find((x) => x.id === id);
   if (!o || o.labId !== state.sessionUserId) throw new Error("Only the assigned laboratory can upload results");
-  const docs = makeDocs(files, "lab", "Lab Report");
+  const docs = makeDocs(files, "lab", "Lab Report").map((d) => ({ ...d, version: Math.max(0, ...o.documents.map((x) => x.version ?? 1)) + 1, correctionOf }));
   if (SB) {
     const { supabase } = await import("./supabase");
     for (const d of docs) {
       const path = `lab/${o.id}/${d.id}-${d.name.replace(/[^\w.-]/g, "_")}`;
-      const { error } = await supabase.storage.from("documents").upload(path, pendingFiles.get(d.id)!, { contentType: d.mime, upsert: false });
+      const { error } = await supabase.storage.from("documents").upload(path, pendingFiles.get(d.id) ?? new File([], d.name), { contentType: d.mime, upsert: false });
       if (error) throw new Error(`${d.name}: ${error.message}`);
       d.path = path; pendingFiles.delete(d.id);
     }
@@ -1091,6 +1102,7 @@ export function updatePharmacy(id: string, p: Partial<Pharmacy>) {
 export function saveMedicine(m: Omit<Medicine, "id" | "updatedAt"> & { id?: string }): Medicine {
   if (!m.name.trim()) throw new Error("Medicine name is required");
   if (!(m.price >= 0)) throw new Error("Price must be a number");
+  if (m.quantity !== undefined && (!Number.isInteger(m.quantity) || m.quantity < 0)) throw new Error("Stock quantity must be a non-negative integer");
   const full: Medicine = { ...m, id: m.id ?? uid("MED"), name: m.name.trim(), updatedAt: now() };
   set((s) => ({ ...s, medicines: m.id ? s.medicines.map((x) => (x.id === m.id ? full : x)) : [full, ...s.medicines] }));
   return full;
@@ -1103,7 +1115,7 @@ export function searchMedicines(st: { medicines: Medicine[]; pharmacies: Pharmac
   const t = q.trim().toLowerCase();
   if (t.length < 2) return [];
   return st.medicines
-    .filter((m) => m.inStock && (m.name.toLowerCase().includes(t) || (m.formula ?? "").toLowerCase().includes(t)))
+    .filter((m) => m.inStock && (m.quantity === undefined || m.quantity > 0) && (!m.expiry || m.expiry >= todayStr()) && (m.name.toLowerCase().includes(t) || (m.formula ?? "").toLowerCase().includes(t)))
     .map((m) => ({ m, p: st.pharmacies.find((p) => p.userId === m.pharmacyId)! }))
     .filter((x) => x.p && (!city || x.p.city.toLowerCase().includes(city.trim().toLowerCase())))
     .sort((a, b) => a.m.price - b.m.price);
@@ -1610,7 +1622,7 @@ export async function readAndMakeDocs(files: FileList | File[], uploadedBy: Role
 }
 
 // ---------- Call recordings (admin case files) ----------
-export type CallRecording = { id: string; appointmentId: string; uploaderId: string; role: string; url: string; startedAt: string };
+export type CallRecording = { id: string; appointmentId: string; uploaderId: string; role: string; url: string; downloadUrl: string; startedAt: string; expiresAt: string };
 
 /** Uploads one audio segment of a video consultation. Readable only by admins. */
 export async function uploadCallRecording(appointmentId: string, blob: Blob, startedAt: string) {
@@ -1623,17 +1635,24 @@ export async function uploadCallRecording(appointmentId: string, blob: Blob, sta
   const path = `${uid}/${appointmentId}/${Date.now()}.${ext}`;
   const { error } = await supabase.storage.from("recordings").upload(path, blob, { contentType: blob.type || "audio/webm" });
   if (error) throw error;
-  await supabase.from("call_recordings").insert({ appointment_id: appointmentId, uploader_id: uid, role, path, started_at: startedAt });
+  const { error: metadataError } = await supabase.from("call_recordings").insert({ appointment_id: appointmentId, uploader_id: uid, role, path, started_at: startedAt });
+  if (metadataError) throw new Error(metadataError.message);
 }
 
 export async function listCallRecordings(appointmentId: string): Promise<CallRecording[]> {
   if (!SB) return [];
   const { supabase } = await import("./supabase");
-  const { data } = await supabase.from("call_recordings").select("*").eq("appointment_id", appointmentId).order("started_at");
+  const { data, error } = await supabase.from("call_recordings").select("*").eq("appointment_id", appointmentId).order("started_at");
+  if (error) throw new Error(error.message);
   const out: CallRecording[] = [];
   for (const r of data ?? []) {
-    const { data: s } = await supabase.storage.from("recordings").createSignedUrl(r.path, 3600);
-    out.push({ id: r.id, appointmentId: r.appointment_id, uploaderId: r.uploader_id, role: r.role, url: s?.signedUrl ?? "", startedAt: r.started_at });
+    const seconds = Math.min(3600, Math.floor((new Date(r.expires_at).getTime() - Date.now()) / 1000));
+    if (seconds <= 0) continue;
+    const { data: s, error: urlError } = await supabase.storage.from("recordings").createSignedUrl(r.path, seconds);
+    if (urlError) throw urlError;
+    const { data: download, error: downloadError } = await supabase.storage.from("recordings").createSignedUrl(r.path, seconds, { download: r.path.split('/').pop() ?? 'recording.webm' });
+    if (downloadError) throw downloadError;
+    out.push({ id: r.id, appointmentId: r.appointment_id, uploaderId: r.uploader_id, role: r.role, url: s?.signedUrl ?? "", downloadUrl: download?.signedUrl ?? "", startedAt: r.started_at, expiresAt: r.expires_at });
   }
   return out;
 }
@@ -1729,3 +1748,56 @@ export async function setVolunteerBookingStatus(id: string, status: VolunteerBoo
   commitVol("volunteerBookings", next);
   if (v) commitVol("volunteerSessions", await readBack("volunteerSessions", v.id, v));
 }
+
+// ---------- Care services: all UI reads/writes stay behind the store ----------
+export async function loadCareItems(): Promise<import('./care').CareItem[]> {
+  if (!SB) return offlineCare;
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.from('care_items').select('*').order('created_at', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data ?? []).map((r) => ({ id: r.id, ownerId: r.owner_id, recipientId: r.recipient_id ?? undefined, kind: r.kind, data: r.data, createdAt: r.created_at }));
+}
+let offlineCare: import('./care').CareItem[] = [];
+export async function saveCareItem(kind: import('./care').CareKind, data: import('./care').CareItem['data'], recipientId?: string, id?: string) {
+  const { validateCare } = await import('./care'); validateCare(kind, data);
+  const me = state.sessionUserId; if (!me) throw new Error('Sign in first');
+  const old = id ? (await loadCareItems()).find((x) => x.id === id) : undefined;
+  const item: import('./care').CareItem = { id: id ?? crypto.randomUUID(), ownerId: old?.ownerId ?? me, recipientId: old?.recipientId ?? recipientId, kind, data, createdAt: old?.createdAt ?? now() };
+  if (SB) await writeRow('care_items', { id: item.id, owner_id: item.ownerId, recipient_id: item.recipientId ?? null, kind, data }, !old);
+  else offlineCare = [...offlineCare.filter((x) => x.id !== item.id), item];
+  return item;
+}
+const offlineSafety = new Map<string, import('./care').MedicalSafety>();
+export async function loadMedicalSafety(patientId: string, memberId = '') {
+  const { emptySafety } = await import('./care');
+  if (!SB) return offlineSafety.get(`${patientId}:${memberId}`) ?? emptySafety;
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.from('medical_safety').select('data').eq('patient_id', patientId).eq('member_id', memberId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return { ...emptySafety, ...(data?.data ?? {}) } as import('./care').MedicalSafety;
+}
+export async function saveMedicalSafety(memberId: string, data: import('./care').MedicalSafety) {
+  const patientId = state.sessionUserId; if (!patientId) throw new Error('Sign in first');
+  if (SB) {
+    const { supabase } = await import('./supabase');
+    const { error } = await supabase.from('medical_safety').upsert({ patient_id: patientId, member_id: memberId, data });
+    if (error) throw new Error(error.message);
+  } else offlineSafety.set(`${patientId}:${memberId}`, data);
+}
+export async function loadActivity() {
+  if (!SB) return [];
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.from('activity_log').select('*').order('created_at', { ascending: false }).limit(100);
+  if (error) throw new Error(error.message); return data ?? [];
+}
+export async function setLabProgress(id: string, p: { sampleStage?: string; reviewedBy?: string; criticalNote?: string; criticalAcknowledgedAt?: string }) {
+  const o = state.labOrders.find((x) => x.id === id); if (!o) throw new Error('Order not found');
+  if (state.sessionUserId !== o.labId && !(state.sessionUserId === o.doctorId && p.criticalAcknowledgedAt && Object.keys(p).length === 1)) throw new Error('Not allowed');
+  const next = { ...o, ...p };
+  await writeRow('lab_orders', labOrderTable().row(next), false); commitLabOrder(next);
+  if (!SB && p.criticalNote) await notifyLabAppointment(o.doctorId, 'Priority lab review required', `${o.tests}: ${p.criticalNote}`, '/doctor/labs');
+}
+export async function listSecondFactors() { const {supabase}=await import('./supabase');const {data,error}=await supabase.auth.mfa.listFactors();if(error)throw new Error(error.message);return data.totp; }
+export async function enrollSecondFactor() {const {supabase}=await import('./supabase');const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:`Sahoolat ${Date.now()}`});if(error)throw new Error(error.message);return {id:data.id,qr:data.totp.qr_code};}
+export async function verifySecondFactor(factorId:string,code:string) {const {supabase}=await import('./supabase');const {error}=await supabase.auth.mfa.challengeAndVerify({factorId,code});if(error)throw new Error(error.message);}
+export async function recordDocumentAccess(documentId:string,action:'Preview'|'Download'){if(!SB)return;const {supabase}=await import('./supabase');const {error}=await supabase.rpc('record_document_access',{document_id:documentId,access_action:action});if(error)throw new Error(error.message);}

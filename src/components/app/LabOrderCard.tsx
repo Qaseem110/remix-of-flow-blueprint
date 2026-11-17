@@ -3,6 +3,9 @@ import { FileText, FlaskConical } from "lucide-react";
 import type { ReactNode } from "react";
 import { useStore, type LabOrder } from "@/lib/store";
 import { fmtTime } from "@/lib/utils";
+import { setLabProgress, useSession } from "@/lib/store";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
 
 const tone: Record<LabOrder["status"], string> = {
   Requested: "bg-warning/15 text-warning-foreground",
@@ -14,6 +17,7 @@ const tone: Record<LabOrder["status"], string> = {
 
 /** Summary of one lab test request, shared by patient, doctor and lab views. */
 export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNode }) {
+  const user = useSession();
   const lab = useStore((s) => s.labs.find((l) => l.userId === o.labId));
   const doctor = useStore((s) => s.users.find((u) => u.id === o.doctorId));
   const patient = useStore((s) => s.users.find((u) => u.id === o.patientId));
@@ -26,13 +30,16 @@ export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNod
           <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {o.time ? fmtTime(o.time) : "Time awaiting laboratory"} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
           <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
           {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
+          {o.sampleStage && <p className="mt-1 text-sm">Processing: {o.sampleStage}</p>}
+          {o.reviewedBy && <p className="text-sm">Reviewed by: {o.reviewedBy}</p>}
+          {o.criticalNote && <div className="mt-2 border-l-4 border-destructive pl-3 text-sm"><p className="font-semibold">Priority doctor review</p><p>{o.criticalNote}</p>{o.criticalAcknowledgedAt ? <p>Acknowledged by doctor</p> : user?.id === o.doctorId && <Button size="sm" variant="outline" onClick={() => void setLabProgress(o.id, { criticalAcknowledgedAt: new Date().toISOString() }).catch((e: Error) => toast.error(e.message))}>Acknowledge</Button>}</div>}
         </div>
         <span className={`rounded-full px-2.5 py-0.5 text-xs font-medium ${tone[o.status]}`}>{o.status}</span>
       </div>
       {o.documents.length > 0 && (
         <ul className="mt-3 space-y-1">
           {o.documents.map((d) => (
-            <li key={d.id}><a href={d.url || undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline"><FileText className="h-4 w-4" />{d.title ?? d.name}</a></li>
+            <li key={d.id}><a href={d.url || undefined} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-primary hover:underline"><FileText className="h-4 w-4" />{d.title ?? d.name}{d.version ? ` · Version ${d.version}` : ""}{d.correctionOf ? " · Correction" : ""}</a></li>
           ))}
         </ul>
       )}
