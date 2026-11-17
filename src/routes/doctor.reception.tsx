@@ -16,7 +16,7 @@ export const Route = createFileRoute("/doctor/reception")({
   component: DoctorReception,
 });
 
-const PERMS: [keyof ReceptionPermissions, string][] = [["book", "Book appointments"], ["queue", "See today's queue"], ["checkIn", "Mark patients as arrived"], ["cancel", "Cancel appointments"]];
+const PERMS: [keyof ReceptionPermissions, string][] = [["book", "Book appointments"], ["queue", "See today's queue"], ["checkIn", "Mark patients as arrived / absent"], ["cancel", "Cancel appointments"]];
 
 function DoctorReception() {
   const user = useSession();

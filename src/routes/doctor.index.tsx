@@ -12,6 +12,11 @@ import { startBreak, endBreak, callPatient, dayAppointments, inActiveQueue, mark
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 import { DailyCapacity } from "@/components/app/DailyCapacity";
+import { cancelDoctorDay, cancellableDayAppointments } from "@/lib/store";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/doctor/")({
   head: () => meta("Doctor dashboard", "Today's appointments, live queue and consultations."),
@@ -63,6 +68,7 @@ function DoctorDashboard() {
       )}
       <PageHeader title="Today" subtitle={new Date().toDateString()} />
       <BreakBar doctorId={user.id} />
+      <CancelDay doctorId={user.id} />
       <DailyCapacity doctorId={user.id} />
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Appointments" value={today.length} />
@@ -177,4 +183,19 @@ function BreakBar({ doctorId }: { doctorId: string }) {
       <Button onClick={toggle} disabled={busy} variant={since ? "default" : "outline"}>{since ? "End break & resume" : "Emergency break"}</Button>
     </div>
   );
+}
+
+function CancelDay({ doctorId }: { doctorId: string }) {
+  const [open, setOpen] = useState(false);
+  const [date, setDate] = useState(todayStr());
+  const [reason, setReason] = useState("");
+  const [busy, setBusy] = useState(false);
+  useStore((s) => s.appointments);
+  const count = cancellableDayAppointments(doctorId, date).length;
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true);
+    try { const n = await cancelDoctorDay(date, reason); toast.success(`${n} appointments cancelled — patients notified`); setOpen(false); setReason(""); }
+    catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
+  };
+  return <div className="mb-4 flex justify-end"><Dialog open={open} onOpenChange={setOpen}><DialogTrigger asChild><Button variant="destructive">Cancel all appointments</Button></DialogTrigger><DialogContent><DialogHeader><DialogTitle>Cancel remaining appointments</DialogTitle><DialogDescription>Completed visits and consultations already in progress stay unchanged.</DialogDescription></DialogHeader><form onSubmit={submit} className="space-y-4"><div><Label htmlFor="cancel-date">Appointment date</Label><Input id="cancel-date" type="date" min={todayStr()} required value={date} onChange={(e) => setDate(e.target.value)} /></div><div><Label htmlFor="cancel-reason">Reason for patients</Label><Textarea id="cancel-reason" required minLength={3} maxLength={1000} value={reason} onChange={(e) => setReason(e.target.value)} /></div><Button variant="destructive" disabled={busy || !count || reason.trim().length < 3}>{busy ? "Cancelling…" : `Cancel ${count} appointments & notify patients`}</Button></form></DialogContent></Dialog></div>;
 }

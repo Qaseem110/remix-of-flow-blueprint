@@ -8,6 +8,7 @@ import { Avatar, PageHeader } from "@/components/app/common";
 import { updateDoctorProfile, updateUser, useSession, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { CURRENCY } from "@/lib/utils";
+import { DoctorStatsSettings } from "@/components/app/DoctorStatsSettings";
 
 export const Route = createFileRoute("/doctor/profile")({
   head: () => meta("Doctor profile", "Complete your public profile, specialization and services."),
@@ -67,6 +68,7 @@ function DocProfile() {
         </div>
         <Button className="sm:col-span-2">Save profile</Button>
       </form>
+      <DoctorStatsSettings />
     </div>
   );
 }

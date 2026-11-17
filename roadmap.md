@@ -1,3 +1,10 @@
+# Clinic controls and doctor alerts
+- [x] Add permission-checked receptionist arrival/absent actions; both saved after refresh and mobile checked.
+- [x] Cancel a selected day's remaining appointments atomically with required reason and patient notifications; two saved cancellations and notices verified.
+- [x] Save doctor daily stats time/WhatsApp number and queue daily summaries and discussion alerts; settings saved after refresh, summary deduplication checked.
+- [x] Ten tests passed; signed-in doctor/reception flows had no browser errors.
+- [ ] WhatsApp sending and verified delivery of stats/discussion notices — waiting for WhatsApp Business connection and approved templates.
+
 # Lab appointment scheduling
 - [x] Add laboratory weekly hours, split shifts, date overrides and slot capacity.
 - [x] Require available date/time for patient and doctor bookings; allow labs to schedule older untimed requests.

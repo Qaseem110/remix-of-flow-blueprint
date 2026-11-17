@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { PageHeader, StatusBadge } from "@/components/app/common";
 import { BookingDatePicker } from "@/components/app/widgets";
-import { bookWalkIn, cancelAppointment, dayAppointments, markWaiting, nextAvailableDate, nextBooking, receptionFor, todayStr, useSession, useStore, type ConsultType } from "@/lib/store";
+import { bookWalkIn, cancelAppointment, dayAppointments, receptionAttendance, nextAvailableDate, nextBooking, receptionFor, todayStr, useSession, useStore, type ConsultType } from "@/lib/store";
 import { fmtTime } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 
@@ -28,6 +28,12 @@ function Reception() {
   const [f, setF] = useState({ name: "", phone: "", age: "", gender: "", reason: "" });
   const [type, setType] = useState<ConsultType>("clinic");
   const [busy, setBusy] = useState(false);
+  const [attendanceBusy, setAttendanceBusy] = useState<string | null>(null);
+  const attendance = async (id: string, arrived: boolean) => {
+    setAttendanceBusy(id);
+    try { await receptionAttendance(id, arrived); toast.success(arrived ? "Marked as arrived" : "Marked as absent — queue continued"); }
+    catch (e) { toast.error((e as Error).message); } finally { setAttendanceBusy(null); }
+  };
   if (!user) return null;
   if (!rec) return <div className="mx-auto max-w-3xl"><PageHeader title="Reception" /><p className="text-muted-foreground">This reception account isn't linked to a doctor. Ask the doctor to add you again.</p></div>;
   const p = rec.permissions;
@@ -44,7 +50,7 @@ function Reception() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Reception" subtitle={`${doctor?.name ?? "Doctor"} · ${dp?.clinicName ?? ""}`} />
-      <div className="grid gap-6 lg:grid-cols-[1.1fr_1fr]">
+      <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         {p.book ? (
           <form onSubmit={book} className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
             <h2 className="font-semibold">Book appointment</h2>
@@ -73,7 +79,10 @@ function Reception() {
                   <span className="w-10 font-display text-lg font-semibold">#{a.queueNumber}</span>
                   <div className="flex-1"><p className="font-medium">{name(a)}</p><p className="text-muted-foreground">{fmtTime(a.time)}{a.walkIn ? ` · ${a.walkIn.phone}` : ""}</p></div>
                   <StatusBadge status={a.status} />
-                  {p.checkIn && a.status === "Confirmed" && a.type === "clinic" && <Button size="sm" variant="outline" onClick={() => { markWaiting(a.id); toast.success("Marked as arrived"); }}>Arrived</Button>}
+                  {p.checkIn && a.type === "clinic" && ["Pending", "Confirmed", "Waiting", "Checked-In"].includes(a.status) && <>
+                    <Button size="sm" variant="outline" disabled={attendanceBusy !== null || ["Waiting", "Checked-In"].includes(a.status)} onClick={() => attendance(a.id, true)}>Arrived</Button>
+                    <Button size="sm" variant="outline" disabled={attendanceBusy !== null} onClick={() => attendance(a.id, false)}>Absent</Button>
+                  </>}
                   {p.cancel && ["Confirmed", "Pending", "Waiting"].includes(a.status) && <Button size="sm" variant="ghost" onClick={() => { cancelAppointment(a.id, "doctor", "Cancelled at reception"); toast.success("Cancelled"); }}>Cancel</Button>}
                 </li>
               ))}

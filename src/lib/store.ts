@@ -157,6 +157,24 @@ export interface DoctorProfile {
   services: string[];
 }
 
+export interface DoctorAlertSettings { enabled: boolean; dailyTime: string; phone: string; discussionAlerts: boolean }
+export async function getDoctorAlertSettings(): Promise<DoctorAlertSettings> {
+  if (!SB) return { enabled: false, dailyTime: "08:00", phone: "", discussionAlerts: true };
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.from("doctor_alert_settings").select("enabled,daily_time,phone,discussion_alerts").eq("doctor_id", state.sessionUserId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? { enabled: data.enabled, dailyTime: data.daily_time, phone: data.phone, discussionAlerts: data.discussion_alerts } : { enabled: false, dailyTime: "08:00", phone: "", discussionAlerts: true };
+}
+export async function saveDoctorAlertSettings(settings: DoctorAlertSettings) {
+  if (!state.doctors.some((d) => d.userId === state.sessionUserId)) throw new Error("Only doctors can save stats settings");
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(settings.dailyTime)) throw new Error("Choose a valid daily time");
+  if ((settings.enabled || settings.discussionAlerts) && !/^\+?[1-9]\d{9,14}$/.test(settings.phone)) throw new Error("Enter WhatsApp number with country code");
+  if (!SB) return;
+  const { supabase } = await import("./supabase");
+  const { error } = await supabase.from("doctor_alert_settings").upsert({ doctor_id: state.sessionUserId, enabled: settings.enabled, daily_time: settings.dailyTime, phone: settings.phone, discussion_alerts: settings.discussionAlerts });
+  if (error) throw new Error(error.message);
+}
+
 export interface PatientProfile {
   userId: string;
   dob: string;
@@ -1258,6 +1276,40 @@ export function cancelAppointment(id: string, by: Role, reason = "") {
   const msg = `${trackingNumber(a)} on ${a.date} at ${fmtTime(a.time)} was cancelled by ${by}.${reason ? " Reason: " + reason : ""}`;
   if (by !== "patient") notify(a.patientId, "Appointment cancelled", msg, `/patient/appointments/${id}`);
   if (by !== "doctor") notify(a.doctorId, "Appointment cancelled", msg, `/doctor/appointments`);
+}
+
+export const cancellableDayAppointments = (doctorId: string, date: string) => state.appointments.filter((a) => a.doctorId === doctorId && a.date === date && ["Pending", "Confirmed", "Waiting", "Checked-In", "Ready to Join"].includes(a.status));
+/** All cancellations and patient notices commit together in the database. */
+export async function cancelDoctorDay(date: string, reason: string) {
+  const doctorId = state.sessionUserId;
+  if (!doctorId || !state.doctors.some((d) => d.userId === doctorId)) throw new Error("Only doctors can cancel their day");
+  if (reason.trim().length < 3 || reason.length > 1000) throw new Error("Enter a cancellation reason (3–1000 characters)");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date < todayStr()) throw new Error("Choose today or a future date");
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { data, error } = await supabase.rpc("cancel_doctor_day", { target_date: date, reason: reason.trim() });
+    if (error) throw new Error(error.message);
+    await refreshAll();
+    return Number(data);
+  }
+  const appointments = cancellableDayAppointments(doctorId, date);
+  for (const a of appointments) cancelAppointment(a.id, "doctor", reason.trim());
+  return appointments.length;
+}
+
+/** Attendance is limited to the linked doctor's pending clinic patients today. */
+export async function receptionAttendance(id: string, arrived: boolean) {
+  const a = state.appointments.find((x) => x.id === id);
+  const rec = receptionFor(state.sessionUserId);
+  if (!a || !rec || rec.doctorId !== a.doctorId || !rec.permissions.checkIn) throw new Error("Arrival permission required for this doctor");
+  if (a.date !== todayStr() || a.type !== "clinic" || !["Pending", "Confirmed", "Waiting", "Checked-In"].includes(a.status)) throw new Error("Only today's pending clinic patients can be marked");
+  if (SB) {
+    const { supabase } = await import("./supabase");
+    const { error } = await supabase.rpc("reception_attendance", { target_id: id, arrived });
+    if (error) throw new Error(error.message);
+    await refreshAll();
+  } else if (arrived) patchAppt(id, { status: "Waiting", checkedInAt: now() });
+  else markNoShow(id);
 }
 
 export async function rescheduleAppointment(id: string, date: string): Promise<Appointment> {

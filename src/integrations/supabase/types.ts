@@ -112,6 +112,41 @@ export type Database = {
         }
         Relationships: []
       }
+      doctor_alert_settings: {
+        Row: {
+          daily_time: string
+          discussion_alerts: boolean
+          doctor_id: string
+          enabled: boolean
+          last_summary_date: string | null
+          phone: string
+        }
+        Insert: {
+          daily_time?: string
+          discussion_alerts?: boolean
+          doctor_id: string
+          enabled?: boolean
+          last_summary_date?: string | null
+          phone?: string
+        }
+        Update: {
+          daily_time?: string
+          discussion_alerts?: boolean
+          doctor_id?: string
+          enabled?: boolean
+          last_summary_date?: string | null
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctor_alert_settings_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: true
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       doctors: {
         Row: {
           data: Json
@@ -541,6 +576,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      cancel_doctor_day: {
+        Args: { reason: string; target_date: string }
+        Returns: number
+      }
       has_report_access: { Args: { patient: string }; Returns: boolean }
       has_report_pin: { Args: { patient: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -559,6 +598,14 @@ export type Database = {
           bookings: number
           duration: number
         }[]
+      }
+      queue_doctor_summary: {
+        Args: { target_doctor: string }
+        Returns: undefined
+      }
+      reception_attendance: {
+        Args: { arrived: boolean; target_id: string }
+        Returns: undefined
       }
       reception_can: { Args: { _perm: string }; Returns: boolean }
       reception_doctor: { Args: never; Returns: string }

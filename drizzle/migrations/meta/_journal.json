@@ -169,6 +169,13 @@
       "when": 1794948277679,
       "tag": "0023_volunteer_checkups",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794949311206,
+      "tag": "0024_clinic_controls_doctor_stats",
+      "breakpoints": true
     }
   ]
 }
