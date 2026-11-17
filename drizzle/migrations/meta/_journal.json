@@ -225,6 +225,13 @@
       "when": 1794951388980,
       "tag": "0031_recording_calendar_month_retention",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794954022375,
+      "tag": "0032_clinic_specific_booking_queues",
+      "breakpoints": true
     }
   ]
 }

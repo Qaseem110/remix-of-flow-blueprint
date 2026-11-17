@@ -1,3 +1,5 @@
+import { ClinicSelect } from "@/components/app/ClinicSelect";
+import type { CareItem } from "@/lib/care";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -22,9 +24,11 @@ function Reception() {
   const rec = useStore((s) => receptionFor(user?.id, s));
   const doctor = useStore((s) => s.users.find((u) => u.id === rec?.doctorId));
   const dp = useStore((s) => s.doctors.find((d) => d.userId === rec?.doctorId));
+  const [clinicId,setClinicId] = useState("");
+  const [branch,setBranch] = useState<CareItem>();
   const [date, setDate] = useState(() => (rec ? nextAvailableDate(rec.doctorId) : null) ?? todayStr());
-  const allocation = useStore((s) => (rec ? nextBooking(rec.doctorId, date, s) : null));
-  const today = useStore((s) => (rec ? dayAppointments(rec.doctorId, todayStr(), s) : []));
+  const allocation = useStore((s) => (rec ? nextBooking(rec.doctorId, date, s, clinicId || undefined) : null));
+  const today = useStore((s) => (rec ? dayAppointments(rec.doctorId, todayStr(), s, clinicId || undefined) : []));
   const [f, setF] = useState({ name: "", phone: "", age: "", gender: "", reason: "" });
   const [type, setType] = useState<ConsultType>("clinic");
   const [busy, setBusy] = useState(false);
@@ -41,7 +45,7 @@ function Reception() {
     e.preventDefault();
     setBusy(true);
     try {
-      const a = await bookWalkIn({ doctorId: rec.doctorId, date, reason: f.reason, type, name: f.name, phone: f.phone, age: f.age ? Number(f.age) : undefined, gender: f.gender || undefined });
+      const a = await bookWalkIn({ clinicId: clinicId || undefined, clinicName: branch ? String(branch.data.title) : dp?.clinicName, clinicAddress: branch ? String(branch.data.details) : dp?.clinicAddress, doctorId: rec.doctorId, date, reason: f.reason, type, name: f.name, phone: f.phone, age: f.age ? Number(f.age) : undefined, gender: f.gender || undefined });
       toast.success(`Booked — Queue #${a.queueNumber} at ${fmtTime(a.time)}. Message queued to ${f.phone}.`);
       setF({ name: "", phone: "", age: "", gender: "", reason: "" });
     } catch (err) { toast.error((err as Error).message); } finally { setBusy(false); }
@@ -50,6 +54,7 @@ function Reception() {
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Reception" subtitle={`${doctor?.name ?? "Doctor"} · ${dp?.clinicName ?? ""}`} />
+      <ClinicSelect doctorId={rec.doctorId} value={clinicId} onChange={(id,b)=>{setClinicId(id);setBranch(b);}} />
       <div className="grid grid-cols-[minmax(0,1fr)] gap-6 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,1fr)]">
         {p.book ? (
           <form onSubmit={book} className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
@@ -63,7 +68,7 @@ function Reception() {
             <div className="flex gap-2">
               {(["clinic", "online"] as const).filter((t) => (t === "clinic" ? dp?.clinic : dp?.online)).map((t) => <Button key={t} type="button" variant={type === t ? "default" : "outline"} onClick={() => setType(t)}>{t === "clinic" ? "In-clinic" : "Online"}</Button>)}
             </div>
-            <BookingDatePicker doctorId={rec.doctorId} date={date} onDate={setDate} />
+            <BookingDatePicker doctorId={rec.doctorId} date={date} onDate={setDate} clinicId={clinicId || undefined} />
             <div><Label htmlFor="pr">Reason</Label><Textarea id="pr" rows={2} value={f.reason} onChange={(e) => setF({ ...f, reason: e.target.value })} /></div>
             <p className="text-sm text-muted-foreground">{allocation ? `Next place: Queue #${allocation.queueNumber} at ${fmtTime(allocation.time)}` : "No places left on this day."}</p>
             <Button className="w-full" disabled={busy || !allocation}>{busy ? "Booking…" : "Book & send message"}</Button>

@@ -1,3 +1,5 @@
+import { ClinicSelect } from "@/components/app/ClinicSelect";
+import { clinicAvailability } from "@/lib/store";
 import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
@@ -24,16 +26,17 @@ export const Route = createFileRoute("/doctor/")({
 });
 
 function DoctorDashboard() {
+  const [clinicId,setClinicId] = useState("");
   const user = useSession();
   const navigate = useNavigate();
   const s = useStore((s) => s);
-  const avail = user ? s.availability.find((a) => a.doctorId === user.id) : undefined;
+  const avail = user ? clinicAvailability(user.id,clinicId || undefined,s) : undefined;
   const grace = avail?.consultMinutes ?? avail?.duration ?? 15;
   useEffect(() => {
     if (!user) return;
     const tick = () => {
-      if (s.availability.find((a) => a.doctorId === user.id)?.breakStartedAt) return;
-      for (const a of overdueAbsent(dayAppointments(user.id, todayStr(), s), grace, clinicMinutesNow())) {
+      if (clinicAvailability(user.id,clinicId || undefined,s)?.breakStartedAt) return;
+      for (const a of overdueAbsent(dayAppointments(user.id, todayStr(), s, clinicId || undefined), grace, clinicMinutesNow())) {
         markNoShow(a.id);
         toast.info(`#${a.queueNumber} did not arrive — queue continued`);
       }
@@ -41,21 +44,21 @@ function DoctorDashboard() {
     tick();
     const t = setInterval(tick, 30000);
     return () => clearInterval(t);
-  }, [user?.id, grace, s.appointments]);
+  }, [user?.id, clinicId, grace, s.appointments]);
   if (!user) return null;
   const dp = s.doctors.find((d) => d.userId === user.id);
   if (!dp) return null;
-  const today = dayAppointments(user.id, todayStr(), s);
+  const today = dayAppointments(user.id, todayStr(), s, clinicId || undefined);
   const current = today.find((a) => a.status === "In Consultation" || a.status === "Ready to Join");
   const queue = waitingQueue(today);
   const absent = today.filter((a) => a.status === "No Show");
   const awaitingCheckIn = today.filter((a) => a.type === "clinic" && a.status === "Confirmed");
   const tomorrowDate = format(addDays(parseISO(todayStr()), 1), "yyyy-MM-dd");
-  const tomorrow = dayAppointments(user.id, tomorrowDate, s).filter((a) => a.status !== "Cancelled");
+  const tomorrow = dayAppointments(user.id, tomorrowDate, s, clinicId || undefined).filter((a) => a.status !== "Cancelled");
   const name = (id: string, apptId?: string) => s.appointments.find((a) => a.id === apptId)?.memberName ?? s.users.find((u) => u.id === id)?.name ?? "";
   const followUps = s.consultations.filter((c) => c.doctorId === user.id && c.followUpRequired && c.completedAt);
 
-  const onBreak = !!s.availability.find((a) => a.doctorId === user.id)?.breakStartedAt;
+  const onBreak = !!clinicAvailability(user.id,clinicId || undefined,s)?.breakStartedAt;
   const start = (id: string) => { if (onBreak) { toast.error("End your break to continue the queue"); return; } callPatient(id); navigate({ to: "/doctor/consultation/$id", params: { id } }); };
 
   return (
@@ -67,9 +70,10 @@ function DoctorDashboard() {
         </div>
       )}
       <PageHeader title="Today" subtitle={new Date().toDateString()} />
-      <BreakBar doctorId={user.id} />
+      <ClinicSelect doctorId={user.id} value={clinicId} onChange={setClinicId} />
+      <BreakBar doctorId={user.id} clinicId={clinicId || undefined} />
       <CancelDay doctorId={user.id} />
-      <DailyCapacity doctorId={user.id} />
+      <DailyCapacity doctorId={user.id} clinicId={clinicId || undefined} />
       <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Appointments" value={today.length} />
         <Stat label="In queue" value={queue.length} />
@@ -167,14 +171,14 @@ function AbsentRow({ id, label, waiting }: { id: string; label: string; waiting:
   );
 }
 
-function BreakBar({ doctorId }: { doctorId: string }) {
-  const since = useStore((s) => s.availability.find((a) => a.doctorId === doctorId)?.breakStartedAt);
+function BreakBar({ doctorId, clinicId }: { doctorId: string; clinicId?: string }) {
+  const since = useStore((s) => clinicAvailability(doctorId,clinicId,s)?.breakStartedAt);
   const [busy, setBusy] = useState(false);
   const toggle = async () => {
     setBusy(true);
     try {
-      if (since) { const m = await endBreak(doctorId); toast.success(m ? `Queue resumed — times moved ${m} min later` : "Queue resumed"); }
-      else { await startBreak(doctorId); toast.success("Queue paused — patients notified"); }
+      if (since) { const m = await endBreak(doctorId,clinicId); toast.success(m ? `Queue resumed — times moved ${m} min later` : "Queue resumed"); }
+      else { await startBreak(doctorId,clinicId); toast.success("Queue paused — patients notified"); }
     } catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   return (

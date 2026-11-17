@@ -60,6 +60,8 @@ import { Route as PatientBookDoctorIdRouteImport } from './routes/patient.book.$
 import { Route as PatientConsultationIdRouteImport } from './routes/patient.consultation.$id'
 import { Route as PatientDoctorsIndexRouteImport } from './routes/patient.doctors.index'
 import { Route as PatientDoctorsIdRouteImport } from './routes/patient.doctors.$id'
+import { Route as PatientLaboratoriesIdRouteImport } from './routes/patient.laboratories.$id'
+import { Route as PatientStoresIdRouteImport } from './routes/patient.stores.$id'
 import { Route as ApiPublicJobsRecordingCleanupRouteImport } from './routes/api/public/jobs/recording-cleanup'
 
 const IndexRoute = IndexRouteImport.update({
@@ -318,6 +320,16 @@ const PatientDoctorsIdRoute = PatientDoctorsIdRouteImport.update({
   path: '/doctors/$id',
   getParentRoute: () => PatientRoute,
 } as any)
+const PatientLaboratoriesIdRoute = PatientLaboratoriesIdRouteImport.update({
+  id: '/laboratories/$id',
+  path: '/laboratories/$id',
+  getParentRoute: () => PatientRoute,
+} as any)
+const PatientStoresIdRoute = PatientStoresIdRouteImport.update({
+  id: '/stores/$id',
+  path: '/stores/$id',
+  getParentRoute: () => PatientRoute,
+} as any)
 const ApiPublicJobsRecordingCleanupRoute =
   ApiPublicJobsRecordingCleanupRouteImport.update({
     id: '/api/public/jobs/recording-cleanup',
@@ -375,6 +387,8 @@ export interface FileRoutesByFullPath {
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
   '/patient/doctors/$id': typeof PatientDoctorsIdRoute
+  '/patient/laboratories/$id': typeof PatientLaboratoriesIdRoute
+  '/patient/stores/$id': typeof PatientStoresIdRoute
   '/patient/appointments/': typeof PatientAppointmentsIndexRoute
   '/patient/doctors/': typeof PatientDoctorsIndexRoute
   '/api/public/jobs/recording-cleanup': typeof ApiPublicJobsRecordingCleanupRoute
@@ -423,6 +437,8 @@ export interface FileRoutesByTo {
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
   '/patient/doctors/$id': typeof PatientDoctorsIdRoute
+  '/patient/laboratories/$id': typeof PatientLaboratoriesIdRoute
+  '/patient/stores/$id': typeof PatientStoresIdRoute
   '/patient/appointments': typeof PatientAppointmentsIndexRoute
   '/patient/doctors': typeof PatientDoctorsIndexRoute
   '/api/public/jobs/recording-cleanup': typeof ApiPublicJobsRecordingCleanupRoute
@@ -478,6 +494,8 @@ export interface FileRoutesById {
   '/patient/book/$doctorId': typeof PatientBookDoctorIdRoute
   '/patient/consultation/$id': typeof PatientConsultationIdRoute
   '/patient/doctors/$id': typeof PatientDoctorsIdRoute
+  '/patient/laboratories/$id': typeof PatientLaboratoriesIdRoute
+  '/patient/stores/$id': typeof PatientStoresIdRoute
   '/patient/appointments/': typeof PatientAppointmentsIndexRoute
   '/patient/doctors/': typeof PatientDoctorsIndexRoute
   '/api/public/jobs/recording-cleanup': typeof ApiPublicJobsRecordingCleanupRoute
@@ -534,6 +552,8 @@ export interface FileRouteTypes {
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
     | '/patient/doctors/$id'
+    | '/patient/laboratories/$id'
+    | '/patient/stores/$id'
     | '/patient/appointments/'
     | '/patient/doctors/'
     | '/api/public/jobs/recording-cleanup'
@@ -582,6 +602,8 @@ export interface FileRouteTypes {
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
     | '/patient/doctors/$id'
+    | '/patient/laboratories/$id'
+    | '/patient/stores/$id'
     | '/patient/appointments'
     | '/patient/doctors'
     | '/api/public/jobs/recording-cleanup'
@@ -636,6 +658,8 @@ export interface FileRouteTypes {
     | '/patient/book/$doctorId'
     | '/patient/consultation/$id'
     | '/patient/doctors/$id'
+    | '/patient/laboratories/$id'
+    | '/patient/stores/$id'
     | '/patient/appointments/'
     | '/patient/doctors/'
     | '/api/public/jobs/recording-cleanup'
@@ -1016,6 +1040,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PatientDoctorsIdRouteImport
       parentRoute: typeof PatientRoute
     }
+    '/patient/laboratories/$id': {
+      id: '/patient/laboratories/$id'
+      path: '/laboratories/$id'
+      fullPath: '/patient/laboratories/$id'
+      preLoaderRoute: typeof PatientLaboratoriesIdRouteImport
+      parentRoute: typeof PatientRoute
+    }
+    '/patient/stores/$id': {
+      id: '/patient/stores/$id'
+      path: '/stores/$id'
+      fullPath: '/patient/stores/$id'
+      preLoaderRoute: typeof PatientStoresIdRouteImport
+      parentRoute: typeof PatientRoute
+    }
     '/api/public/jobs/recording-cleanup': {
       id: '/api/public/jobs/recording-cleanup'
       path: '/api/public/jobs/recording-cleanup'
@@ -1105,6 +1143,8 @@ interface PatientRouteChildren {
   PatientBookDoctorIdRoute: typeof PatientBookDoctorIdRoute
   PatientConsultationIdRoute: typeof PatientConsultationIdRoute
   PatientDoctorsIdRoute: typeof PatientDoctorsIdRoute
+  PatientLaboratoriesIdRoute: typeof PatientLaboratoriesIdRoute
+  PatientStoresIdRoute: typeof PatientStoresIdRoute
   PatientAppointmentsIndexRoute: typeof PatientAppointmentsIndexRoute
   PatientDoctorsIndexRoute: typeof PatientDoctorsIndexRoute
 }
@@ -1121,6 +1161,8 @@ const PatientRouteChildren: PatientRouteChildren = {
   PatientBookDoctorIdRoute: PatientBookDoctorIdRoute,
   PatientConsultationIdRoute: PatientConsultationIdRoute,
   PatientDoctorsIdRoute: PatientDoctorsIdRoute,
+  PatientLaboratoriesIdRoute: PatientLaboratoriesIdRoute,
+  PatientStoresIdRoute: PatientStoresIdRoute,
   PatientAppointmentsIndexRoute: PatientAppointmentsIndexRoute,
   PatientDoctorsIndexRoute: PatientDoctorsIndexRoute,
 }

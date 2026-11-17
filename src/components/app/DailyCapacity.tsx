@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Link } from "@tanstack/react-router";
-import { dailyCapacity, scheduleShifts, weekdayShifts, persistAvailability, todayStr, useStore } from "@/lib/store";
+import { clinicAvailability, dailyCapacity, scheduleShifts, weekdayShifts, persistAvailability, todayStr, useStore } from "@/lib/store";
 
-export function DailyCapacity({ doctorId }: { doctorId: string }) {
-  const av = useStore((s) => s.availability.find((a) => a.doctorId === doctorId));
+export function DailyCapacity({ doctorId, clinicId }: { doctorId: string; clinicId?: string }) {
+  const av = useStore((s) => clinicAvailability(doctorId,clinicId,s));
   const [limit, setLimit] = useState<string | null>(null);
   if (!av) return null;
   const date = todayStr();

@@ -10,17 +10,17 @@ import { cn, fmtTime } from "@/lib/utils";
 import { cancelAppointment, nextBooking, queueInfo, rescheduleAppointment, uploadCallRecording, useStore, type Appointment, type Role } from "@/lib/store";
 
 /** Date strip + auto-generated slots. Only available slots are selectable. */
-export function BookingDatePicker({ doctorId, date, onDate, excludeId }: { doctorId: string; date: string; onDate: (d: string) => void; excludeId?: string }) {
+export function BookingDatePicker({ doctorId, date, onDate, excludeId, clinicId }: { doctorId: string; date: string; onDate: (d: string) => void; excludeId?: string; clinicId?: string }) {
   const days = Array.from({ length: 14 }, (_, i) => format(addDays(new Date(), i), "yyyy-MM-dd"));
   const state = useStore((s) => s);
   const s = excludeId ? { ...state, appointments: state.appointments.filter((a) => a.id !== excludeId) } : state;
-  const allocation = nextBooking(doctorId, date, s);
+  const allocation = nextBooking(doctorId, date, s, clinicId);
   return (
     <div>
       <div className="flex gap-2 overflow-x-auto pb-2">
         {days.map((d) => {
           const dt = parse(d, "yyyy-MM-dd", new Date());
-          const has = !!nextBooking(doctorId, d, s);
+          const has = !!nextBooking(doctorId, d, s, clinicId);
           return (
             <Button key={d} type="button" variant="outline" disabled={!has} onClick={() => onDate(d)}
               className={cn("flex h-auto w-16 shrink-0 flex-col items-center rounded-lg border px-2 py-2 text-sm transition", d === date ? "border-primary bg-primary text-primary-foreground" : "bg-card hover:border-primary", !has && "cursor-not-allowed opacity-40")}>
@@ -42,7 +42,7 @@ export function RescheduleDialog({ appt, onDone, trigger }: { appt: Appointment;
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState(appt.date);
   const [busy, setBusy] = useState(false);
-  const available = useStore((s) => !!nextBooking(appt.doctorId, date, { ...s, appointments: s.appointments.filter((a) => a.id !== appt.id) }));
+  const available = useStore((s) => !!nextBooking(appt.doctorId, date, { ...s, appointments: s.appointments.filter((a) => a.id !== appt.id) }, appt.clinicId));
   const confirm = async () => {
     setBusy(true);
     try {
@@ -57,7 +57,7 @@ export function RescheduleDialog({ appt, onDone, trigger }: { appt: Appointment;
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent className="max-w-2xl">
         <DialogHeader><DialogTitle>Reschedule {appt.id}</DialogTitle><DialogDescription>Current appointment: {appt.date} at {fmtTime(appt.time)}.</DialogDescription></DialogHeader>
-        <BookingDatePicker doctorId={appt.doctorId} date={date} onDate={setDate} excludeId={appt.id} />
+        <BookingDatePicker doctorId={appt.doctorId} date={date} onDate={setDate} excludeId={appt.id} clinicId={appt.clinicId} />
         <DialogFooter><Button disabled={!available || busy} onClick={confirm}>{busy ? "Saving…" : "Confirm new date"}</Button></DialogFooter>
       </DialogContent>
     </Dialog>

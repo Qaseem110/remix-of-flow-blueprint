@@ -87,7 +87,7 @@ function Console() {
           {a.type === "online" && !done && <VideoRoom roomId={a.id} selfName={user.name} otherName={a.memberName ?? patient.name} onLeave={() => navigate({ to: "/doctor" })} />}
           <section className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
             <h2 className="text-lg font-semibold">Consultation record</h2>
-            {!done && <ConsultationTemplates onApply={(notes) => upd({ privateNotes: [c.privateNotes, notes].filter(Boolean).join("\n") })} />}
+            {!done && <ConsultationTemplates onApply={(patch) => upd({ ...patch, prescription: [...c.prescription, ...(patch.prescription ?? [])] })} />}
             <div><Label>Symptoms / chief complaint</Label><Textarea disabled={done} value={c.symptoms} onChange={(e) => upd({ symptoms: e.target.value })} /></div>
             <div><Label>Diagnosis</Label><Input disabled={done} value={c.diagnosis} onChange={(e) => upd({ diagnosis: e.target.value })} /></div>
             <div><Label>Clinical / consultation notes <span className="text-xs text-warning-foreground">(private — doctors only)</span></Label><Textarea disabled={done} rows={3} value={c.privateNotes} onChange={(e) => upd({ privateNotes: e.target.value })} className="bg-warning/10" /></div>

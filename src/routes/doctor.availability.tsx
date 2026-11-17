@@ -1,3 +1,4 @@
+import { ClinicSelect } from "@/components/app/ClinicSelect";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -10,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PageHeader } from "@/components/app/common";
 import { BlockSlots } from "@/components/app/BlockSlots";
 import { ShiftEditor } from "@/components/app/ShiftEditor";
-import { persistAvailability, scheduleShifts, weekdayShifts, todayStr, updateDoctorProfile, useSession, useStore, type Availability as Schedule, type Shift } from "@/lib/store";
+import { clinicAvailability, persistAvailability, scheduleShifts, weekdayShifts, todayStr, updateDoctorProfile, useSession, useStore, type Availability as Schedule, type Shift } from "@/lib/store";
 import { meta } from "@/lib/meta";
 
 export const Route = createFileRoute("/doctor/availability")({
@@ -72,10 +73,11 @@ function ScheduleForm({ av }: { av: Schedule }) {
   );
 }
 function Availability() {
+  const [clinicId, setClinicId] = useState("");
   const user = useSession();
-  const av = useStore((s) => s.availability.find((a) => a.doctorId === user?.id));
+  const av = useStore((s) => clinicAvailability(user?.id ?? "", clinicId || undefined, s));
   if (!user) return null;
   // Doctors without a saved schedule start from a default weekday schedule instead of a blank page.
-  const schedule: Schedule = av ?? { doctorId: user.id, days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", duration: 30 };
-  return <ScheduleForm key={`${schedule.doctorId}-${av ? "saved" : "new"}`} av={schedule} />;
+  const schedule: Schedule = av ?? { doctorId: user.id, clinicId: clinicId || undefined, days: [1, 2, 3, 4, 5], start: "09:00", end: "17:00", duration: 30 };
+  return <><div className="mx-auto max-w-5xl"><ClinicSelect doctorId={user.id} value={clinicId} onChange={setClinicId} /></div><ScheduleForm key={`${schedule.doctorId}-${clinicId}`} av={schedule} /></>;
 }

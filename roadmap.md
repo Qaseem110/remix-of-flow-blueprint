@@ -1,4 +1,8 @@
 # Platform expansion (excluding payments and WhatsApp)
+- [ ] Clinic-specific availability, booking selection and independent queues with existing queue rules.
+- [ ] Support-only complaints; remove waitlist; structured consultation templates and clear referral/reservation actions.
+- [ ] Direct saved-provider profiles; prescription gate only on lab booking; unified detailed lab catalogue.
+- [ ] Recurring home collection days/areas/hours and rider fees; mandatory pharmacy certificate upload.
 - [x] Keep consultation audio for one calendar month with signed admin downloads; expiry policies and daily authenticated cleanup configured. Expiry tests passed; real audio download/cleanup remains unverified.
 - [x] Use manual clinician review only; no automatic interaction claims or critical-result thresholds because user has no approved medical source.
 - [x] Patient medical safety profile, emergency details, timeline, favorites, follow-ups and waitlist.

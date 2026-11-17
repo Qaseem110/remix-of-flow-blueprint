@@ -1,6 +1,6 @@
 import { LabServices } from "@/components/app/LabServices";
 import { ProviderActions } from "@/components/app/ProviderActions";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { MapPin, Phone } from "lucide-react";
@@ -17,11 +17,13 @@ import { meta } from "@/lib/meta";
 import { fmtPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/labs")({
+  validateSearch: (s: Record<string, unknown>) => ({ lab: typeof s.lab === "string" ? s.lab : undefined, book: s.book === true }),
   head: () => meta("Lab tests", "Find a laboratory and book prescribed tests."),
   component: PatientLabs,
 });
 
 function PatientLabs() {
+  const search = Route.useSearch();
   const user = useSession();
   const s = useStore((x) => x);
   const member = useActiveMember();
@@ -29,8 +31,8 @@ function PatientLabs() {
   const orders = s.labOrders.filter((o) => o.patientId === user?.id && mine(o.appointmentId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const rx = prescribedConsultations(user?.id ?? "", s).filter((c) => mine(c.appointmentId));
   const [q, setQ] = useState("");
-  const labs = s.labs.filter((l) => !q || `${l.labName} ${l.city} ${l.tests ?? ""}`.toLowerCase().includes(q.toLowerCase()));
-  const [pick, setPick] = useState<Lab | null>(null);
+  const labs = s.labs.filter((l) => (!search.lab || l.userId === search.lab) && (!q || `${l.labName} ${l.city} ${l.tests ?? ""}`.toLowerCase().includes(q.toLowerCase())));
+  const [pick, setPick] = useState<Lab | null>(() => search.book ? s.labs.find(l=>l.userId===search.lab) ?? null : null);
   const [appt, setAppt] = useState("");
   const [tests, setTests] = useState("");
   const [date, setDate] = useState("");
@@ -69,7 +71,7 @@ function PatientLabs() {
         <div className="grid gap-3 sm:grid-cols-2">
           {labs.map((l) => (
             <article key={l.userId} className="rounded-2xl border bg-card p-5 shadow-soft">
-              <p className="font-semibold">{l.labName}</p><ProviderActions providerId={l.userId} name={l.labName} />
+              <Link className="font-semibold text-primary underline" to="/patient/laboratories/$id" params={{id:l.userId}}>{l.labName}</Link><ProviderActions providerId={l.userId} name={l.labName} />
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}

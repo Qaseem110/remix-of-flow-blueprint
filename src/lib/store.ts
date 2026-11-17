@@ -1,3 +1,4 @@
+import { sameClinic, clinicKey } from "./clinic";
 import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
 import { validateLabTests, type LabTest } from "./lab-tests";
 import { labSlots, validateLabSchedule, type LabSchedule } from "./lab-schedule";
@@ -205,6 +206,8 @@ export interface FamilyMember {
 
 export interface Availability {
   doctorId: string;
+  clinicId?: string;
+  clinics?: Record<string, Availability>;
   days: number[]; // 0=Sun..6=Sat
   start: string; // HH:mm
   end: string;
@@ -237,6 +240,9 @@ export interface DocFile {
 
 export interface Appointment {
   id: string;
+  clinicId?: string;
+  clinicName?: string;
+  clinicAddress?: string;
   trackingNumber?: string;
   doctorId: string;
   patientId: string;
@@ -610,14 +616,14 @@ function notifyWalkIn(patientId: string, title: string, body: string) {
 }
 
 /** Reception books for someone without an app account; they are queued like everyone else. */
-export async function bookWalkIn(input: { doctorId: string; date: string; reason: string; type: ConsultType; name: string; phone: string; age?: number; gender?: string }) {
+export async function bookWalkIn(input: { clinicId?: string; clinicName?: string; clinicAddress?: string; doctorId: string; date: string; reason: string; type: ConsultType; name: string; phone: string; age?: number; gender?: string }) {
   const me = state.sessionUserId;
   const rec = state.receptionists.find((r) => r.id === me);
   if (!rec || rec.doctorId !== input.doctorId || !rec.permissions.book) throw new Error("You are not allowed to book for this doctor");
   const name = input.name.trim(), phone = input.phone.replace(/[^\d+]/g, "");
   if (name.length < 2) throw new Error("Enter the patient's name");
   if (phone.replace(/\D/g, "").length < 10) throw new Error("Enter a valid mobile number");
-  return bookAppointment({ doctorId: input.doctorId, patientId: `walkin-${crypto.randomUUID()}`, type: input.type, date: input.date, reason: input.reason.trim() || "Walk-in", documents: [], memberName: name, walkIn: { name, phone, age: input.age, gender: input.gender }, bookedBy: me ?? undefined });
+  return bookAppointment({ clinicId: input.clinicId, clinicName: input.clinicName, clinicAddress: input.clinicAddress, doctorId: input.doctorId, patientId: `walkin-${crypto.randomUUID()}`, type: input.type, date: input.date, reason: input.reason.trim() || "Walk-in", documents: [], memberName: name, walkIn: { name, phone, age: input.age, gender: input.gender }, bookedBy: me ?? undefined });
 }
 
 /** Doctor changes what a reception account may do. */
@@ -649,6 +655,24 @@ export function slotDateTime(a: { date: string; time: string }) {
 
 const BLOCKING: AppointmentStatus[] = ["Cancelled", "Rescheduled", "No Show"];
 
+export function clinicAvailability(doctorId: string, clinicId?: string, s: State = state): Availability | undefined {
+  const av = s.availability.find(a => a.doctorId === doctorId);
+  return clinicId ? av?.clinics?.[clinicId] : av;
+}
+export async function uploadCredential(file: File): Promise<string> {
+  const me = state.sessionUserId;
+  if (!me) throw new Error('Sign in first');
+  if (!['application/pdf','image/jpeg','image/png'].includes(file.type) || file.size > 10485760) throw new Error('Choose a PDF, JPG or PNG up to 10 MB');
+  const path = `credentials/${me}/${crypto.randomUUID()}`;
+  if (SB) { const { supabase } = await import('./supabase'); const { error } = await supabase.storage.from('documents').upload(path, file); if (error) throw new Error(error.message); }
+  return path;
+}
+export async function credentialUrl(path: string) {
+  const { supabase } = await import('./supabase');
+  const { data, error } = await supabase.storage.from('documents').createSignedUrl(path, 300);
+  if (error) throw new Error(error.message); return data.signedUrl;
+}
+
 export function dailyCapacity(av: Availability, date?: string): number {
   if (date) return scheduleShifts(av, date).reduce((sum, shift) => sum + shift.capacity, 0);
   if (av.weeklyShifts) return Math.max(0, ...Object.values(av.weeklyShifts).map((shifts) => shifts.reduce((sum, shift) => sum + shift.capacity, 0)));
@@ -657,13 +681,13 @@ export function dailyCapacity(av: Availability, date?: string): number {
 }
 
 /** Auto-generated slots for a doctor on a date, booked ones excluded. */
-export function getSlots(doctorId: string, date: string, s: State = state): { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] {
-  const av = s.availability.find((a) => a.doctorId === doctorId);
+export function getSlots(doctorId: string, date: string, s: State = state, clinicId?: string): { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] {
+  const av = clinicAvailability(doctorId, clinicId, s);
   if (!av) return [];
   const shifts = scheduleShifts(av, date);
   const dayOff = av.blockedDays?.includes(date) ?? false;
   const capacity = dailyCapacity(av, date);
-  const bookedToday = s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !["Cancelled", "Rescheduled"].includes(a.status));
+  const bookedToday = s.appointments.filter((a) => a.doctorId === doctorId && sameClinic(a, { clinicId }) && a.date === date && !BLOCKING.includes(a.status));
   const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
   const takenCount = new Map<string, number>();
   for (const a of bookedToday.filter((x) => !BLOCKING.includes(x.status))) takenCount.set(a.time, (takenCount.get(a.time) ?? 0) + 1);
@@ -686,15 +710,15 @@ export function getSlots(doctorId: string, date: string, s: State = state): { ti
   return out;
 }
 
-export function nextBooking(doctorId: string, date: string, s: State = state) {
-  const slot = getSlots(doctorId, date, s).find((x) => x.available);
-  return slot ? { time: slot.time, queueNumber: nextQueueNumber(doctorId, date, s) } : null;
+export function nextBooking(doctorId: string, date: string, s: State = state, clinicId?: string) {
+  const slot = getSlots(doctorId, date, s, clinicId).find((x) => x.available);
+  return slot ? { time: slot.time, queueNumber: nextQueueNumber(doctorId, date, s, clinicId) } : null;
 }
 
-export function nextAvailableDate(doctorId: string): string | null {
+export function nextAvailableDate(doctorId: string, clinicId?: string): string | null {
   for (let i = 0; i < 30; i++) {
     const d = format(addDays(new Date(), i), "yyyy-MM-dd");
-    if (getSlots(doctorId, d).some((x) => x.available)) return d;
+    if (getSlots(doctorId, d, state, clinicId).some((x) => x.available)) return d;
   }
   return null;
 }
@@ -710,8 +734,8 @@ export function visibleDoctors(s: State = state) {
 // ---------- Queue ----------
 const FINISHED: AppointmentStatus[] = ["Completed", "Cancelled", "No Show", "Rescheduled", "Expired"];
 
-export function dayAppointments(doctorId: string, date: string, s: State = state) {
-  return s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && a.status !== "Rescheduled" && a.status !== "Cancelled").sort((a, b) => a.time.localeCompare(b.time));
+export function dayAppointments(doctorId: string, date: string, s: State = state, clinicId?: string) {
+  return s.appointments.filter((a) => a.doctorId === doctorId && sameClinic(a, { clinicId }) && a.date === date && a.status !== "Rescheduled" && a.status !== "Cancelled").sort((a, b) => a.time.localeCompare(b.time));
 }
 
 /** In the active queue: online confirmed/waiting/ready, clinic only once checked in. */
@@ -731,7 +755,7 @@ export function waitingQueue(day: Appointment[]) {
 export function queueInfo(appointmentId: string, s: State = state) {
   const a = s.appointments.find((x) => x.id === appointmentId);
   if (!a) return null;
-  const day = dayAppointments(a.doctorId, a.date, s);
+  const day = dayAppointments(a.doctorId, a.date, s, a.clinicId);
   const current = day.find((x) => x.status === "In Consultation" || x.status === "Ready to Join");
   const active = waitingQueue(day);
   const ahead = active.filter((x) => queueKey(x) < queueKey(a)).length;
@@ -746,8 +770,8 @@ export function queueInfo(appointmentId: string, s: State = state) {
   };
 }
 
-function nextQueueNumber(doctorId: string, date: string, s: State) {
-  return s.appointments.filter((a) => a.doctorId === doctorId && a.date === date && !BLOCKING.includes(a.status)).reduce((m, a) => Math.max(m, a.queueNumber), 0) + 1;
+function nextQueueNumber(doctorId: string, date: string, s: State, clinicId?: string) {
+  return s.appointments.filter((a) => a.doctorId === doctorId && sameClinic(a, { clinicId }) && a.date === date && !BLOCKING.includes(a.status)).reduce((m, a) => Math.max(m, a.queueNumber), 0) + 1;
 }
 
 function patchAppt(id: string, p: Partial<Appointment>) {
@@ -759,7 +783,7 @@ export function minutesUntilTurn(id: string, s: State = state) {
   const a = s.appointments.find((x) => x.id === id);
   const q = queueInfo(id, s);
   if (!a || !q) return null;
-  const per = s.availability.find((v) => v.doctorId === a.doctorId)?.consultMinutes ?? 15;
+  const per = clinicAvailability(a.doctorId, a.clinicId, s)?.consultMinutes ?? 15;
   const byQueue = q.ahead * per;
   const byTime = (slotDateTime(a).getTime() - Date.now()) / 60000;
   return Math.max(0, Math.round(Math.max(byQueue, byTime)));
@@ -779,28 +803,28 @@ export function checkLeaveAlert(id: string, pos: { lat: number; lng: number }) {
   return { km, travel, left, sent: true };
 }
 
-const waitingToday = (doctorId: string) => dayAppointments(doctorId, todayStr()).filter((a) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(a.status));
+const waitingToday = (doctorId: string, clinicId?: string) => dayAppointments(doctorId, todayStr(), state, clinicId).filter((a) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(a.status));
 /** Doctor pauses the queue (emergency break); waiting patients are told. */
-export async function startBreak(doctorId: string) {
-  const av = state.availability.find((a) => a.doctorId === doctorId);
+export async function startBreak(doctorId: string, clinicId?: string) {
+  const av = clinicAvailability(doctorId,clinicId);
   if (!av || av.breakStartedAt) return;
   await persistAvailability({ ...av, breakStartedAt: now() });
   const doc = userById(doctorId)?.name ?? "The doctor";
-  for (const a of waitingToday(doctorId)) notify(a.patientId, "Emergency break — queue paused", `${doc} is on an emergency break. Your queue (#${a.queueNumber}) is paused; we'll send your updated time when it resumes.`, `/patient/appointments/${a.id}`);
+  for (const a of waitingToday(doctorId,clinicId)) notify(a.patientId, "Emergency break — queue paused", `${doc} is on an emergency break. Your queue (#${a.queueNumber}) is paused; we'll send your updated time when it resumes.`, `/patient/appointments/${a.id}`);
 }
 /** Doctor resumes: today's waiting times move later by the break length and patients get their new time. */
-export async function endBreak(doctorId: string) {
-  const av = state.availability.find((a) => a.doctorId === doctorId);
+export async function endBreak(doctorId: string, clinicId?: string) {
+  const av = clinicAvailability(doctorId,clinicId);
   if (!av?.breakStartedAt) return 0;
   const minutes = Math.max(0, Math.round((Date.now() - new Date(av.breakStartedAt).getTime()) / 60000));
   const { breakStartedAt: _, ...rest } = av;
   if (minutes > 0) {
     if (SB) {
       const { supabase } = await import("./supabase");
-      const { error } = await supabase.rpc("shift_queue_times", { _doctor: doctorId, _date: todayStr(), _minutes: minutes });
+      const { error } = await supabase.rpc("shift_clinic_queue_times", { _clinic: clinicId ?? "", _doctor: doctorId, _date: todayStr(), _minutes: minutes });
       if (error) throw new Error(error.message);
     } else {
-      const ids = new Set(waitingToday(doctorId).map((a) => a.id));
+      const ids = new Set(waitingToday(doctorId,clinicId).map((a) => a.id));
       const shift = (t: string) => { const m = Math.min(23 * 60 + 59, Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)) + minutes); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
       const prev = hydrating; hydrating = true;
       set((s) => ({ ...s, appointments: s.appointments.map((a) => (ids.has(a.id) ? { ...a, time: shift(a.time) } : a)) }));
@@ -809,7 +833,7 @@ export async function endBreak(doctorId: string) {
   }
   await persistAvailability(rest as Availability);
   const doc = userById(doctorId)?.name ?? "The doctor";
-  for (const a of waitingToday(doctorId)) notify(a.patientId, "Queue resumed — updated time", `${doc} is back. Queue #${a.queueNumber} — your updated time is ${fmtTime(a.time)}${minutes ? ` (moved ${minutes} min later)` : ""}.`, `/patient/appointments/${a.id}`);
+  for (const a of waitingToday(doctorId,clinicId)) notify(a.patientId, "Queue resumed — updated time", `${doc} is back. Queue #${a.queueNumber} — your updated time is ${fmtTime(a.time)}${minutes ? ` (moved ${minutes} min later)` : ""}.`, `/patient/appointments/${a.id}`);
   return minutes;
 }
 
@@ -1154,7 +1178,7 @@ export function saveAvailability(av: Availability) {
   if (av.patientsPerSlot !== undefined && (!Number.isInteger(av.patientsPerSlot) || av.patientsPerSlot < 1 || av.patientsPerSlot > 50)) throw new Error("Patients at the same time must be between 1 and 50");
   set((s) => {
     const old = s.availability.find((a) => a.doctorId === av.doctorId);
-    const next = { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
+    const next = av.clinicId && old ? { ...old, clinics: { ...old.clinics, [av.clinicId]: av } } : { blocked: old?.blocked ?? [], blockedDays: old?.blockedDays ?? [], ...av };
     return { ...s, availability: [...s.availability.filter((a) => a.doctorId !== av.doctorId), next] };
   });
 }
@@ -1165,7 +1189,7 @@ export async function persistAvailability(av: Availability) {
   if (av.patientsPerSlot !== undefined && (!Number.isInteger(av.patientsPerSlot) || av.patientsPerSlot < 1 || av.patientsPerSlot > 50)) throw new Error("Patients at the same time must be between 1 and 50");
   if (SB) {
     const { supabase } = await import("./supabase");
-    const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av });
+    const { error } = await supabase.from("availability").upsert({ id: av.doctorId, data: av.clinicId ? { ...state.availability.find(a => a.doctorId === av.doctorId), clinics: { ...state.availability.find(a => a.doctorId === av.doctorId)?.clinics, [av.clinicId]: av } } : av });
     if (error) throw new Error(error.message);
   }
   const previous = hydrating;
@@ -1251,12 +1275,12 @@ export function deleteDocument(docId: string) {
 }
 
 // ---------- Appointments ----------
-export async function bookAppointment(input: { memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number; walkIn?: Appointment["walkIn"]; bookedBy?: string }): Promise<Appointment> {
+export async function bookAppointment(input: { clinicId?: string; clinicName?: string; clinicAddress?: string; memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number; walkIn?: Appointment["walkIn"]; bookedBy?: string }): Promise<Appointment> {
   const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
-  const slot = nextBooking(input.doctorId, input.date, previewState);
+  const slot = nextBooking(input.doctorId, input.date, previewState, input.clinicId);
   if (!slot) throw new Error("No places available on this day. Choose another date.");
   const id = numericTrackingNumber();
-  let a: Appointment = { ...input, time: slot.time, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state), createdAt: now() };
+  let a: Appointment = { ...input, time: slot.time, payment: input.payment ?? "cash", id, status: "Confirmed", queueNumber: nextQueueNumber(input.doctorId, input.date, state, input.clinicId), createdAt: now() };
   if (SB) {
     const { supabase } = await import("./supabase");
     const table = TABLES.find((t) => t.key === "appointments");
@@ -1286,7 +1310,7 @@ export async function bookAppointment(input: { memberId?: string; memberName?: s
 /** Later waiting patients move up one place, taking the previous number and time (mirrors the database). */
 function closeQueueGap(a: Appointment) {
   if (SB) return; // the database does this and pushes the new numbers back
-  const later = state.appointments.filter((x) => x.doctorId === a.doctorId && x.date === a.date && x.id !== a.id && ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status) && x.queueNumber > a.queueNumber).sort((x, y) => x.queueNumber - y.queueNumber);
+  const later = state.appointments.filter((x) => x.doctorId === a.doctorId && sameClinic(x, a) && x.date === a.date && x.id !== a.id && ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status) && x.queueNumber > a.queueNumber).sort((x, y) => x.queueNumber - y.queueNumber);
   let q = a.queueNumber, t = a.time;
   const moves = new Map<string, { queueNumber: number; time: string }>();
   for (const x of later) { moves.set(x.id, { queueNumber: q, time: t }); q = x.queueNumber; t = x.time; }
@@ -1341,7 +1365,7 @@ export async function receptionAttendance(id: string, arrived: boolean) {
 export async function rescheduleAppointment(id: string, date: string): Promise<Appointment> {
   const old = state.appointments.find((x) => x.id === id);
   if (!old) throw new Error("Appointment not found");
-  const fresh = await bookAppointment({ doctorId: old.doctorId, patientId: old.patientId, memberId: old.memberId, memberName: old.memberName, type: old.type, date, reason: old.reason, documents: old.documents, followUpOf: old.followUpOf, payment: old.payment, rescheduledFrom: id });
+  const fresh = await bookAppointment({ clinicId: old.clinicId, clinicName: old.clinicName, clinicAddress: old.clinicAddress, doctorId: old.doctorId, patientId: old.patientId, memberId: old.memberId, memberName: old.memberName, type: old.type, date, reason: old.reason, documents: old.documents, followUpOf: old.followUpOf, payment: old.payment, rescheduledFrom: id });
   const msg = `${trackingNumber(old)} moved to ${date} at ${fmtTime(fresh.time)} (Queue #${fresh.queueNumber}).`;
   notify(old.patientId, "Appointment rescheduled", msg, `/patient/appointments/${fresh.id}`);
   notify(old.doctorId, "Appointment rescheduled", msg, `/doctor/appointments`);
@@ -1425,10 +1449,11 @@ function keyAt(list: Appointment[], position: number) {
 }
 
 /** A returning patient gets a fresh number; the active queue is renumbered in order (mirrors the database). */
-function renumberAfterReturn(doctorId: string, date: string, returnedId: string) {
-  const day = state.appointments.filter((x) => x.doctorId === doctorId && x.date === date);
+function renumberAfterReturn(doctorId: string, date: string, returnedId: string, clinicId?: string) {
+  const day = state.appointments.filter((x) => x.doctorId === doctorId && sameClinic(x, { clinicId }) && x.date === date);
   const active = day.filter((x) => ["Confirmed", "Pending", "Waiting", "Checked-In"].includes(x.status)).sort((x, y) => queueKey(x) - queueKey(y));
-  const returned = active.find((x) => x.id === returnedId)!;
+  const returned = active.find((x) => x.id === returnedId);
+  if (!returned) return;
   const others = active.filter((x) => x !== returned);
   const nums = [...others.map((x) => x.queueNumber).sort((p, q) => p - q), Math.max(0, ...day.map((x) => x.queueNumber)) + 1];
   const times = others.map((x) => x.time).sort();
@@ -1443,9 +1468,9 @@ function renumberAfterReturn(doctorId: string, date: string, returnedId: string)
 export function returnToQueue(id: string, position: number) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a || a.status !== "No Show") return;
-  const list = waitingQueue(dayAppointments(a.doctorId, a.date)).filter((x) => x.id !== id);
+  const list = waitingQueue(dayAppointments(a.doctorId, a.date, state, a.clinicId)).filter((x) => x.id !== id);
   patchAppt(id, { status: "Waiting", queueOrder: keyAt(list, position) });
-  if (!SB) renumberAfterReturn(a.doctorId, a.date, id);
+  if (!SB) renumberAfterReturn(a.doctorId, a.date, id, a.clinicId);
   const ahead = Math.max(0, Math.min(position, list.length));
   notify(a.patientId, "You're back in the queue", ahead === 0 ? "You are next in line." : `${ahead} patient${ahead > 1 ? "s" : ""} ahead of you.`, `/patient/appointments/${id}`);
 }
@@ -1454,7 +1479,7 @@ export function returnToQueue(id: string, position: number) {
 export function moveInQueue(id: string, dir: -1 | 1) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a) return;
-  const list = waitingQueue(dayAppointments(a.doctorId, a.date));
+  const list = waitingQueue(dayAppointments(a.doctorId, a.date, state, a.clinicId));
   const i = list.findIndex((x) => x.id === id);
   const j = i + dir;
   if (i < 0 || j < 0 || j >= list.length) return;
@@ -1759,7 +1784,10 @@ export async function loadCareItems(): Promise<import('./care').CareItem[]> {
 }
 let offlineCare: import('./care').CareItem[] = [];
 export async function saveCareItem(kind: import('./care').CareKind, data: import('./care').CareItem['data'], recipientId?: string, id?: string) {
-  const { validateCare } = await import('./care'); validateCare(kind, data);
+  const { validateCare } = await import('./care');
+  if (kind === 'complaint') recipientId = undefined;
+  if (kind === 'credential' && userById(state.sessionUserId ?? '')?.role === 'pharmacy' && !data.documentPath) throw new Error('Certificate document is required');
+  validateCare(kind, data);
   const me = state.sessionUserId; if (!me) throw new Error('Sign in first');
   const old = id ? (await loadCareItems()).find((x) => x.id === id) : undefined;
   const item: import('./care').CareItem = { id: id ?? crypto.randomUUID(), ownerId: old?.ownerId ?? me, recipientId: old?.recipientId ?? recipientId, kind, data, createdAt: old?.createdAt ?? now() };

@@ -1,3 +1,5 @@
+import { ClinicSelect } from "@/components/app/ClinicSelect";
+import type { CareItem } from "@/lib/care";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -35,10 +37,12 @@ function Book() {
   const u = useStore((s) => s.users.find((x) => x.id === doctorId));
   const d = useStore((s) => s.doctors.find((x) => x.userId === doctorId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
+  const [clinicId, setClinicId] = useState("");
+  const [branch, setBranch] = useState<CareItem>();
   const [step, setStep] = useState(0);
   const [type, setType] = useState<ConsultType | null>(null);
   const [date, setDate] = useState(search.date ?? nextAvailableDate(doctorId) ?? todayStr());
-  const allocation = useStore((s) => nextBooking(doctorId, date, s));
+  const allocation = useStore((s) => nextBooking(doctorId, date, s, type === "clinic" ? clinicId || undefined : undefined));
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState(search.followUpOf ? `Follow-up for ${search.followUpOf}` : "");
   const [docs, setDocs] = useState<DocFile[]>([]);
@@ -71,7 +75,7 @@ function Book() {
       } else if (forWho !== "main") {
         const m = members.find((x) => x.id === forWho); memberId = m?.id; memberName = m?.name;
       }
-      const a = await bookAppointment({ memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment, patientLat: type === "clinic" ? loc?.lat : undefined, patientLng: type === "clinic" ? loc?.lng : undefined });
+      const a = await bookAppointment({ clinicId: type === "clinic" ? clinicId || undefined : undefined, clinicName: branch ? String(branch.data.title) : d.clinicName, clinicAddress: branch ? String(branch.data.details) : d.clinicAddress, memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment, patientLat: type === "clinic" ? loc?.lat : undefined, patientLng: type === "clinic" ? loc?.lng : undefined });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
     } catch (err) { toast.error((err as Error).message); setStep(1); } finally { setBusy(false); }
   };
@@ -103,7 +107,7 @@ function Book() {
             ))}
           </div>
         )}
-        {step === 1 && <BookingDatePicker doctorId={doctorId} date={date} onDate={setDate} />}
+        {step === 1 && <>{type === "clinic" && <ClinicSelect doctorId={doctorId} value={clinicId} onChange={(id,b) => { setClinicId(id); setBranch(b); setDate(nextAvailableDate(doctorId,id || undefined) ?? todayStr()); }} />}<BookingDatePicker doctorId={doctorId} date={date} onDate={setDate} clinicId={type === "clinic" ? clinicId || undefined : undefined} /></>}
         {step === 2 && (
           <div className="space-y-4">
             <div>
@@ -135,7 +139,7 @@ function Book() {
         {step === 3 && (
           <>
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
-            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Queue number", allocation ? `#${allocation.queueNumber}` : "Full"], ["Estimated time", allocation ? fmtTime(allocation.time) : "Unavailable"], ["Location", type === "online" ? "Video link available in app" : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", fmtPrice(d.fee)], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
+            {[["Patient", forWho === "main" ? user.name : forWho === "new" ? newName : members.find((m) => m.id === forWho)?.name ?? ""], ["Doctor", u.name], ["Type", type === "online" ? "Online Consultation" : "In-Clinic Consultation"], ["Date", date], ["Queue number", allocation ? `#${allocation.queueNumber}` : "Full"], ["Estimated time", allocation ? fmtTime(allocation.time) : "Unavailable"], ["Location", type === "online" ? "Video link available in app" : branch ? `${branch.data.title}, ${branch.data.details}` : `${d.clinicName}, ${d.clinicAddress}`], ["Fee", fmtPrice(d.fee)], ["Reason", reason], ["Documents", `${docs.length} file(s)`]].map(([k, v]) => (
               <div key={k} className="rounded-lg bg-muted p-3"><dt className="text-xs text-muted-foreground">{k}</dt><dd className="font-medium">{v}</dd></div>
             ))}
           </dl>
