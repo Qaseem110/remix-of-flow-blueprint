@@ -1,3 +1,15 @@
+# Platform expansion (excluding payments and WhatsApp)
+- [ ] Patient medical safety profile, emergency details, timeline, favorites, follow-ups and waitlist.
+- [ ] Doctor templates, referrals, clinic branches, safety flags and staff activity history.
+- [ ] Lab sample stages, home collection, packages, reviewed/versioned reports and critical-result acknowledgment.
+- [ ] Pharmacy quantities/expiry/low-stock, freshness, reservations and prescription verification.
+- [ ] Admin provider credential review/renewal, complaints, privacy/consents, family sharing, MFA and operational statistics.
+- [ ] Urdu/accessibility preferences and notification status.
+- [ ] Background device reminders — requires web push connection and device permission.
+- [ ] Full backup/recovery verification — requires storage export destination and isolated restore target; Cloud database snapshots do not cover files.
+- [ ] Real two-device consultation/recording verification — requires participating devices and consent.
+- [ ] Online volunteer consultation links.
+
 # Clinic controls and doctor alerts
 - [x] Require laboratory test name, positive PKR price, details and report turnaround; 10 tests passed, signed-in lab save/reload verified at desktop/mobile, QA lab removed.
 - [x] Add permission-checked receptionist arrival/absent actions; both saved after refresh and mobile checked.
