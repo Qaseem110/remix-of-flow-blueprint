@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "@tanstack/react-router";
-import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical } from "lucide-react";
+import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical, HeartHandshake } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -33,6 +33,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/patient/records", label: "Health Records", icon: ClipboardList },
     { to: "/patient/medicines", label: "Find Medicine", icon: Pill },
     { to: "/patient/labs", label: "Lab Tests", icon: FlaskConical },
+    { to: "/patient/free-checkups", label: "Free Checkups", icon: HeartHandshake },
     { to: "/patient/profile", label: "Profile", icon: User },
   ],
   doctor: [
@@ -41,6 +42,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/doctor/availability", label: "Availability", icon: Clock },
     { to: "/doctor/labs", label: "Lab Reports", icon: FlaskConical },
     { to: "/doctor/reception", label: "Reception", icon: Users },
+    { to: "/doctor/volunteer", label: "Volunteer", icon: HeartHandshake },
     { to: "/doctor/profile", label: "Profile", icon: User },
   ],
   receptionist: [

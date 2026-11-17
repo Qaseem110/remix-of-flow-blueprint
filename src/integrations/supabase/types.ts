@@ -483,6 +483,59 @@ export type Database = {
         }
         Relationships: []
       }
+      volunteer_bookings: {
+        Row: {
+          created_at: string
+          data: Json
+          id: string
+          patient_id: string
+          session_id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          id: string
+          patient_id: string
+          session_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          id?: string
+          patient_id?: string
+          session_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "volunteer_bookings_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "volunteer_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      volunteer_sessions: {
+        Row: {
+          created_at: string
+          data: Json
+          doctor_id: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          data?: Json
+          doctor_id: string
+          id: string
+        }
+        Update: {
+          created_at?: string
+          data?: Json
+          doctor_id?: string
+          id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -523,6 +576,7 @@ export type Database = {
         Args: { patient: string; pin: string }
         Returns: boolean
       }
+      volunteer_session_doctor: { Args: { sid: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never

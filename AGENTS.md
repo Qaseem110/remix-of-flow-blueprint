@@ -28,3 +28,4 @@
 - Lab appointments use the shared lab schedule helpers and database-serialized capacity checks; public slot usage exposes counts only, and saved bookings retain their duration when availability changes. Why: patients receive real scheduled times without exposing other patients or overbooking.
 
 - Public tracking numbers use the database sequence; immutable IDs remain for links and files. Past active doctor appointments derive Expired status at hydration using clinic dates, without deleting records. Why: numbering is unique and medical history survives expiration without background jobs.
+- Volunteer free checkups are separate session/booking records (not paid appointments); the database locks the session row to cap spots and assign tokens, and maintains the booked count so patients never read others' bookings. Why: free sessions must not interfere with paid queue allocation.

@@ -38,6 +38,32 @@ export interface Lab {
   schedule?: LabSchedule;
 }
 export type LabOrderStatus = "Requested" | "Sample collected" | "Completed" | "Cancelled" | "Expired";
+export interface VolunteerSession {
+  id: string;
+  doctorId: string;
+  date: string; // yyyy-MM-dd (clinic date)
+  start: string; // HH:mm
+  end: string;
+  mode: "clinic" | "online";
+  location?: string; // address for in-clinic sessions
+  city?: string;
+  capacity: number;
+  focus?: string; // e.g. "Children", "Diabetes screening"
+  notes?: string;
+  status: "Open" | "Cancelled";
+  booked?: number; // maintained by the database
+  createdAt: string;
+}
+export interface VolunteerBooking {
+  id: string;
+  sessionId: string;
+  patientId: string;
+  memberName?: string;
+  reason: string;
+  token?: number;
+  status: "Booked" | "Attended" | "Missed" | "Cancelled";
+  createdAt: string;
+}
 export interface LabOrder {
   id: string;
   trackingNumber?: string;
@@ -279,6 +305,8 @@ interface State {
   labs: Lab[];
   labOrders: LabOrder[];
   labMessages: LabMessage[];
+  volunteerSessions: VolunteerSession[];
+  volunteerBookings: VolunteerBooking[];
   sessionUserId: string | null;
 }
 
@@ -344,7 +372,7 @@ function seed(): State {
     users, doctors, patients, availability, appointments, consultations, notifications,
     settings: { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 },
     reviews: [],
-    pharmacies: [], medicines: [], labs: [], labOrders: [], labMessages: [],
+    pharmacies: [], medicines: [], labs: [], labOrders: [], labMessages: [], volunteerSessions: [], volunteerBookings: [],
     receptionists: [{ id: "u-rec1", doctorId: "u-doc1", name: "Front Desk", email: "desk@sahoolat.test", phone: "03001234567", permissions: { book: true, queue: true, checkIn: true, cancel: false } }],
     sessionUserId: null,
   };
@@ -354,7 +382,7 @@ function seed(): State {
 /** Supabase is used everywhere except unit tests (which run on the seed data). */
 const SB = import.meta.env.MODE !== "test";
 const DEFAULT_SETTINGS: Settings = { doctorVerification: true, checkInMethods: { appointmentId: true, phone: true }, joinWindowMinutes: 10, allowedFileTypes: ["pdf", "jpg", "jpeg", "png"], turnApproachingAhead: 1 };
-const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], labs: [], labOrders: [], labMessages: [], sessionUserId: null });
+const emptyState = (): State => ({ users: [], doctors: [], patients: [], availability: [], appointments: [], consultations: [], notifications: [], settings: DEFAULT_SETTINGS, reviews: [], pharmacies: [], medicines: [], receptionists: [], labs: [], labOrders: [], labMessages: [], volunteerSessions: [], volunteerBookings: [], sessionUserId: null });
 let state: State = SB ? emptyState() : seed();
 let ready = !SB;
 let hydrating = false;
@@ -368,7 +396,7 @@ function set(fn: (s: State) => State) {
 }
 
 // ---------- Supabase sync ----------
-type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines" | "labs" | "labOrders" | "labMessages";
+type TableKey = "users" | "doctors" | "patients" | "availability" | "appointments" | "consultations" | "notifications" | "reviews" | "pharmacies" | "medicines" | "labs" | "labOrders" | "labMessages" | "volunteerSessions" | "volunteerBookings";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: any) => Record<string, unknown>; from: (r: any) => any }[] = [
   { key: "users", table: "profiles", id: (u) => u.id, row: (u) => { const { password: _p, ...d } = u; return { id: u.id, role: u.role, data: d }; }, from: (r) => ({ ...r.data, id: r.id, role: r.role, password: "" }) },
@@ -383,6 +411,8 @@ const TABLES: { key: TableKey; table: string; id: (x: any) => string; row: (x: a
   { key: "labs", table: "labs", id: (l) => l.userId, row: (l) => ({ id: l.userId, data: l }), from: (r) => ({ ...r.data, userId: r.id }) },
   { key: "labOrders", table: "lab_orders", id: (o) => o.id, row: (o) => ({ id: o.id, lab_id: o.labId, patient_id: o.patientId, doctor_id: o.doctorId, appointment_id: o.appointmentId, data: { ...o, documents: stripDocs(o.documents) } }), from: (r) => ({ documents: [], ...r.data, id: r.id, trackingNumber: r.tracking_number, status: appointmentStatus(r.data.date, r.data.status), labId: r.lab_id, patientId: r.patient_id, doctorId: r.doctor_id, appointmentId: r.appointment_id }) },
   { key: "labMessages", table: "lab_messages", id: (m) => m.id, row: (m) => ({ id: m.id, order_id: m.orderId, author_id: m.authorId, data: m }), from: (r) => ({ ...r.data, id: r.id, orderId: r.order_id, authorId: r.author_id }) },
+  { key: "volunteerSessions", table: "volunteer_sessions", id: (v) => v.id, row: (v) => ({ id: v.id, doctor_id: v.doctorId, data: v }), from: (r) => ({ ...r.data, id: r.id, doctorId: r.doctor_id }) },
+  { key: "volunteerBookings", table: "volunteer_bookings", id: (b) => b.id, row: (b) => ({ id: b.id, session_id: b.sessionId, patient_id: b.patientId, data: b }), from: (r) => ({ ...r.data, id: r.id, sessionId: r.session_id, patientId: r.patient_id }) },
   { key: "reviews", table: "reviews", id: (r) => r.id, row: (r) => ({ id: r.id, doctor_id: r.doctorId, patient_id: r.patientId, data: r }), from: (r) => ({ ...r.data, id: r.id }) },
 ];
 /* eslint-enable @typescript-eslint/no-explicit-any */
@@ -1547,4 +1577,89 @@ export async function recordedAppointmentIds(): Promise<Set<string>> {
   const { supabase } = await import("./supabase");
   const { data } = await supabase.from("call_recordings").select("appointment_id");
   return new Set((data ?? []).map((r: { appointment_id: string }) => r.appointment_id));
+}
+
+// ---------- Volunteer (free) checkups ----------
+const volTable = (k: "volunteerSessions" | "volunteerBookings") => TABLES.find((t) => t.key === k)!;
+function commitVol<K extends "volunteerSessions" | "volunteerBookings">(k: K, x: State[K][number]) {
+  hydrating = true;
+  try { set((s) => { const list = s[k] as { id: string }[]; return { ...s, [k]: list.some((y) => y.id === x.id) ? list.map((y) => (y.id === x.id ? x : y)) : [x, ...list] }; }); }
+  finally { hydrating = false; }
+}
+async function readBack<T>(k: "volunteerSessions" | "volunteerBookings", id: string, fallback: T): Promise<T> {
+  if (!SB) return fallback;
+  const { supabase } = await import("./supabase");
+  const { data } = await supabase.from(volTable(k).table).select("*").eq("id", id).maybeSingle();
+  return data ? (volTable(k).from(data) as T) : fallback;
+}
+export function volunteerSpotsLeft(v: VolunteerSession, s: State = state) {
+  const used = SB && v.booked !== undefined ? v.booked : s.volunteerBookings.filter((b) => b.sessionId === v.id && b.status !== "Cancelled").length;
+  return Math.max(0, v.capacity - used);
+}
+export function isVolunteerSessionUpcoming(v: VolunteerSession, today = todayStr()) {
+  return v.status === "Open" && v.date >= today;
+}
+export type VolunteerInput = Omit<VolunteerSession, "id" | "doctorId" | "status" | "booked" | "createdAt">;
+function checkVolunteerInput(i: VolunteerInput) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(i.date) || i.date < todayStr()) throw new Error("Choose today or a future date");
+  if (!i.start || !i.end || i.end <= i.start) throw new Error("End time must be after start time");
+  if (!Number.isInteger(i.capacity) || i.capacity < 1 || i.capacity > 200) throw new Error("Free spots must be between 1 and 200");
+  if (i.mode === "clinic" && !i.location?.trim()) throw new Error("Add the clinic address for in-clinic volunteering");
+}
+export async function saveVolunteerSession(input: VolunteerInput, id?: string) {
+  const me = state.users.find((u) => u.id === state.sessionUserId);
+  if (!me || me.role !== "doctor") throw new Error("Only doctors can volunteer");
+  checkVolunteerInput(input);
+  const old = id ? state.volunteerSessions.find((v) => v.id === id) : undefined;
+  if (id && (!old || old.doctorId !== me.id)) throw new Error("Session not found");
+  const used = old ? old.capacity - volunteerSpotsLeft(old) : 0;
+  if (input.capacity < used) throw new Error(`${used} patients already booked — free spots cannot be lower`);
+  let v: VolunteerSession = { ...(old ?? { id: uid("VS"), doctorId: me.id, status: "Open" as const, createdAt: now() }), ...input, location: input.location?.trim() || undefined, focus: input.focus?.trim() || undefined, notes: input.notes?.trim() || undefined };
+  await writeRow("volunteer_sessions", volTable("volunteerSessions").row(v), !old);
+  v = await readBack("volunteerSessions", v.id, v);
+  commitVol("volunteerSessions", v);
+  if (old) for (const b of state.volunteerBookings.filter((b) => b.sessionId === v.id && b.status === "Booked"))
+    await notifyLabAppointment(b.patientId, "Free checkup updated", `${me.name}: ${v.date}, ${fmtTime(v.start)}–${fmtTime(v.end)} · ${v.mode === "online" ? "Online" : v.location}. Token #${b.token ?? "—"}.`, "/patient/free-checkups");
+  return v;
+}
+export async function cancelVolunteerSession(id: string) {
+  const v = state.volunteerSessions.find((x) => x.id === id);
+  if (!v || v.doctorId !== state.sessionUserId) throw new Error("Session not found");
+  const next = { ...v, status: "Cancelled" as const };
+  await writeRow("volunteer_sessions", volTable("volunteerSessions").row(next), false);
+  commitVol("volunteerSessions", next);
+  for (const b of state.volunteerBookings.filter((b) => b.sessionId === id && b.status === "Booked"))
+    await notifyLabAppointment(b.patientId, "Free checkup cancelled", `The free checkup on ${v.date} at ${fmtTime(v.start)} was cancelled by the doctor.`, "/patient/free-checkups");
+}
+export async function bookVolunteer(sessionId: string, reason: string, memberName?: string) {
+  const me = state.users.find((u) => u.id === state.sessionUserId);
+  if (!me || me.role !== "patient") throw new Error("Sign in as a patient to book a free checkup");
+  const v = state.volunteerSessions.find((x) => x.id === sessionId);
+  if (!v || !isVolunteerSessionUpcoming(v)) throw new Error("This free checkup session is not open");
+  if (!reason.trim()) throw new Error("Tell the doctor the reason for the visit");
+  const mine = state.volunteerBookings.filter((b) => b.sessionId === sessionId && b.status !== "Cancelled");
+  if (mine.some((b) => b.patientId === me.id && (b.memberName ?? "") === (memberName ?? ""))) throw new Error("You already booked this session");
+  if (!SB && volunteerSpotsLeft(v) <= 0) throw new Error("All free spots in this session are taken");
+  let b: VolunteerBooking = { id: uid("VB"), sessionId, patientId: me.id, memberName, reason: reason.trim().slice(0, 500), status: "Booked", createdAt: now() };
+  if (!SB) b.token = Math.max(0, ...state.volunteerBookings.filter((x) => x.sessionId === sessionId).map((x) => x.token ?? 0)) + 1;
+  await writeRow("volunteer_bookings", volTable("volunteerBookings").row(b), true);
+  b = await readBack("volunteerBookings", b.id, b);
+  commitVol("volunteerBookings", b);
+  commitVol("volunteerSessions", await readBack("volunteerSessions", v.id, v));
+  const doc = state.users.find((u) => u.id === v.doctorId);
+  await notifyLabAppointment(me.id, "Free checkup booked", `Token #${b.token} with ${doc?.name ?? "the doctor"} on ${v.date}, ${fmtTime(v.start)} · ${v.mode === "online" ? "Online" : v.location}. Please arrive on time.`, "/patient/free-checkups");
+  await notifyLabAppointment(v.doctorId, "New free checkup booking", `Token #${b.token}: ${memberName ?? me.name} for ${v.date}.`, "/doctor/volunteer");
+  return b;
+}
+export async function setVolunteerBookingStatus(id: string, status: VolunteerBooking["status"]) {
+  const b = state.volunteerBookings.find((x) => x.id === id);
+  if (!b) throw new Error("Booking not found");
+  const v = state.volunteerSessions.find((x) => x.id === b.sessionId);
+  const me = state.sessionUserId;
+  const isDoctor = v?.doctorId === me;
+  if (!isDoctor && !(me === b.patientId && status === "Cancelled")) throw new Error("Not allowed");
+  const next = { ...b, status };
+  await writeRow("volunteer_bookings", volTable("volunteerBookings").row(next), false);
+  commitVol("volunteerBookings", next);
+  if (v) commitVol("volunteerSessions", await readBack("volunteerSessions", v.id, v));
 }
