@@ -1,4 +1,5 @@
 import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
+import { validateLabTests, type LabTest } from "./lab-tests";
 import { labSlots, validateLabSchedule, type LabSchedule } from "./lab-schedule";
 import { dueDoses } from "./medicine-reminders";
 /**
@@ -34,6 +35,7 @@ export interface Lab {
   address: string;
   city: string;
   tests?: string; // tests offered, free text
+  testCatalogue?: LabTest[];
   hours?: string;
   schedule?: LabSchedule;
 }
@@ -922,7 +924,19 @@ export async function registerLab(input: { name: string; email: string; phone: s
   return id;
 }
 export function updateLab(id: string, p: Partial<Lab>) {
+  if (p.testCatalogue) validateLabTests(p.testCatalogue);
   set((s) => ({ ...s, labs: s.labs.map((x) => (x.userId === id ? { ...x, ...p } : x)) }));
+}
+export async function saveLabDetails(id: string, p: Partial<Lab>) {
+  if (state.sessionUserId !== id) throw new Error("Only the laboratory can edit its details");
+  const lab = state.labs.find((l) => l.userId === id);
+  if (!lab) throw new Error("Laboratory not found");
+  if (p.testCatalogue) validateLabTests(p.testCatalogue);
+  const next = { ...lab, ...p };
+  await writeRow("labs", { id, data: next }, false);
+  hydrating = true;
+  try { set((s) => ({ ...s, labs: s.labs.map((l) => l.userId === id ? next : l) })); }
+  finally { hydrating = false; }
 }
 export async function saveLabSchedule(id: string, schedule: LabSchedule) {
   if (state.sessionUserId !== id) throw new Error("Only the laboratory can set its availability");

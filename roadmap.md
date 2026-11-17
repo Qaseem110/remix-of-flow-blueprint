@@ -1,4 +1,5 @@
 # Clinic controls and doctor alerts
+- [x] Require laboratory test name, positive PKR price, details and report turnaround; 10 tests passed, signed-in lab save/reload verified at desktop/mobile, QA lab removed.
 - [x] Add permission-checked receptionist arrival/absent actions; both saved after refresh and mobile checked.
 - [x] Cancel a selected day's remaining appointments atomically with required reason and patient notifications; two saved cancellations and notices verified.
 - [x] Save doctor daily stats time/WhatsApp number and queue daily summaries and discussion alerts; settings saved after refresh, summary deduplication checked.

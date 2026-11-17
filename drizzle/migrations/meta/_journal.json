@@ -176,6 +176,13 @@
       "when": 1794949311206,
       "tag": "0024_clinic_controls_doctor_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794949778241,
+      "tag": "0025_validate_lab_test_details",
+      "breakpoints": true
     }
   ]
 }

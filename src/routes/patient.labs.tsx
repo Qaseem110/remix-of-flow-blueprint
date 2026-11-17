@@ -12,6 +12,7 @@ import { LabDiscussion } from "@/components/app/LabDiscussion";
 import { LabAppointmentTime } from "@/components/app/LabAppointmentTime";
 import { createLabOrder, memberOf, prescribedConsultations, setLabOrderStatus, useActiveMember, useSession, useStore, type Lab } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { fmtPrice } from "@/lib/utils";
 
 export const Route = createFileRoute("/patient/labs")({
   head: () => meta("Lab tests", "Find a laboratory and book prescribed tests."),
@@ -70,6 +71,7 @@ function PatientLabs() {
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
+              {!!l.testCatalogue?.length && <ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}</li>)}</ul>}
               <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button>
             </article>
           ))}
