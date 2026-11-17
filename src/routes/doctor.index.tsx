@@ -1,6 +1,8 @@
 import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { clinicMinutesNow, overdueAbsent } from "@/lib/no-show-grace";
+import { addDays, format, parseISO } from "date-fns";
 import { toast } from "sonner";
 import { AlertTriangle, ArrowDown, ArrowUp, Coffee, PhoneCall, Play, Undo2, UserX } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +22,21 @@ function DoctorDashboard() {
   const user = useSession();
   const navigate = useNavigate();
   const s = useStore((s) => s);
+  const avail = user ? s.availability.find((a) => a.doctorId === user.id) : undefined;
+  const grace = avail?.consultMinutes ?? avail?.duration ?? 15;
+  useEffect(() => {
+    if (!user) return;
+    const tick = () => {
+      if (s.availability.find((a) => a.doctorId === user.id)?.breakStartedAt) return;
+      for (const a of overdueAbsent(dayAppointments(user.id, todayStr(), s), grace, clinicMinutesNow())) {
+        markNoShow(a.id);
+        toast.info(`#${a.queueNumber} did not arrive — queue continued`);
+      }
+    };
+    tick();
+    const t = setInterval(tick, 30000);
+    return () => clearInterval(t);
+  }, [user?.id, grace, s.appointments]);
   if (!user) return null;
   const dp = s.doctors.find((d) => d.userId === user.id);
   if (!dp) return null;
@@ -28,6 +45,8 @@ function DoctorDashboard() {
   const queue = waitingQueue(today);
   const absent = today.filter((a) => a.status === "No Show");
   const awaitingCheckIn = today.filter((a) => a.type === "clinic" && a.status === "Confirmed");
+  const tomorrowDate = format(addDays(parseISO(todayStr()), 1), "yyyy-MM-dd");
+  const tomorrow = dayAppointments(user.id, tomorrowDate, s).filter((a) => a.status !== "Cancelled");
   const name = (id: string, apptId?: string) => s.appointments.find((a) => a.id === apptId)?.memberName ?? s.users.find((u) => u.id === id)?.name ?? "";
   const followUps = s.consultations.filter((c) => c.doctorId === user.id && c.followUpRequired && c.completedAt);
 
@@ -45,11 +64,12 @@ function DoctorDashboard() {
       <PageHeader title="Today" subtitle={new Date().toDateString()} />
       <BreakBar doctorId={user.id} />
       <DailyCapacity doctorId={user.id} />
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-3 lg:grid-cols-5">
         <Stat label="Appointments" value={today.length} />
         <Stat label="In queue" value={queue.length} />
         <Stat label="Awaiting check-in" value={awaitingCheckIn.length} />
         <Stat label="Completed" value={today.filter((a) => a.status === "Completed").length} />
+        <Stat label="Tomorrow" value={tomorrow.length} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-[1fr_1.2fr]">
