@@ -29,6 +29,13 @@
       "when": 1795627847066,
       "tag": "0003_settings_global_only",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795628047566,
+      "tag": "0004_retime_queue_per_clinic",
+      "breakpoints": true
     }
   ]
 }
