@@ -905,7 +905,8 @@ async function signUp(email: string, password: string, meta: Record<string, unkn
   const { data, error } = await supabase.auth.signUp({ email: email.trim(), password, options: { data: meta, emailRedirectTo: `${window.location.origin}/login` } });
   if (error) throw new Error(error.message);
   if (!data.user) throw new Error("Sign up failed");
-  if (!data.session) throw new Error("Account created — please check your email to confirm, then sign in.");
+  // Email confirmation may be required: the account exists but has no session yet.
+  if (!data.session) return data.user.id;
   await hydrate(data.user.id);
   return data.user.id;
 }

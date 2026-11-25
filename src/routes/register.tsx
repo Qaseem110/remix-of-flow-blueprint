@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { registerDoctor, registerPatient, registerPharmacy, registerLab } from "@/lib/store";
+import { registerDoctor, registerPatient, registerPharmacy, registerLab, getState } from "@/lib/store";
 import { AuthFrame } from "./login";
 
 export const Route = createFileRoute("/register")({
@@ -31,6 +31,16 @@ function Register() {
   const [online, setOnline] = useState(true);
   const [clinic, setClinic] = useState(true);
 
+  const finish = (to: "/patient" | "/doctor" | "/pharmacy" | "/lab") => {
+    if (!getState().sessionUserId) {
+      toast.success("Account created — please check your email to confirm, then sign in.");
+      navigate({ to: "/login" });
+      return;
+    }
+    toast.success("Account created");
+    navigate({ to });
+  };
+
   const onPatient = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const f = Object.fromEntries(new FormData(e.currentTarget)) as Record<string, string>;
@@ -38,8 +48,7 @@ function Register() {
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
       await registerPatient({ name: f.name, email: f.email, phone: f.phone, password: f.password, dob: f.dob, gender, bloodGroup: blood || undefined, address: f.address || undefined, emergencyContact: f.emergency || undefined });
-      toast.success("Account created");
-      navigate({ to: "/patient" });
+      finish("/patient");
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -51,8 +60,7 @@ function Register() {
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
       await registerDoctor({ name: f.name, email: f.email, phone: f.phone, password: f.password, specialization: spec, qualification: f.qualification, licenseNumber: f.license, clinicName: f.clinicName, clinicAddress: f.clinicAddress, city: f.city, online, clinic });
-      toast.success("Account created");
-      navigate({ to: "/doctor" });
+      finish("/doctor");
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -62,8 +70,7 @@ function Register() {
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
       await registerPharmacy({ name: f.name, email: f.email, phone: f.phone, password: f.password, storeName: f.storeName, address: f.address, city: f.city });
-      toast.success("Account created");
-      navigate({ to: "/pharmacy" });
+      finish("/pharmacy");
     } catch (err) { toast.error((err as Error).message); }
   };
 
@@ -73,8 +80,7 @@ function Register() {
     if (f.password.length < 6) return toast.error("Password must be at least 6 characters");
     try {
       await registerLab({ name: f.name, email: f.email, phone: f.phone, password: f.password, labName: f.labName, address: f.address, city: f.city });
-      toast.success("Account created");
-      navigate({ to: "/lab" });
+      finish("/lab");
     } catch (err) { toast.error((err as Error).message); }
   };
 
