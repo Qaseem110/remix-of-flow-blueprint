@@ -21,7 +21,7 @@ export function validateLabSchedule(s: LabSchedule) {
 export function labSlots(schedule: LabSchedule | undefined, date: string, orders: { date: string; time?: string; slotMinutes?: number; status: string; count?: number }[], now = new Date()) {
   if (!schedule || !/^\d{4}-\d{2}-\d{2}$/.test(date) || date < clinicDate(now)) return [];
   const shifts = schedule.dateOverrides[date] ?? schedule.weeklyShifts[String(new Date(date + "T12:00:00Z").getUTCDay())] ?? [];
-  const clock = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
+  const clock = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(now);
   return [...shifts].sort((a, b) => a.start.localeCompare(b.start)).flatMap((shift) => {
     const slots: { time: string; available: boolean }[] = [];
     for (let m = timeMinutes(shift.start); m + schedule.slotMinutes <= timeMinutes(shift.end); m += schedule.slotMinutes) {

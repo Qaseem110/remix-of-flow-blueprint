@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { ArrowRight, CalendarCheck, ClipboardList, ListOrdered, Stethoscope, Video, Building2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { FeedTabs } from "@/components/feed/FeedTabs";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -29,6 +30,7 @@ function Landing() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
         <Link to="/" className="flex items-center gap-2 font-display text-2xl font-semibold"><Stethoscope className="h-7 w-7 text-primary" /> Sahoolat</Link>
         <nav className="flex items-center gap-2">
+          <Button variant="ghost" asChild><Link to="/discussions">Discussions</Link></Button>
           <Button variant="ghost" asChild><Link to="/checkin">Clinic check-in</Link></Button>
           <Button variant="ghost" asChild><Link to="/login">Sign in</Link></Button>
           <Button asChild><Link to="/register">Get started</Link></Button>
@@ -68,6 +70,11 @@ function Landing() {
             </div>
           ))}
         </div>
+      </section>
+      <section className="mx-auto max-w-3xl px-6 py-12">
+        <h2 className="mb-1 font-display text-3xl font-semibold">From our doctors & community</h2>
+        <p className="mb-6 text-muted-foreground">Blogs, pictures, videos and open discussions. <Link to="/discussions" className="text-primary underline">Join a discussion</Link></p>
+        <FeedTabs />
       </section>
       <footer className="mx-auto max-w-6xl px-6 py-8 text-sm text-muted-foreground">© {new Date().getFullYear()} Sahoolat</footer>
     </div>

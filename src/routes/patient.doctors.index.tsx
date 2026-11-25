@@ -7,6 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Avatar, PageHeader } from "@/components/app/common";
 import { getSlots, nextAvailableDate, useStore, visibleDoctors } from "@/lib/store";
+import { useReputation } from "@/lib/feed";
 import { meta } from "@/lib/meta";
 import { fmtPrice } from "@/lib/utils";
 
@@ -24,6 +25,8 @@ function FindDoctor() {
   const [clinic, setClinic] = useState(false);
   const [date, setDate] = useState("");
   const docs = visibleDoctors(s);
+  const rep = useReputation().data;
+  const ratingOf = (id: string) => { const r = s.reviews.filter((x) => x.doctorId === id); return r.length ? r.reduce((n, x) => n + x.rating, 0) / r.length : 0; };
   const specs = [...new Set(docs.map((d) => d.specialization))];
   const cities = [...new Set(docs.map((d) => d.city))];
 
@@ -36,7 +39,7 @@ function FindDoctor() {
     if (clinic && !d.clinic) return false;
     if (date && !getSlots(d.userId, date, s).some((x) => x.available)) return false;
     return true;
-  }), [docs, q, spec, city, online, clinic, date, s]);
+  }).sort((a, b) => (rep?.get(b.userId)?.score ?? 0) - (rep?.get(a.userId)?.score ?? 0) || ratingOf(b.userId) - ratingOf(a.userId)), [docs, q, spec, city, online, clinic, date, s, rep]);
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -66,6 +69,7 @@ function FindDoctor() {
                   {d.online && <span className="flex items-center gap-1"><Video className="h-3.5 w-3.5" />Online</span>}
                   {d.clinic && <span className="flex items-center gap-1"><Building2 className="h-3.5 w-3.5" />In-clinic</span>}
                   <span className="flex items-center gap-1"><Star className="h-3.5 w-3.5" />{d.languages.join(", ")}</span>
+                  <span className="font-medium text-primary">Reputation {rep?.get(d.userId)?.score ?? 0}</span>
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-sm"><b className="font-display text-lg">{fmtPrice(d.fee)}</b> · next: {na ?? "—"}</span>

@@ -485,6 +485,112 @@ export type Database = {
           },
         ]
       }
+      post_comments: {
+        Row: {
+          author_id: string
+          author_name: string
+          author_role: string
+          body: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          author_id?: string
+          author_name?: string
+          author_role?: string
+          body: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          author_role?: string
+          body?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      posts: {
+        Row: {
+          author_id: string
+          author_name: string
+          author_role: string
+          body: string
+          created_at: string
+          id: string
+          images: string[]
+          kind: string
+          summary: string
+          title: string
+          video_url: string | null
+        }
+        Insert: {
+          author_id?: string
+          author_name?: string
+          author_role?: string
+          body?: string
+          created_at?: string
+          id?: string
+          images?: string[]
+          kind: string
+          summary?: string
+          title?: string
+          video_url?: string | null
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          author_role?: string
+          body?: string
+          created_at?: string
+          id?: string
+          images?: string[]
+          kind?: string
+          summary?: string
+          title?: string
+          video_url?: string | null
+        }
+        Relationships: []
+      }
       private_notes: {
         Row: {
           doctor_id: string
@@ -693,6 +799,16 @@ export type Database = {
         Args: { reason: string; target_date: string }
         Returns: number
       }
+      doctor_reputation: {
+        Args: never
+        Returns: {
+          comments: number
+          doctor_id: string
+          likes: number
+          posts: number
+          score: number
+        }[]
+      }
       has_report_access: { Args: { patient: string }; Returns: boolean }
       has_report_pin: { Args: { patient: string }; Returns: boolean }
       is_admin: { Args: never; Returns: boolean }
@@ -719,6 +835,7 @@ export type Database = {
           term: string
         }[]
       }
+      queue_doctor_start_alerts: { Args: never; Returns: number }
       queue_doctor_summary: {
         Args: { target_doctor: string }
         Returns: undefined

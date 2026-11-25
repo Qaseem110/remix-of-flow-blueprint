@@ -703,7 +703,7 @@ export function getSlots(doctorId: string, date: string, s: State = state, clini
   const out: { time: string; available: boolean; blocked?: boolean; booked?: boolean }[] = [];
   const takenCount = new Map<string, number>();
   for (const a of bookedToday.filter((x) => !BLOCKING.includes(x.status))) takenCount.set(a.time, (takenCount.get(a.time) ?? 0) + 1);
-  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date());
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   const localNow = `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
   for (const shift of shifts) {
@@ -1745,8 +1745,12 @@ export function volunteerSpotsLeft(v: VolunteerSession, s: State = state) {
   const used = SB && v.booked !== undefined ? v.booked : s.volunteerBookings.filter((b) => b.sessionId === v.id && b.status !== "Cancelled").length;
   return Math.max(0, v.capacity - used);
 }
-export function isVolunteerSessionUpcoming(v: VolunteerSession, today = todayStr()) {
-  return v.status === "Open" && v.date >= today;
+/** Open until its end time passes on the clinic clock (mirrors the database). */
+export function isVolunteerSessionUpcoming(v: VolunteerSession, today = todayStr(), nowTime = clinicClock()) {
+  return v.status === "Open" && (v.date > today || (v.date === today && v.end > nowTime));
+}
+function clinicClock(d = new Date()) {
+  return new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).format(d);
 }
 export type VolunteerInput = Omit<VolunteerSession, "id" | "doctorId" | "status" | "booked" | "createdAt">;
 function checkVolunteerInput(i: VolunteerInput) {

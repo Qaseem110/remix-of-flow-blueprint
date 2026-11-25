@@ -1,6 +1,6 @@
-/** Minutes since midnight in clinic (Africa/Tripoli) wall-clock time. */
+/** Minutes since midnight in clinic (Asia/Karachi) wall-clock time. */
 export function clinicMinutesNow(now = new Date()): number {
-  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Africa/Tripoli", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Karachi", hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(now);
   const g = (t: string) => Number(p.find((x) => x.type === t)?.value ?? 0);
   return g("hour") * 60 + g("minute");
 }

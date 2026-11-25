@@ -1,3 +1,4 @@
+import { Newspaper, MessagesSquare } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical, HeartHandshake } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -36,6 +37,7 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/patient/medicines", label: "Find Medicine", icon: Pill },
     { to: "/patient/labs", label: "Lab Tests", icon: FlaskConical },
     { to: "/patient/free-checkups", label: "Free Checkups", icon: HeartHandshake },
+    { to: "/discussions", label: "Discussions", icon: MessagesSquare },
     { to: "/patient/profile", label: "Profile", icon: User },
   ],
   doctor: [
@@ -46,6 +48,8 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/doctor/labs", label: "Lab Reports", icon: FlaskConical },
     { to: "/doctor/reception", label: "Reception", icon: Users },
     { to: "/doctor/volunteer", label: "Volunteer", icon: HeartHandshake },
+    { to: "/doctor/feed", label: "My Feed", icon: Newspaper },
+    { to: "/discussions", label: "Discussions", icon: MessagesSquare },
     { to: "/doctor/profile", label: "Profile", icon: User },
   ],
   receptionist: [

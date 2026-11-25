@@ -1,5 +1,6 @@
 import { TemplateEditor } from "./TemplateEditor";
 import { ClinicEditor } from "./ClinicEditor";
+import { LabTestsEditor } from "./LabTestsEditor";
 import { PharmacyReservations } from "./PharmacyReservations";
 import { useEffect, useState } from 'react';
 import { Link } from '@tanstack/react-router';
@@ -16,7 +17,7 @@ import { fmtPrice, fmtTime } from '@/lib/utils';
 import type { CareItem, CareKind } from '@/lib/care';
 import { AccountPreferences } from './AccountPreferences';
 
-const labels: Record<CareKind,string>={favorite:'Favorites',waitlist:'Appointment waitlist',template:'Consultation templates',referral:'Referrals',branch:'Clinics',complaint:'Help & complaints',credential:'Credentials & renewal',reservation:'Medicine reservations',home_collection:'Home sample collection',package:'Test packages',consent:'Privacy & consent'};
+const labels: Record<CareKind,string>={favorite:'Favorites',waitlist:'Appointment waitlist',template:'Consultation templates',referral:'Referrals',branch:'Clinics',complaint:'Help & complaints',credential:'Credentials & renewal',reservation:'Medicine reservations',home_collection:'Tests & home sample collection',package:'Test packages',consent:'Privacy & consent'};
 const kinds: Record<string,CareKind[]>={patient:['favorite','reservation','complaint','consent'],doctor:['template','branch','credential','complaint'],lab:['home_collection','credential','complaint'],pharmacy:['reservation','credential','complaint'],admin:['complaint','credential','consent'],receptionist:['complaint']};
 export function CareWorkspace(){
  const user=useSession();const activeMember=useActiveMember();const s=useStore((s)=>s);const [items,setItems]=useState<CareItem[]>([]);const [kind,setKind]=useState<CareKind>('complaint');const [busy,setBusy]=useState(false);const [title,setTitle]=useState('');const [details,setDetails]=useState('');const [recipient,setRecipient]=useState('none');const [date,setDate]=useState('');const [price,setPrice]=useState('0');const [quantity,setQuantity]=useState('1');const [expires,setExpires]=useState('');const [reply,setReply]=useState<Record<string,string>>({});const [editingTemplate,setEditingTemplate]=useState<CareItem>();const [certificate,setCertificate]=useState<File>();const [areas,setAreas]=useState('');const [days,setDays]=useState<string[]>([]);const [hours,setHours]=useState({start:'09:00',end:'17:00'});const [rider,setRider]=useState('0');const [contact,setContact]=useState('');const [activity,setActivity]=useState<Awaited<ReturnType<typeof loadActivity>>>([]);
@@ -32,7 +33,7 @@ export function CareWorkspace(){
  return <div className="mx-auto max-w-5xl space-y-6"><PageHeader title="Care services" actions={<Button variant="outline" size="icon" title="Refresh" aria-label="Refresh care services" onClick={()=>void refresh()}><RefreshCw/></Button>}/>
  <AccountPreferences />
  <nav aria-label="Care services" className="flex flex-wrap gap-2">{choices.map(k=><Button key={k} variant={kind===k?"default":"outline"} aria-pressed={kind===k} onClick={()=>setKind(k)}>{labels[k]}</Button>)}</nav>
- {kind==='branch'&&<ClinicEditor onSaved={()=>void refresh()}/>}
+ {kind==='branch'&&<ClinicEditor onSaved={()=>void refresh()}/>}{kind==='home_collection'&&user.role==='lab'&&<LabTestsEditor/>}
  {kind==='reservation'&&user.role==='pharmacy'&&<PharmacyReservations items={shown} onUpdated={()=>void refresh()}/>}
  {kind==='template'&&user.role==='doctor'&&<TemplateEditor existing={editingTemplate} onSaved={()=>{setEditingTemplate(undefined);void refresh();}}/>}
  {kind==='reservation'&&user.role==='patient'&&<Button asChild><Link to="/patient/medicines">Find medicine & reserve</Link></Button>}

@@ -1,7 +1,6 @@
 import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { PrescriptionTemplates } from "@/components/app/PrescriptionTemplates";
 import { trackingNumber } from "@/lib/store";
-import { DoctorLabOrder } from "@/components/app/DoctorLabOrder";
 import { suggestTimes } from "@/lib/medicine-reminders";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
@@ -114,10 +113,6 @@ function Console() {
 
             <div>
               {!done && <PrescriptionTemplates items={c.prescription} onApply={(items) => upd({ prescription: [...c.prescription, ...items] })} />}
-              <Label>Lab tests</Label>
-              <Input disabled={done} placeholder="Recommended tests, e.g. CBC, LFT, Ultrasound abdomen" value={c.labTests ?? ""} onChange={(e) => upd({ labTests: e.target.value })} />
-              <p className="mt-1 text-xs text-muted-foreground">The patient can also book these at any laboratory using this prescription.</p>
-              <DoctorLabOrder appointmentId={a.id} tests={c.labTests ?? ""} />
             </div>
 
             <div>

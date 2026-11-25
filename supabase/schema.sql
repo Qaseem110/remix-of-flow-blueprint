@@ -161,7 +161,7 @@ BEGIN
  IF used >= cap THEN RAISE EXCEPTION 'Daily patient limit reached. Choose another date.'; END IF;
  FOR i IN 0..cap-1 LOOP
   candidate := lpad(((start_min+i*step_min)/60)::text,2,'0') || ':' || lpad(((start_min+i*step_min)%60)::text,2,'0');
-  IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text || ' ' || candidate)) AND (day::timestamp + candidate::time) AT TIME ZONE 'Africa/Tripoli' > now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen := candidate; EXIT; END IF;
+  IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text || ' ' || candidate)) AND (day::timestamp + candidate::time) AT TIME ZONE 'Asia/Karachi' > now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen := candidate; EXIT; END IF;
  END LOOP;
  IF chosen IS NULL THEN RAISE EXCEPTION 'No places available on this day. Choose another date.'; END IF;
  SELECT coalesce(max((data->>'queueNumber')::int),0)+1 INTO q FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text;
@@ -192,7 +192,7 @@ BEGIN
  IF used >= cap THEN RAISE EXCEPTION 'Daily patient limit reached. Choose another date.'; END IF;
  FOR i IN 0..cap-1 LOOP
   candidate := lpad(((start_min+i*step_min)/60)::text,2,'0') || ':' || lpad(((start_min+i*step_min)%60)::text,2,'0');
-  IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text || ' ' || candidate)) AND (day + candidate::time) AT TIME ZONE 'Africa/Tripoli' > now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen := candidate; EXIT; END IF;
+  IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text || ' ' || candidate)) AND (day + candidate::time) AT TIME ZONE 'Asia/Karachi' > now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen := candidate; EXIT; END IF;
  END LOOP;
  IF chosen IS NULL THEN RAISE EXCEPTION 'No places available on this day. Choose another date.'; END IF;
  SELECT coalesce(max((data->>'queueNumber')::int),0)+1 INTO q FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text;
@@ -257,7 +257,7 @@ BEGIN
   IF coalesce(av->>'consultMinutes','') ~ '^[0-9]+$' AND (av->>'consultMinutes')::int>0 THEN step_min := (av->>'consultMinutes')::int; cap := least(cap, greatest(1,(end_min-start_min)/step_min)); ELSE step_min := greatest(1,(end_min-start_min)/cap); END IF;
   FOR i IN 0..cap-1 LOOP
    candidate := lpad(((start_min+i*step_min)/60)::text,2,'0')||':'||lpad(((start_min+i*step_min)%60)::text,2,'0');
-   IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text||' '||candidate)) AND (day+candidate::time) AT TIME ZONE 'Africa/Tripoli'>now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen:=candidate; EXIT; END IF;
+   IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text||' '||candidate)) AND (day+candidate::time) AT TIME ZONE 'Asia/Karachi'>now() AND NOT EXISTS (SELECT 1 FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled')) THEN chosen:=candidate; EXIT; END IF;
   END LOOP;
   IF chosen IS NOT NULL THEN EXIT; END IF;
  END LOOP;
@@ -327,7 +327,7 @@ BEGIN
  IF s IS NULL OR s='null'::jsonb THEN RAISE EXCEPTION 'This laboratory has not set its availability yet'; END IF;
  IF coalesce(new.data->>'date','') !~ '^\d{4}-\d{2}-\d{2}$' OR coalesce(new.data->>'time','') !~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' THEN RAISE EXCEPTION 'Choose an available lab appointment date and time'; END IF;
  day:=(new.data->>'date')::date; chosen:=(new.data->>'time')::time; minutes:=(s->>'slotMinutes')::integer;
- IF (day+chosen) AT TIME ZONE 'Africa/Tripoli'<=now() THEN RAISE EXCEPTION 'Choose a future appointment time'; END IF;
+ IF (day+chosen) AT TIME ZONE 'Asia/Karachi'<=now() THEN RAISE EXCEPTION 'Choose a future appointment time'; END IF;
  shifts:=coalesce(s->'dateOverrides'->day::text,s->'weeklyShifts'->extract(dow from day)::int::text,'[]'::jsonb);
  FOR sh IN SELECT value FROM jsonb_array_elements(shifts) LOOP
   start_time:=(sh->>'start')::time; end_time:=(sh->>'end')::time;
@@ -393,7 +393,7 @@ BEGIN
   new.data:=new.data||jsonb_build_object('token',old.data->'token'); new.patient_id:=old.patient_id; new.session_id:=old.session_id;
  ELSE
   IF coalesce(s->>'status','Open')<>'Open' THEN RAISE EXCEPTION 'This free checkup session is not open'; END IF;
-  IF ((s->>'date')::date + (s->>'end')::time) AT TIME ZONE 'Africa/Tripoli' <= now() THEN RAISE EXCEPTION 'This session has ended'; END IF;
+  IF ((s->>'date')::date + (s->>'end')::time) AT TIME ZONE 'Asia/Karachi' <= now() THEN RAISE EXCEPTION 'This session has ended'; END IF;
   IF EXISTS (SELECT 1 FROM public.volunteer_bookings b WHERE b.session_id=new.session_id AND b.patient_id=new.patient_id AND b.data->>'status'<>'Cancelled' AND coalesce(b.data->>'memberName','')=coalesce(new.data->>'memberName','')) THEN RAISE EXCEPTION 'You already booked this session'; END IF;
   SELECT count(*) INTO used FROM public.volunteer_bookings b WHERE b.session_id=new.session_id AND b.data->>'status'<>'Cancelled';
   IF used>=coalesce((s->>'capacity')::int,0) THEN RAISE EXCEPTION 'All free spots in this session are taken'; END IF;
@@ -422,7 +422,7 @@ DECLARE a public.appointments;
 BEGIN
  SELECT * INTO a FROM public.appointments WHERE id=target_id FOR UPDATE;
  IF a.id IS NULL OR a.doctor_id IS DISTINCT FROM public.reception_doctor() OR NOT public.reception_can('checkIn') THEN RAISE EXCEPTION 'Arrival permission required for this doctor'; END IF;
- IF a.data->>'date'<>((now() AT TIME ZONE 'Africa/Tripoli')::date)::text OR a.data->>'type'<>'clinic' OR a.data->>'status' NOT IN ('Pending','Confirmed','Waiting','Checked-In') THEN RAISE EXCEPTION 'Only today''s pending clinic patients can be marked'; END IF;
+ IF a.data->>'date'<>((now() AT TIME ZONE 'Asia/Karachi')::date)::text OR a.data->>'type'<>'clinic' OR a.data->>'status' NOT IN ('Pending','Confirmed','Waiting','Checked-In') THEN RAISE EXCEPTION 'Only today''s pending clinic patients can be marked'; END IF;
  UPDATE public.appointments SET data=data||CASE WHEN arrived THEN jsonb_build_object('status','Waiting','checkedInAt',now()) ELSE jsonb_build_object('status','No Show') END WHERE id=target_id;
 END $$;
 REVOKE ALL ON FUNCTION public.reception_attendance(text,boolean) FROM PUBLIC;
@@ -432,7 +432,7 @@ DECLARE a public.appointments; n integer:=0; msg text; nid text;
 BEGIN
  IF auth.uid() IS NULL OR NOT EXISTS(SELECT 1 FROM public.doctors WHERE id=auth.uid()::text) THEN RAISE EXCEPTION 'Only doctors can cancel their day'; END IF;
  IF length(btrim(reason))<3 OR length(reason)>1000 THEN RAISE EXCEPTION 'Enter a cancellation reason (3–1000 characters)'; END IF;
- IF target_date::date<(now() AT TIME ZONE 'Africa/Tripoli')::date THEN RAISE EXCEPTION 'Choose today or a future date'; END IF;
+ IF target_date::date<(now() AT TIME ZONE 'Asia/Karachi')::date THEN RAISE EXCEPTION 'Choose today or a future date'; END IF;
  PERFORM 1 FROM public.availability WHERE id=auth.uid()::text FOR UPDATE;
  FOR a IN SELECT * FROM public.appointments WHERE doctor_id=auth.uid()::text AND data->>'date'=target_date AND data->>'status' IN ('Pending','Confirmed','Waiting','Checked-In','Ready to Join') ORDER BY id FOR UPDATE LOOP
   UPDATE public.appointments SET data=data||jsonb_build_object('status','Cancelled','cancelledBy','doctor','cancelReason',btrim(reason)) WHERE id=a.id;
@@ -446,7 +446,7 @@ END $$;
 REVOKE ALL ON FUNCTION public.cancel_doctor_day(text,text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION public.cancel_doctor_day(text,text) TO authenticated;
 CREATE OR REPLACE FUNCTION public.queue_doctor_summary(target_doctor text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
-DECLARE cfg public.doctor_alert_settings; day date:=(now() AT TIME ZONE 'Africa/Tripoli')::date; total integer; completed integer; waiting integer; discussions integer;
+DECLARE cfg public.doctor_alert_settings; day date:=(now() AT TIME ZONE 'Asia/Karachi')::date; total integer; completed integer; waiting integer; discussions integer;
 BEGIN
  SELECT * INTO cfg FROM public.doctor_alert_settings WHERE doctor_id=target_doctor FOR UPDATE;
  IF cfg.doctor_id IS NULL OR NOT cfg.enabled OR cfg.phone='' OR cfg.last_summary_date=day THEN RETURN; END IF;
@@ -543,7 +543,7 @@ BEGIN
   new.data:=new.data||jsonb_build_object('token',old.data->'token'); new.patient_id:=old.patient_id; new.session_id:=old.session_id;
  ELSE
   IF coalesce(s->>'status','Open')<>'Open' THEN RAISE EXCEPTION 'This free checkup session is not open'; END IF;
-  IF ((s->>'date')::date + (s->>'end')::time) AT TIME ZONE 'Africa/Tripoli' <= now() THEN RAISE EXCEPTION 'This session has ended'; END IF;
+  IF ((s->>'date')::date + (s->>'end')::time) AT TIME ZONE 'Asia/Karachi' <= now() THEN RAISE EXCEPTION 'This session has ended'; END IF;
   IF EXISTS (SELECT 1 FROM public.volunteer_bookings b WHERE b.session_id=new.session_id AND b.patient_id=new.patient_id AND b.data->>'status'<>'Cancelled') THEN RAISE EXCEPTION 'You already booked this session'; END IF;
   SELECT count(*) INTO used FROM public.volunteer_bookings b WHERE b.session_id=new.session_id AND b.data->>'status'<>'Cancelled';
   IF used>=coalesce((s->>'capacity')::int,0) THEN RAISE EXCEPTION 'All free spots in this session are taken'; END IF;
@@ -561,7 +561,7 @@ BEGIN
   SELECT data INTO m FROM public.medicines WHERE id=new.data->>'medicineId' AND pharmacy_id=new.recipient_id FOR UPDATE;
   IF coalesce(new.data->>'quantity','') !~ '^[1-9][0-9]*$' THEN RAISE EXCEPTION 'Enter a positive whole quantity'; END IF;
   IF TG_OP='INSERT' THEN
-   IF m IS NULL OR coalesce((m->>'inStock')::boolean,false)=false OR (m ? 'expiry' AND m->>'expiry'<((now() AT TIME ZONE 'Africa/Tripoli')::date)::text) THEN RAISE EXCEPTION 'Medicine is unavailable'; END IF;
+   IF m IS NULL OR coalesce((m->>'inStock')::boolean,false)=false OR (m ? 'expiry' AND m->>'expiry'<((now() AT TIME ZONE 'Asia/Karachi')::date)::text) THEN RAISE EXCEPTION 'Medicine is unavailable'; END IF;
    IF m ? 'quantity' AND (new.data->>'quantity')::integer>(m->>'quantity')::integer THEN RAISE EXCEPTION 'Requested quantity exceeds available stock'; END IF;
    IF EXISTS(SELECT 1 FROM public.care_items c WHERE c.kind='reservation' AND c.owner_id=new.owner_id AND c.recipient_id=new.recipient_id AND c.data->>'medicineId'=new.data->>'medicineId' AND coalesce(c.data->>'memberId','')=coalesce(new.data->>'memberId','') AND coalesce(c.data->>'status','Requested') NOT IN ('Cancelled','Archived','Unavailable','Collected')) THEN RAISE EXCEPTION 'This medicine is already reserved'; END IF;
   ELSE
@@ -584,19 +584,19 @@ BEGIN
  RETURN new;
 END $$;
 CREATE TRIGGER alert_low_stock AFTER INSERT OR UPDATE ON public.medicines FOR EACH ROW EXECUTE FUNCTION public.alert_low_stock();
-CREATE TABLE public.medicine_searches(user_id uuid NOT NULL,term text NOT NULL,search_day date NOT NULL DEFAULT ((now() AT TIME ZONE 'Africa/Tripoli')::date),PRIMARY KEY(user_id,term,search_day));
+CREATE TABLE public.medicine_searches(user_id uuid NOT NULL,term text NOT NULL,search_day date NOT NULL DEFAULT ((now() AT TIME ZONE 'Asia/Karachi')::date),PRIMARY KEY(user_id,term,search_day));
 GRANT SELECT,INSERT ON public.medicine_searches TO authenticated;
 GRANT ALL ON public.medicine_searches TO service_role;
 ALTER TABLE public.medicine_searches ENABLE ROW LEVEL SECURITY;
 CREATE POLICY search_own_read ON public.medicine_searches FOR SELECT TO authenticated USING(user_id=auth.uid());
-CREATE POLICY search_own_insert ON public.medicine_searches FOR INSERT TO authenticated WITH CHECK(user_id=auth.uid() AND length(term) BETWEEN 2 AND 80 AND search_day=((now() AT TIME ZONE 'Africa/Tripoli')::date));
+CREATE POLICY search_own_insert ON public.medicine_searches FOR INSERT TO authenticated WITH CHECK(user_id=auth.uid() AND length(term) BETWEEN 2 AND 80 AND search_day=((now() AT TIME ZONE 'Asia/Karachi')::date));
 CREATE FUNCTION public.record_medicine_search(term text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path=public AS $$
 BEGIN
  IF auth.uid() IS NULL THEN RAISE EXCEPTION 'Sign in first'; END IF;
  IF length(btrim(term)) BETWEEN 2 AND 80 THEN INSERT INTO public.medicine_searches(user_id,term) VALUES(auth.uid(),lower(btrim(term))) ON CONFLICT DO NOTHING; END IF;
 END $$;
 CREATE FUNCTION public.popular_medicine_searches() RETURNS TABLE(term text,searches bigint) LANGUAGE sql STABLE SECURITY DEFINER SET search_path=public AS $$
- SELECT s.term,count(*) FROM public.medicine_searches s WHERE auth.uid() IS NOT NULL AND s.search_day>=(now() AT TIME ZONE 'Africa/Tripoli')::date-30 GROUP BY s.term ORDER BY count(*) DESC,s.term LIMIT 8
+ SELECT s.term,count(*) FROM public.medicine_searches s WHERE auth.uid() IS NOT NULL AND s.search_day>=(now() AT TIME ZONE 'Asia/Karachi')::date-30 GROUP BY s.term ORDER BY count(*) DESC,s.term LIMIT 8
 $$;
 REVOKE ALL ON FUNCTION public.record_medicine_search(text),public.popular_medicine_searches() FROM public,anon;
 GRANT EXECUTE ON FUNCTION public.record_medicine_search(text),public.popular_medicine_searches() TO authenticated;

@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as CheckinRouteImport } from './routes/checkin'
+import { Route as DiscussionsRouteImport } from './routes/discussions'
 import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as LabRouteImport } from './routes/lab'
@@ -32,10 +33,12 @@ import { Route as DoctorIndexRouteImport } from './routes/doctor.index'
 import { Route as DoctorAppointmentsRouteImport } from './routes/doctor.appointments'
 import { Route as DoctorAvailabilityRouteImport } from './routes/doctor.availability'
 import { Route as DoctorCareRouteImport } from './routes/doctor.care'
+import { Route as DoctorFeedRouteImport } from './routes/doctor.feed'
 import { Route as DoctorLabsRouteImport } from './routes/doctor.labs'
 import { Route as DoctorProfileRouteImport } from './routes/doctor.profile'
 import { Route as DoctorReceptionRouteImport } from './routes/doctor.reception'
 import { Route as DoctorVolunteerRouteImport } from './routes/doctor.volunteer'
+import { Route as FeedPostIdRouteImport } from './routes/feed.$postId'
 import { Route as LabIndexRouteImport } from './routes/lab.index'
 import { Route as LabAvailabilityRouteImport } from './routes/lab.availability'
 import { Route as LabCareRouteImport } from './routes/lab.care'
@@ -77,6 +80,11 @@ const AdminRoute = AdminRouteImport.update({
 const CheckinRoute = CheckinRouteImport.update({
   id: '/checkin',
   path: '/checkin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DiscussionsRoute = DiscussionsRouteImport.update({
+  id: '/discussions',
+  path: '/discussions',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DoctorRoute = DoctorRouteImport.update({
@@ -179,6 +187,11 @@ const DoctorCareRoute = DoctorCareRouteImport.update({
   path: '/care',
   getParentRoute: () => DoctorRoute,
 } as any)
+const DoctorFeedRoute = DoctorFeedRouteImport.update({
+  id: '/feed',
+  path: '/feed',
+  getParentRoute: () => DoctorRoute,
+} as any)
 const DoctorLabsRoute = DoctorLabsRouteImport.update({
   id: '/labs',
   path: '/labs',
@@ -198,6 +211,11 @@ const DoctorVolunteerRoute = DoctorVolunteerRouteImport.update({
   id: '/volunteer',
   path: '/volunteer',
   getParentRoute: () => DoctorRoute,
+} as any)
+const FeedPostIdRoute = FeedPostIdRouteImport.update({
+  id: '/feed/$postId',
+  path: '/feed/$postId',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const LabIndexRoute = LabIndexRouteImport.update({
   id: '/',
@@ -341,6 +359,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/checkin': typeof CheckinRoute
+  '/discussions': typeof DiscussionsRoute
   '/doctor': typeof DoctorRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/lab': typeof LabRouteWithChildren
@@ -359,10 +378,12 @@ export interface FileRoutesByFullPath {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/care': typeof DoctorCareRoute
+  '/doctor/feed': typeof DoctorFeedRoute
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/doctor/volunteer': typeof DoctorVolunteerRoute
+  '/feed/$postId': typeof FeedPostIdRoute
   '/lab/availability': typeof LabAvailabilityRoute
   '/lab/care': typeof LabCareRoute
   '/lab/details': typeof LabDetailsRoute
@@ -396,6 +417,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/checkin': typeof CheckinRoute
+  '/discussions': typeof DiscussionsRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/register': typeof RegisterRoute
@@ -409,10 +431,12 @@ export interface FileRoutesByTo {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/care': typeof DoctorCareRoute
+  '/doctor/feed': typeof DoctorFeedRoute
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/doctor/volunteer': typeof DoctorVolunteerRoute
+  '/feed/$postId': typeof FeedPostIdRoute
   '/lab/availability': typeof LabAvailabilityRoute
   '/lab/care': typeof LabCareRoute
   '/lab/details': typeof LabDetailsRoute
@@ -448,6 +472,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/checkin': typeof CheckinRoute
+  '/discussions': typeof DiscussionsRoute
   '/doctor': typeof DoctorRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
   '/lab': typeof LabRouteWithChildren
@@ -466,10 +491,12 @@ export interface FileRoutesById {
   '/doctor/appointments': typeof DoctorAppointmentsRoute
   '/doctor/availability': typeof DoctorAvailabilityRoute
   '/doctor/care': typeof DoctorCareRoute
+  '/doctor/feed': typeof DoctorFeedRoute
   '/doctor/labs': typeof DoctorLabsRoute
   '/doctor/profile': typeof DoctorProfileRoute
   '/doctor/reception': typeof DoctorReceptionRoute
   '/doctor/volunteer': typeof DoctorVolunteerRoute
+  '/feed/$postId': typeof FeedPostIdRoute
   '/lab/availability': typeof LabAvailabilityRoute
   '/lab/care': typeof LabCareRoute
   '/lab/details': typeof LabDetailsRoute
@@ -506,6 +533,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/checkin'
+    | '/discussions'
     | '/doctor'
     | '/forgot-password'
     | '/lab'
@@ -524,10 +552,12 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/care'
+    | '/doctor/feed'
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/doctor/volunteer'
+    | '/feed/$postId'
     | '/lab/availability'
     | '/lab/care'
     | '/lab/details'
@@ -561,6 +591,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/checkin'
+    | '/discussions'
     | '/forgot-password'
     | '/login'
     | '/register'
@@ -574,10 +605,12 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/care'
+    | '/doctor/feed'
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/doctor/volunteer'
+    | '/feed/$postId'
     | '/lab/availability'
     | '/lab/care'
     | '/lab/details'
@@ -612,6 +645,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/checkin'
+    | '/discussions'
     | '/doctor'
     | '/forgot-password'
     | '/lab'
@@ -630,10 +664,12 @@ export interface FileRouteTypes {
     | '/doctor/appointments'
     | '/doctor/availability'
     | '/doctor/care'
+    | '/doctor/feed'
     | '/doctor/labs'
     | '/doctor/profile'
     | '/doctor/reception'
     | '/doctor/volunteer'
+    | '/feed/$postId'
     | '/lab/availability'
     | '/lab/care'
     | '/lab/details'
@@ -669,6 +705,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   CheckinRoute: typeof CheckinRoute
+  DiscussionsRoute: typeof DiscussionsRoute
   DoctorRoute: typeof DoctorRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LabRoute: typeof LabRouteWithChildren
@@ -678,6 +715,7 @@ export interface RootRouteChildren {
   ReceptionRoute: typeof ReceptionRouteWithChildren
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
+  FeedPostIdRoute: typeof FeedPostIdRoute
   ApiPublicJobsRecordingCleanupRoute: typeof ApiPublicJobsRecordingCleanupRoute
 }
 
@@ -702,6 +740,13 @@ declare module '@tanstack/react-router' {
       path: '/checkin'
       fullPath: '/checkin'
       preLoaderRoute: typeof CheckinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/discussions': {
+      id: '/discussions'
+      path: '/discussions'
+      fullPath: '/discussions'
+      preLoaderRoute: typeof DiscussionsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/doctor': {
@@ -844,6 +889,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DoctorCareRouteImport
       parentRoute: typeof DoctorRoute
     }
+    '/doctor/feed': {
+      id: '/doctor/feed'
+      path: '/feed'
+      fullPath: '/doctor/feed'
+      preLoaderRoute: typeof DoctorFeedRouteImport
+      parentRoute: typeof DoctorRoute
+    }
     '/doctor/labs': {
       id: '/doctor/labs'
       path: '/labs'
@@ -871,6 +923,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/doctor/volunteer'
       preLoaderRoute: typeof DoctorVolunteerRouteImport
       parentRoute: typeof DoctorRoute
+    }
+    '/feed/$postId': {
+      id: '/feed/$postId'
+      path: '/feed/$postId'
+      fullPath: '/feed/$postId'
+      preLoaderRoute: typeof FeedPostIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/lab/': {
       id: '/lab/'
@@ -1090,6 +1149,7 @@ interface DoctorRouteChildren {
   DoctorAppointmentsRoute: typeof DoctorAppointmentsRoute
   DoctorAvailabilityRoute: typeof DoctorAvailabilityRoute
   DoctorCareRoute: typeof DoctorCareRoute
+  DoctorFeedRoute: typeof DoctorFeedRoute
   DoctorLabsRoute: typeof DoctorLabsRoute
   DoctorProfileRoute: typeof DoctorProfileRoute
   DoctorReceptionRoute: typeof DoctorReceptionRoute
@@ -1103,6 +1163,7 @@ const DoctorRouteChildren: DoctorRouteChildren = {
   DoctorAppointmentsRoute: DoctorAppointmentsRoute,
   DoctorAvailabilityRoute: DoctorAvailabilityRoute,
   DoctorCareRoute: DoctorCareRoute,
+  DoctorFeedRoute: DoctorFeedRoute,
   DoctorLabsRoute: DoctorLabsRoute,
   DoctorProfileRoute: DoctorProfileRoute,
   DoctorReceptionRoute: DoctorReceptionRoute,
@@ -1204,6 +1265,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   CheckinRoute: CheckinRoute,
+  DiscussionsRoute: DiscussionsRoute,
   DoctorRoute: DoctorRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LabRoute: LabRouteWithChildren,
@@ -1213,6 +1275,7 @@ const rootRouteChildren: RootRouteChildren = {
   ReceptionRoute: ReceptionRouteWithChildren,
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
+  FeedPostIdRoute: FeedPostIdRoute,
   ApiPublicJobsRecordingCleanupRoute: ApiPublicJobsRecordingCleanupRoute,
 }
 export const routeTree = rootRouteImport

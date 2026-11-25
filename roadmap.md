@@ -65,3 +65,6 @@
 - [x] Update doctor schedule editor, dashboard limit and patient schedule display.
 - [x] Test split shifts, overrides, limits and schedule saving (30 tests passed; doctor saved two shifts and read them back after refresh; test override removed).
 - [ ] WhatsApp delivery: send booking, leave-now, break and reception walk-in messages (pending outbox) — waiting for user to connect WhatsApp Business
+- [x] Doctor feed (blogs/photos/video links), likes/comments, sharing, reputation ranking, homepage tabs, forum
+- [x] Remove lab test from consultation; block past bookings; 10-min doctor start alert; move lab tests into home collection
+- [x] Switch clinic clock to Pakistan time (Asia/Karachi)

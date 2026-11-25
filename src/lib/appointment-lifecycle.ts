@@ -1,7 +1,7 @@
 const activeStatuses = ["Pending", "Confirmed", "Checked-In", "Waiting", "Ready to Join", "In Consultation", "Requested"];
 
 export function clinicDate(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Tripoli", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Karachi", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? "";
   return `${part("year")}-${part("month")}-${part("day")}`;
 }

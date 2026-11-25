@@ -7,6 +7,7 @@ import { Avatar } from "@/components/app/common";
 import { BookingDatePicker } from "@/components/app/widgets";
 import { weekdayShifts, nextBooking, nextAvailableDate, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { FeedTabs } from "@/components/feed/FeedTabs";
 import { RatingSummary, ReviewList } from "@/components/app/Reviews";
 import { fmtPrice, fmtTime } from "@/lib/utils";
 import { ProviderActions } from "@/components/app/ProviderActions";
@@ -62,6 +63,7 @@ function DoctorProfile() {
             {av && <div className="space-y-2 border-t pt-3 text-sm">{DAYS.map((day, i) => { const shifts = weekdayShifts(av, i); return shifts.length ? <div key={day} className="flex flex-wrap justify-between gap-2"><span className="text-muted-foreground">{day}</span><span>{shifts.map((s) => `${fmtTime(s.start)}–${fmtTime(s.end)}`).join(" / ")}</span></div> : null; })}</div>}
           </div>
           <ReviewList doctorId={id} />
+          <section className="mt-6 space-y-3"><h2 className="font-display text-xl font-semibold">Posts & videos</h2><FeedTabs authorId={id} /></section>
         </div>
         <div className="rounded-2xl border bg-card p-5">
           <h2 className="mb-4 text-lg font-semibold">Available dates</h2>
