@@ -670,6 +670,7 @@ export type Database = {
     }
     Functions: {
       admin_second_factor_ready: { Args: never; Returns: boolean }
+      can_view_profile: { Args: { target: string }; Returns: boolean }
       cancel_doctor_day: {
         Args: { reason: string; target_date: string }
         Returns: number
@@ -696,6 +697,14 @@ export type Database = {
       queue_doctor_summary: {
         Args: { target_doctor: string }
         Returns: undefined
+      }
+      queue_peers: {
+        Args: never
+        Returns: {
+          data: Json
+          doctor_id: string
+          id: string
+        }[]
       }
       reception_attendance: {
         Args: { arrived: boolean; target_id: string }

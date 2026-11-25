@@ -489,6 +489,7 @@ async function syncDiff(prev: State, next: State) {
     for (const x of b) {
       const o = old.get(t.id(x));
       if (o === x) continue;
+      if (t.key === "appointments" && String(t.id(x)).startsWith("q-")) continue; // anonymous queue position, read-only
       const hasDocs = t.key === "appointments" || t.key === "consultations";
       // Storage rules need the appointment row to exist, so new rows are written before uploading.
       if (hasDocs && o !== undefined) await uploadDocs(x as { documents: DocFile[] }, t.id(x));
@@ -526,6 +527,15 @@ export async function hydrate(sessionUserId: string | null) {
     if (r.error) console.error("[hydrate]", t.table, r.error.message);
     (next as unknown as Record<string, unknown>)[t.key] = (r.data ?? []).map(t.from);
   });
+  // Patients only receive anonymous queue positions for other bookings on their days.
+  const peers = await supabase.rpc("queue_peers");
+  if (!peers.error && peers.data?.length) {
+    const own = new Set(next.appointments.map((a) => a.id));
+    const masked = (peers.data as { id: string; doctor_id: string; data: Record<string, unknown> }[])
+      .filter((r) => !own.has(r.id))
+      .map((r) => ({ reason: "", documents: [], createdAt: "", ...r.data, id: r.id, doctorId: r.doctor_id, patientId: "" }) as unknown as Appointment);
+    next.appointments = [...next.appointments, ...masked];
+  }
   const rec = await supabase.from("receptionists").select("*");
   next.receptionists = (rec.data ?? []).map((r: { id: string; doctor_id: string; data: Record<string, unknown> }) => ({ ...(r.data as object), id: r.id, doctorId: r.doctor_id }) as Receptionist);
   const notes = await supabase.from("private_notes").select("id, notes");

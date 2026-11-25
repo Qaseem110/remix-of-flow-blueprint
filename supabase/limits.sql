@@ -1071,3 +1071,57 @@ COMMENT ON COLUMN public.profiles.role IS 'Legacy display mirror; authorization 
 CREATE OR REPLACE FUNCTION public.guard_prescription_reservation() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ DECLARE m jsonb; BEGIN IF new.kind<>'reservation' OR auth.uid() IS NULL THEN RETURN new; END IF; IF TG_OP='INSERT' THEN SELECT data INTO m FROM public.medicines WHERE id=new.data->>'medicineId' AND pharmacy_id=new.recipient_id; IF m IS NULL THEN RAISE EXCEPTION 'Choose a listed medicine'; END IF; IF coalesce((m->>'prescriptionRequired')::boolean,false) THEN IF NOT EXISTS(SELECT 1 FROM public.consultations WHERE id=new.data->>'appointmentId' AND patient_id=auth.uid()::text AND jsonb_array_length(coalesce(data->'prescription','[]'))>0) THEN RAISE EXCEPTION 'Your doctor prescription is required'; END IF; END IF; new.data:=new.data||jsonb_build_object('prescriptionRequired',coalesce((m->>'prescriptionRequired')::boolean,false)); ELSE IF new.data->>'medicineId' IS DISTINCT FROM old.data->>'medicineId' OR new.data->>'appointmentId' IS DISTINCT FROM old.data->>'appointmentId' OR new.data->'prescriptionRequired' IS DISTINCT FROM old.data->'prescriptionRequired' THEN RAISE EXCEPTION 'Reservation prescription details cannot change'; END IF; END IF; RETURN new; END $$; CREATE TRIGGER guard_prescription_reservation BEFORE INSERT OR UPDATE ON public.care_items FOR EACH ROW EXECUTE FUNCTION public.guard_prescription_reservation();
 
 ALTER TABLE public.call_recordings ADD COLUMN expires_at timestamptz; UPDATE public.call_recordings SET expires_at=created_at+interval '1 month' WHERE expires_at IS NULL; ALTER TABLE public.call_recordings ALTER COLUMN expires_at SET NOT NULL; CREATE OR REPLACE FUNCTION public.set_recording_expiry() RETURNS trigger LANGUAGE plpgsql SET search_path=public AS $$ BEGIN new.created_at:=now(); new.expires_at:=new.created_at+interval '1 month'; RETURN new; END $$; CREATE TRIGGER set_recording_expiry BEFORE INSERT ON public.call_recordings FOR EACH ROW EXECUTE FUNCTION public.set_recording_expiry(); CREATE INDEX call_recordings_expiry ON public.call_recordings(expires_at); CREATE POLICY recording_not_expired ON public.call_recordings AS RESTRICTIVE FOR SELECT TO authenticated USING(expires_at>now()); CREATE POLICY recording_file_not_expired ON storage.objects AS RESTRICTIVE FOR SELECT TO authenticated USING(bucket_id<>'recordings' OR EXISTS(SELECT 1 FROM public.call_recordings r WHERE r.path=name AND r.expires_at>now()));
+-- Tightened read rules (profiles, appointments, notifications) + anonymous queue positions
+create or replace function public.can_view_profile(target text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and (
+    target = auth.uid()::text
+    or public.is_admin()
+    or exists (select 1 from public.profiles p where p.id = target and p.role in ('doctor','lab','pharmacy','admin'))
+    or exists (select 1 from public.appointments a where (a.patient_id = auth.uid()::text and a.doctor_id = target) or (a.doctor_id = auth.uid()::text and a.patient_id = target) or (a.doctor_id = public.reception_doctor() and a.patient_id = target))
+    or exists (select 1 from public.lab_orders o where (o.lab_id = auth.uid()::text and target in (o.patient_id, o.doctor_id)) or (auth.uid()::text in (o.patient_id, o.doctor_id) and target in (o.lab_id, o.patient_id, o.doctor_id)))
+    or exists (select 1 from public.receptionists r where (r.id = auth.uid()::text and r.doctor_id = target) or (r.doctor_id = auth.uid()::text and r.id = target))
+    or exists (select 1 from public.care_items c where (c.owner_id = auth.uid()::text and c.recipient_id = target) or (c.recipient_id = auth.uid()::text and c.owner_id = target))
+    or exists (select 1 from public.volunteer_bookings b join public.volunteer_sessions s on s.id = b.session_id where (s.doctor_id = auth.uid()::text and b.patient_id = target) or (b.patient_id = auth.uid()::text and s.doctor_id = target))
+  )
+$$;
+revoke execute on function public.can_view_profile(text) from public, anon;
+grant execute on function public.can_view_profile(text) to authenticated;
+
+drop policy if exists "profiles read" on public.profiles;
+create policy "profiles read" on public.profiles for select to authenticated using (public.can_view_profile(id));
+
+drop policy if exists "notifications insert" on public.notifications;
+create policy "notifications insert" on public.notifications for insert to authenticated
+  with check (user_id = auth.uid()::text or public.is_admin() or public.can_view_profile(user_id));
+
+drop policy if exists "appointments read" on public.appointments;
+create policy "appointments read" on public.appointments for select to authenticated using (
+  patient_id = auth.uid()::text or doctor_id = auth.uid()::text or public.is_admin() or doctor_id = public.reception_doctor()
+  or exists (select 1 from public.lab_orders o where o.appointment_id = appointments.id and o.lab_id = auth.uid()::text));
+
+-- Queue view for patients: anonymous positions only, for days they are booked with a doctor.
+create or replace function public.queue_peers() returns table(id text, doctor_id text, data jsonb)
+language sql stable security definer set search_path = public as $$
+  select 'q-' || md5(a.id), a.doctor_id, jsonb_build_object('doctorId', a.doctor_id, 'clinicId', a.data->'clinicId', 'date', a.data->'date',
+    'time', a.data->'time', 'type', a.data->'type', 'status', a.data->'status', 'queueNumber', a.data->'queueNumber', 'queueOrder', a.data->'queueOrder')
+  from public.appointments a
+  where a.patient_id <> auth.uid()::text and exists (select 1 from public.appointments m where m.patient_id = auth.uid()::text
+    and m.doctor_id = a.doctor_id and m.data->>'date' = a.data->>'date')
+$$;
+revoke execute on function public.queue_peers() from public, anon;
+grant execute on function public.queue_peers() to authenticated;create or replace function public.can_view_profile(target text) returns boolean
+language sql stable security definer set search_path = public as $$
+  select auth.uid() is not null and (
+    target = auth.uid()::text
+    or public.is_admin()
+    or exists (select 1 from public.profiles p where p.id = target and p.role in ('doctor','lab','pharmacy','admin'))
+    or exists (select 1 from public.reviews rv where rv.patient_id = target)
+    or exists (select 1 from public.appointments a where (a.patient_id = auth.uid()::text and a.doctor_id = target) or (a.doctor_id = auth.uid()::text and a.patient_id = target) or (a.doctor_id = public.reception_doctor() and a.patient_id = target))
+    or exists (select 1 from public.lab_orders o where (o.lab_id = auth.uid()::text and target in (o.patient_id, o.doctor_id)) or (auth.uid()::text in (o.patient_id, o.doctor_id) and target in (o.lab_id, o.patient_id, o.doctor_id)))
+    or exists (select 1 from public.receptionists r where (r.id = auth.uid()::text and r.doctor_id = target) or (r.doctor_id = auth.uid()::text and r.id = target))
+    or exists (select 1 from public.care_items c where (c.owner_id = auth.uid()::text and c.recipient_id = target) or (c.recipient_id = auth.uid()::text and c.owner_id = target))
+    or exists (select 1 from public.volunteer_bookings b join public.volunteer_sessions s on s.id = b.session_id where (s.doctor_id = auth.uid()::text and b.patient_id = target) or (b.patient_id = auth.uid()::text and s.doctor_id = target))
+  )
+$$;drop policy if exists "settings read" on public.settings;
+create policy "settings read" on public.settings for select to anon, authenticated using (id = 'global' or public.is_admin());

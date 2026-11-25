@@ -8,6 +8,27 @@
       "when": 1795627553039,
       "tag": "0000_restore_signup_trigger",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795627765851,
+      "tag": "0001_tighten_core_read_rules",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795627791043,
+      "tag": "0002_reviewer_names_visible",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1795627847066,
+      "tag": "0003_settings_global_only",
+      "breakpoints": true
     }
   ]
 }
