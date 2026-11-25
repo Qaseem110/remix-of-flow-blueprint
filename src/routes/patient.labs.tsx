@@ -53,7 +53,7 @@ function PatientLabs() {
   if (!user) return null;
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <PageHeader title="Lab tests" subtitle="Book tests at a laboratory. A doctor's prescription is required." />
+      <PageHeader title="Lab tests" subtitle="Laboratories, test details and appointments." />
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">My lab tests</h2>
         {orders.length === 0 && <p className="text-muted-foreground">No lab tests yet.</p>}
@@ -75,7 +75,7 @@ function PatientLabs() {
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
-              {!!l.testCatalogue?.length && <ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}</li>)}</ul>}
+              {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}</li>)}</ul></>}
               <LabServices labId={l.userId} />
               <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button>
             </article>
@@ -96,6 +96,7 @@ function PatientLabs() {
               <div className="flex gap-2 sm:col-span-2"><Button disabled={busy || !appt || !date || !time} onClick={book}>Confirm booking</Button><Button variant="ghost" onClick={() => setPick(null)}>Close</Button></div>
             </div>
           )}
+          {rx.length===0&&<Button variant="ghost" onClick={()=>setPick(null)}>Close</Button>}
         </section>
       )}
     </div>

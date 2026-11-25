@@ -1,10 +1,10 @@
 import { MedicineReservation } from "./MedicineReservation";
 import { ProviderActions } from "./ProviderActions";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { MapPin, Phone, Search, Store, MessageCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { searchMedicines, useStore, type Pharmacy } from "@/lib/store";
+import { recordMedicineSearch, popularMedicineSearches, searchMedicines, useStore, type Pharmacy } from "@/lib/store";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { saveCareItem } from "@/lib/store";
@@ -21,6 +21,9 @@ export function MedicineFinder() {
   const st = useStore((s) => s);
   const [q, setQ] = useState("");
   const [city, setCity] = useState("");
+  const [popular,setPopular]=useState<string[]>([]);
+  useEffect(()=>{void popularMedicineSearches().then(setPopular).catch(()=>{});},[]);
+  useEffect(()=>{if(q.trim().length<2)return;const timer=setTimeout(()=>{void recordMedicineSearch(q).then(()=>popularMedicineSearches()).then(setPopular).catch(()=>{});},1000);return()=>clearTimeout(timer);},[q]);
   const results = searchMedicines(st, q, city);
   return (
     <div>
@@ -29,7 +32,7 @@ export function MedicineFinder() {
         <Input placeholder="City (optional)" value={city} onChange={(e) => setCity(e.target.value)} />
       </div>
       <div className="mt-6 space-y-3">
-        {q.trim().length < 2 && <p className="text-sm text-muted-foreground">Type at least 2 letters to search {st.medicines.length} listed medicines across {st.pharmacies.length} medical stores.</p>}
+        {q.trim().length < 2 && <><h2 className="font-semibold">Available medicines</h2>{popular.length>0&&<div className="flex flex-wrap gap-2"><span className="text-sm">Popular searches</span>{popular.map(term=><Button key={term} size="sm" variant="outline" onClick={()=>setQ(term)}>{term}</Button>)}</div>}</>}
         {q.trim().length >= 2 && results.length === 0 && <p className="text-sm text-muted-foreground">No medical store has listed this medicine yet.</p>}
         {results.map(({ m, p }) => (
           <div key={m.id} className="flex flex-wrap items-start justify-between gap-4 rounded-2xl border bg-card p-4 shadow-soft">

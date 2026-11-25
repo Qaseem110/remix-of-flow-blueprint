@@ -1,3 +1,4 @@
+import { DocList } from "@/components/app/common";
 import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -40,9 +41,10 @@ function FreeCheckups() {
           if (!v) return null;
           return <article key={b.id} className="rounded-2xl border bg-card p-4 shadow-soft">
             <p className="font-display text-2xl font-semibold text-primary">Token #{b.token}</p>
-            <p className="font-medium">{doctor(v.doctorId).u?.name} · {v.date}, {fmtTime(v.start)}</p>
+            <p className="text-sm">Booking: {b.id} · Reason: {b.reason}</p><p className="text-sm">Session: {fmtTime(v.start)}–{fmtTime(v.end)}</p><p className="font-medium">{doctor(v.doctorId).u?.name} · {v.date}, {fmtTime(v.start)}</p>
             <p className="text-sm text-muted-foreground">{v.status === "Cancelled" ? "Cancelled by doctor" : v.mode === "online" ? "Online" : `${v.location}${v.city ? `, ${v.city}` : ""}`} · {b.memberName ?? "Me"} · {b.status}</p>
-            {v.mode === "online" && v.status === "Open" && b.status === "Booked" && <VolunteerCall bookingId={b.id} name={b.memberName ?? user.name} />}
+            {v.mode === "online" && v.status === "Open" && ["Booked","In Consultation"].includes(b.status) && <VolunteerCall bookingId={b.id} name={b.memberName ?? user.name} />}
+            {s.consultations.filter(c=>c.appointmentId===b.id&&c.completedAt).map(c=><section key={c.appointmentId} className="mt-3 space-y-2 border-t pt-3"><h3 className="font-semibold">Consultation record</h3><p>{c.diagnosis}</p><p>{c.summary}</p>{c.prescription.map((r,i)=><p key={i}>{r.medicine} · {r.dosage} · {r.frequency} · {r.duration}</p>)}<DocList docs={c.documents}/>{c.followUpRequired&&<p>Follow-up: {c.followUpTiming}</p>}</section>)}
             {b.status === "Booked" && v.status === "Open" && <Button size="sm" variant="ghost" className="mt-2 text-destructive" onClick={() => setVolunteerBookingStatus(b.id, "Cancelled").then(() => toast.success("Booking cancelled"), (e) => toast.error(e.message))}>Cancel booking</Button>}
           </article>;
         })}</div>
@@ -64,6 +66,7 @@ function SessionOffer({ v, name, spec }: { v: VolunteerSession; name: string; sp
   const [forOther, setForOther] = useState("");
   const [busy, setBusy] = useState(false);
   const left = volunteerSpotsLeft(v, s);
+  const booked = s.volunteerBookings.some(b=>b.sessionId===v.id&&b.patientId===s.sessionUserId&&b.status!=="Cancelled");
   const book = async () => {
     setBusy(true);
     try { const b = await bookVolunteer(v.id, reason, forOther.trim() || undefined); toast.success(`Booked — your token is #${b.token}`); setReason(""); setForOther(""); }
@@ -77,7 +80,8 @@ function SessionOffer({ v, name, spec }: { v: VolunteerSession; name: string; sp
       {v.focus && <p className="text-sm">Focus: {v.focus}</p>}
       {v.notes && <p className="text-sm text-muted-foreground">{v.notes}</p>}
       <p className="mt-1 text-sm font-medium">{left > 0 ? `${left} free spots left` : "Full"}</p>
-      {left > 0 && <div className="mt-3 space-y-2">
+      {booked&&<p className="mt-3 font-medium text-primary">Already booked</p>}
+      {left > 0 && !booked && <div className="mt-3 space-y-2">
         <Input placeholder="Reason for visit" value={reason} onChange={(e) => setReason(e.target.value)} />
         <Input placeholder="Patient name (only if for someone else)" value={forOther} onChange={(e) => setForOther(e.target.value)} />
         <Button onClick={book} disabled={busy} className="w-full">Book free spot</Button>

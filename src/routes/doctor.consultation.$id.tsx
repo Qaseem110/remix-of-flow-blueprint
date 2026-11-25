@@ -1,4 +1,4 @@
-import { ReferralForm } from "@/components/app/ReferralForm";
+import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { PrescriptionTemplates } from "@/components/app/PrescriptionTemplates";
 import { trackingNumber } from "@/lib/store";
 import { DoctorLabOrder } from "@/components/app/DoctorLabOrder";
@@ -19,7 +19,7 @@ import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
 import { PatientHistory } from "@/components/app/PatientHistory";
 import { MedicineInput } from "@/components/app/MedicineInput";
-import { addConsultationDocs, callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
+import { consultationAppointment, addConsultationDocs, callVolunteerPatient, callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 import { ConsultationTemplates } from "@/components/app/ConsultationTemplates";
@@ -35,7 +35,7 @@ function Console() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const user = useSession();
-  const a = useStore((s) => s.appointments.find((x) => x.id === id));
+  const a = useStore((s) => consultationAppointment(id, s));
   const patient = useStore((s) => s.users.find((x) => x.id === a?.patientId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
   const [c, setC] = useState<ReturnType<typeof ensureConsultation> | null>(null);
@@ -53,12 +53,12 @@ function Console() {
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });
   const setRx = (i: number, p: Partial<PrescriptionItem>) => upd({ prescription: c.prescription.map((r, j) => (j === i ? { ...r, ...p } : r)) });
   const save = () => { saveConsultation(id, c); toast.success("Consultation record saved"); };
-  const complete = () => {
+  const complete = async () => {
     if (!c.diagnosis.trim()) return toast.error("Add a diagnosis before completing");
     if (c.followUpRequired && !c.followUpTiming.trim()) return toast.error("Enter recommended follow-up timing");
-    completeConsultation(id, { ...c, prescription: c.prescription.filter((r) => r.medicine.trim()) });
+    await completeConsultation(id, { ...c, prescription: c.prescription.filter((r) => r.medicine.trim()) });
     toast.success("Consultation completed");
-    navigate({ to: "/doctor" });
+    navigate({ to: a.id.startsWith("VB") ? "/doctor/volunteer" : "/doctor" });
   };
   const upload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -79,12 +79,12 @@ function Console() {
         <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{trackingNumber(a)} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
-          {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
+          {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => a.id.startsWith("VB") ? void callVolunteerPatient(id).catch(e=>toast.error(e.message)) : callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
         <div className="space-y-6">
-          {a.type === "online" && !done && <VideoRoom roomId={a.id} selfName={user.name} otherName={a.memberName ?? patient.name} onLeave={() => navigate({ to: "/doctor" })} />}
+          {a.type === "online" && !done && (a.id.startsWith("VB") ? <VolunteerCall bookingId={a.id} name={user.name}/> : <VideoRoom roomId={a.id} selfName={user.name} otherName={a.memberName ?? patient.name} onLeave={() => navigate({ to: "/doctor" })} />)}
           <section className="space-y-4 rounded-2xl border bg-card p-6 shadow-soft">
             <h2 className="text-lg font-semibold">Consultation record</h2>
             {!done && <ConsultationTemplates onApply={(patch) => upd({ ...patch, prescription: [...c.prescription, ...(patch.prescription ?? [])] })} />}
@@ -122,7 +122,7 @@ function Console() {
             <div>
               <Label>Documents for patient</Label>
                 <div className="mt-2 flex flex-wrap gap-2">
-                  <Select value={kind} onValueChange={setKind}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent>{["Prescription", "Consultation summary", "Report", "Referral", "Other"].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent></Select>
+                  <Select value={kind} onValueChange={setKind}><SelectTrigger className="w-48"><SelectValue /></SelectTrigger><SelectContent>{["Prescription", "Consultation summary", "Report", "Other"].map((k) => <SelectItem key={k} value={k}>{k}</SelectItem>)}</SelectContent></Select>
                   <Button type="button" variant="outline" disabled={uploading} onClick={() => fileInput.current?.click()}><Upload className="mr-1 h-4 w-4" />{uploading ? "Uploading…" : "Upload documents"}</Button>
                   <input ref={fileInput} aria-label="Upload consultation documents" type="file" multiple className="hidden" accept={allowed.map((x) => "." + x).join(",")} onChange={upload} />
                 </div>
@@ -130,7 +130,6 @@ function Console() {
               <div className="mt-2"><DocList docs={c.documents} empty="No documents uploaded." /></div>
             </div>
 
-            <ReferralForm appointment={a} />
             <div className="rounded-xl bg-muted p-4">
               <label className="flex items-center justify-between text-sm font-medium"><span>Follow-up required</span><Switch disabled={done} checked={c.followUpRequired} onCheckedChange={(v) => upd({ followUpRequired: v })} /></label>
               {c.followUpRequired && <><Input disabled={done} className="mt-3" placeholder="Recommended timing, e.g. In 2 weeks" value={c.followUpTiming} onChange={(e) => upd({ followUpTiming: e.target.value })} /><Label htmlFor="follow-up-date">Follow-up date</Label><Input id="follow-up-date" type="date" disabled={done} value={c.followUpDate ?? ""} onChange={(e) => upd({ followUpDate: e.target.value })} /></>}

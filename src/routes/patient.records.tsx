@@ -9,8 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DocList, PageHeader, TypeBadge } from "@/components/app/common";
-import { addAppointmentDocs, readAndMakeDocs, memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
+import { consultationAppointment, addAppointmentDocs, readAndMakeDocs, memberOf, slotDateTime, useActiveMember, useSession, useStore, type DocFile } from "@/lib/store";
 import { meta } from "@/lib/meta";
+import { PrescriptionAlerts } from "@/components/app/PrescriptionAlerts";
 import { MedicalTimeline } from "@/components/app/MedicalTimeline";
 
 export const Route = createFileRoute("/patient/records")({
@@ -19,16 +20,17 @@ export const Route = createFileRoute("/patient/records")({
 });
 
 function Records() {
-  const user = useSession()!;
+  const user = useSession();
   const s = useStore((s) => s);
   const member = useActiveMember();
   const allowed = s.settings.allowedFileTypes;
   const mine = (apptId: string) => memberOf(s.appointments.find((a) => a.id === apptId)) === member;
   const records = s.consultations
-    .filter((c) => c.patientId === user.id && c.completedAt && mine(c.appointmentId))
-    .map((c) => ({ c, a: s.appointments.find((a) => a.id === c.appointmentId)!, doc: s.users.find((u) => u.id === c.doctorId)! }))
+    .filter((c) => c.patientId === user?.id && c.completedAt && mine(c.appointmentId))
+    .map((c) => ({ c, a: consultationAppointment(c.appointmentId,s), doc: s.users.find((u) => u.id === c.doctorId) }))
+    .filter((r): r is typeof r & {a:NonNullable<typeof r.a>;doc:NonNullable<typeof r.doc>}=>!!r.a&&!!r.doc)
     .sort((x, y) => slotDateTime(y.a).getTime() - slotDateTime(x.a).getTime());
-  const myAppts = s.appointments.filter((a) => a.patientId === user.id && memberOf(a) === member);
+  const myAppts = s.appointments.filter((a) => a.patientId === user?.id && memberOf(a) === member);
   const allDocs = [
     ...records.flatMap((r) => r.c.documents.map((d) => ({ d, doctorId: r.c.doctorId }))),
     ...myAppts.flatMap((a) => a.documents.map((d) => ({ d, doctorId: a.doctorId }))),
@@ -109,10 +111,10 @@ function Records() {
         <TabsContent value="rx">
           <div className="overflow-x-auto rounded-2xl border bg-card">
             <table className="w-full text-sm">
-              <thead className="bg-muted text-left text-xs uppercase text-muted-foreground"><tr>{["Date", "Doctor", "Medicine", "Dosage", "Frequency", "Duration", "Instructions"].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
+              <thead className="bg-muted text-left text-xs uppercase text-muted-foreground"><tr>{["Date", "Doctor", "Medicine", "Dosage", "Frequency", "Duration", "Instructions", "Alerts"].map((h) => <th key={h} className="p-3">{h}</th>)}</tr></thead>
               <tbody>
                 {records.flatMap(({ c, a, doc }) => c.prescription.map((p, i) => (
-                  <tr key={c.appointmentId + i} className="border-t"><td className="p-3">{a.date}</td><td className="p-3">{doc.name}</td><td className="p-3 font-medium">{p.medicine}</td><td className="p-3">{p.dosage}</td><td className="p-3">{p.frequency}</td><td className="p-3">{p.duration}</td><td className="p-3 text-muted-foreground">{p.instructions}</td></tr>
+                  <tr key={c.appointmentId + i} className="border-t"><td className="p-3">{a.date}</td><td className="p-3">{doc.name}</td><td className="p-3 font-medium">{p.medicine}</td><td className="p-3">{p.dosage}</td><td className="p-3">{p.frequency}</td><td className="p-3">{p.duration}</td><td className="p-3 text-muted-foreground">{p.instructions}</td><td className="p-3"><PrescriptionAlerts appointmentId={c.appointmentId} index={i} times={p.times??[]}/></td></tr>
                 )))}
               </tbody>
             </table>

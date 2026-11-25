@@ -36,6 +36,13 @@
       "when": 1795628047566,
       "tag": "0004_retime_queue_per_clinic",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795633667114,
+      "tag": "0005_care_booking_corrections",
+      "breakpoints": true
     }
   ]
 }

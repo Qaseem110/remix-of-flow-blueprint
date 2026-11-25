@@ -344,6 +344,24 @@ export type Database = {
         }
         Relationships: []
       }
+      medicine_searches: {
+        Row: {
+          search_day: string
+          term: string
+          user_id: string
+        }
+        Insert: {
+          search_day?: string
+          term: string
+          user_id: string
+        }
+        Update: {
+          search_day?: string
+          term?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       medicines: {
         Row: {
           data: Json
@@ -694,6 +712,13 @@ export type Database = {
           duration: number
         }[]
       }
+      popular_medicine_searches: {
+        Args: never
+        Returns: {
+          searches: number
+          term: string
+        }[]
+      }
       queue_doctor_summary: {
         Args: { target_doctor: string }
         Returns: undefined
@@ -716,6 +741,7 @@ export type Database = {
         Args: { access_action: string; document_id: string }
         Returns: undefined
       }
+      record_medicine_search: { Args: { term: string }; Returns: undefined }
       schedule_shifts: { Args: { av: Json; day: string }; Returns: Json }
       set_report_pin: { Args: { pin: string }; Returns: undefined }
       shift_queue_times: {

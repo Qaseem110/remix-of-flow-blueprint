@@ -64,7 +64,7 @@ export interface VolunteerBooking {
   memberName?: string;
   reason: string;
   token?: number;
-  status: "Booked" | "Attended" | "Missed" | "Cancelled";
+  status: "Booked" | "In Consultation" | "Attended" | "Missed" | "Cancelled";
   createdAt: string;
 }
 export interface LabOrder {
@@ -1138,8 +1138,11 @@ export function saveMedicine(m: Omit<Medicine, "id" | "updatedAt"> & { id?: stri
   if (!m.name.trim()) throw new Error("Medicine name is required");
   if (!(m.price >= 0)) throw new Error("Price must be a number");
   if (m.quantity !== undefined && (!Number.isInteger(m.quantity) || m.quantity < 0)) throw new Error("Stock quantity must be a non-negative integer");
+  if (m.lowStock !== undefined && (!Number.isInteger(m.lowStock) || m.lowStock < 0)) throw new Error("Low-stock threshold must be a non-negative integer");
+  const old = state.medicines.find(x=>x.id===m.id);
   const full: Medicine = { ...m, id: m.id ?? uid("MED"), name: m.name.trim(), updatedAt: now() };
   set((s) => ({ ...s, medicines: m.id ? s.medicines.map((x) => (x.id === m.id ? full : x)) : [full, ...s.medicines] }));
+  if (!SB && full.quantity !== undefined && full.quantity <= (full.lowStock ?? 5) && (!old || old.quantity === undefined || old.quantity > (old.lowStock ?? 5))) notify(full.pharmacyId, "Medicine running low", `${full.name}: ${full.quantity} left — out of stock soon.`, "/pharmacy");
   return full;
 }
 export function deleteMedicine(id: string) {
@@ -1148,11 +1151,11 @@ export function deleteMedicine(id: string) {
 /** Search in-stock medicines across all pharmacies by name or formula. */
 export function searchMedicines(st: { medicines: Medicine[]; pharmacies: Pharmacy[] }, q: string, city = "") {
   const t = q.trim().toLowerCase();
-  if (t.length < 2) return [];
+
   return st.medicines
-    .filter((m) => m.inStock && (m.quantity === undefined || m.quantity > 0) && (!m.expiry || m.expiry >= todayStr()) && (m.name.toLowerCase().includes(t) || (m.formula ?? "").toLowerCase().includes(t)))
-    .map((m) => ({ m, p: st.pharmacies.find((p) => p.userId === m.pharmacyId)! }))
-    .filter((x) => x.p && (!city || x.p.city.toLowerCase().includes(city.trim().toLowerCase())))
+    .filter((m) => m.inStock && (m.quantity === undefined || m.quantity > 0) && (!m.expiry || m.expiry >= todayStr()) && (!t || m.name.toLowerCase().includes(t) || (m.formula ?? "").toLowerCase().includes(t)))
+    .flatMap((m) => {const p=st.pharmacies.find(p=>p.userId===m.pharmacyId);return p?[{m,p}]:[];})
+    .filter((x) => (!city || x.p.city.toLowerCase().includes(city.trim().toLowerCase())))
     .sort((a, b) => a.m.price - b.m.price);
 }
 
@@ -1509,7 +1512,7 @@ export function canJoin(a: Appointment) {
 // ---------- Consultations ----------
 /** Save doctor attachments immediately, including for completed consultations. */
 export async function addConsultationDocs(appointmentId: string, docs: DocFile[]): Promise<Consultation> {
-  const a = state.appointments.find((x) => x.id === appointmentId);
+  const a = consultationAppointment(appointmentId);
   const doctor = userById(state.sessionUserId ?? "");
   if (!a || doctor?.role !== "doctor" || a.doctorId !== doctor.id) throw new Error("Only the appointment's doctor can upload documents");
   if (docs.some((d) => d.uploadedBy !== "doctor")) throw new Error("Doctor documents must be uploaded as doctor");
@@ -1532,7 +1535,8 @@ export async function addConsultationDocs(appointmentId: string, docs: DocFile[]
 export function ensureConsultation(appointmentId: string): Consultation {
   const ex = state.consultations.find((c) => c.appointmentId === appointmentId);
   if (ex) return ex;
-  const a = state.appointments.find((x) => x.id === appointmentId)!;
+  const a = consultationAppointment(appointmentId);
+  if (!a) throw new Error("Appointment not found");
   const c: Consultation = { appointmentId, doctorId: a.doctorId, patientId: a.patientId, symptoms: a.reason, diagnosis: "", privateNotes: "", summary: "", prescription: [], documents: [], followUpRequired: false, followUpTiming: "" };
   set((s) => ({ ...s, consultations: [...s.consultations, c] }));
   return c;
@@ -1541,10 +1545,12 @@ export function saveConsultation(appointmentId: string, p: Partial<Consultation>
   ensureConsultation(appointmentId);
   set((s) => ({ ...s, consultations: s.consultations.map((c) => (c.appointmentId === appointmentId ? { ...c, ...p } : c)) }));
 }
-export function completeConsultation(appointmentId: string, p: Partial<Consultation>) {
+export async function completeConsultation(appointmentId: string, p: Partial<Consultation>) {
   saveConsultation(appointmentId, { ...p, completedAt: now() });
-  const a = state.appointments.find((x) => x.id === appointmentId)!;
-  patchAppt(appointmentId, { status: "Completed" });
+  const a = consultationAppointment(appointmentId);
+  if (!a) throw new Error("Appointment not found");
+  if (state.volunteerBookings.some(b=>b.id===appointmentId)) await setVolunteerBookingStatus(appointmentId,"Attended");
+  else patchAppt(appointmentId, { status: "Completed" });
   const c = state.consultations.find((x) => x.appointmentId === appointmentId)!;
   notify(a.patientId, "Consultation completed", `Your record from ${userById(a.doctorId)?.name} is ready in Health Records.`, `/patient/records`);
   if (c.followUpRequired) notify(a.patientId, "Follow-up recommended", `${userById(a.doctorId)?.name}: ${c.followUpTiming}. Book from Health Records.`, `/patient/book/${a.doctorId}?followUpOf=${a.id}`);
@@ -1567,10 +1573,11 @@ export function runReminders(userId: string) {
 }
 
 /** In-app + browser alert when a prescribed dose time arrives. */
-export function runMedicineReminders(userId: string) {
+export async function runMedicineReminders(userId: string) {
+  const alerts = await loadCareItems();
   const now = new Date();
   state.consultations.filter((c) => c.patientId === userId && c.completedAt && c.prescription?.length).forEach((c) => {
-    dueDoses(c.prescription, c.completedAt!, now).forEach(({ key, item, time }) => {
+    dueDoses(c.prescription.map((r,i)=>{const override=alerts.find(x=>x.ownerId===userId&&x.kind==="consent"&&x.data.alertAppointment===c.appointmentId&&Number(x.data.alertIndex)===i);return override?{...r,times:String(override.data.alertTimes??"").split(",").filter(Boolean)}:r;}), c.completedAt ?? now.toISOString(), now).forEach(({ key, item, time }) => {
       const tag = `[${c.appointmentId}|${key}]`;
       if (state.notifications.some((n) => n.userId === userId && n.title === "Medicine time" && n.body.includes(tag))) return;
       const body = `Time to take ${item.medicine} — ${item.dosage || "as prescribed"} (${fmtTime(time)}).${item.instructions ? " " + item.instructions : ""} ${tag}`;
@@ -1759,7 +1766,7 @@ export async function bookVolunteer(sessionId: string, reason: string, memberNam
   if (!v || !isVolunteerSessionUpcoming(v)) throw new Error("This free checkup session is not open");
   if (!reason.trim()) throw new Error("Tell the doctor the reason for the visit");
   const mine = state.volunteerBookings.filter((b) => b.sessionId === sessionId && b.status !== "Cancelled");
-  if (mine.some((b) => b.patientId === me.id && (b.memberName ?? "") === (memberName ?? ""))) throw new Error("You already booked this session");
+  if (mine.some((b) => b.patientId === me.id)) throw new Error("You already booked this session");
   if (!SB && volunteerSpotsLeft(v) <= 0) throw new Error("All free spots in this session are taken");
   let b: VolunteerBooking = { id: uid("VB"), sessionId, patientId: me.id, memberName, reason: reason.trim().slice(0, 500), status: "Booked", createdAt: now() };
   if (!SB) b.token = Math.max(0, ...state.volunteerBookings.filter((x) => x.sessionId === sessionId).map((x) => x.token ?? 0)) + 1;
@@ -1782,6 +1789,7 @@ export async function setVolunteerBookingStatus(id: string, status: VolunteerBoo
   const next = { ...b, status };
   await writeRow("volunteer_bookings", volTable("volunteerBookings").row(next), false);
   commitVol("volunteerBookings", next);
+  if (v && isDoctor) await notifyLabAppointment(b.patientId, "Free checkup update", `Token #${b.token} — ${status} · ${v.date} · ${fmtTime(v.start)} · ${v.location ?? "Online"}`, "/patient/free-checkups");
   if (v) commitVol("volunteerSessions", await readBack("volunteerSessions", v.id, v));
 }
 
@@ -1800,10 +1808,14 @@ export async function saveCareItem(kind: import('./care').CareKind, data: import
   if (kind === 'credential' && userById(state.sessionUserId ?? '')?.role === 'pharmacy' && !data.documentPath) throw new Error('Certificate document is required');
   validateCare(kind, data);
   const me = state.sessionUserId; if (!me) throw new Error('Sign in first');
-  const old = id ? (await loadCareItems()).find((x) => x.id === id) : undefined;
+  const existing = await loadCareItems();
+  if (!id && kind === "favorite") {const saved=existing.find(x=>x.ownerId===me&&x.kind===kind&&x.recipientId===recipientId&&x.data.status!=="Archived");if(saved)return saved;}
+  if (!id && kind === "reservation" && existing.some(x=>x.ownerId===me&&x.kind===kind&&x.recipientId===recipientId&&x.data.medicineId===data.medicineId&&x.data.memberId===data.memberId&&!["Cancelled","Archived","Unavailable","Collected"].includes(String(x.data.status)))) throw new Error("This medicine is already reserved");
+  const old = id ? existing.find((x) => x.id === id) : undefined;
   const item: import('./care').CareItem = { id: id ?? crypto.randomUUID(), ownerId: old?.ownerId ?? me, recipientId: old?.recipientId ?? recipientId, kind, data, createdAt: old?.createdAt ?? now() };
   if (SB) await writeRow('care_items', { id: item.id, owner_id: item.ownerId, recipient_id: item.recipientId ?? null, kind, data }, !old);
   else offlineCare = [...offlineCare.filter((x) => x.id !== item.id), item];
+  careListeners.forEach(fn=>fn());
   return item;
 }
 const offlineSafety = new Map<string, import('./care').MedicalSafety>();
@@ -1840,3 +1852,19 @@ export async function listSecondFactors() { const {supabase}=await import('./sup
 export async function enrollSecondFactor() {const {supabase}=await import('./supabase');const {data,error}=await supabase.auth.mfa.enroll({factorType:'totp',friendlyName:`Sahoolat ${Date.now()}`});if(error)throw new Error(error.message);return {id:data.id,qr:data.totp.qr_code};}
 export async function verifySecondFactor(factorId:string,code:string) {const {supabase}=await import('./supabase');const {error}=await supabase.auth.mfa.challengeAndVerify({factorId,code});if(error)throw new Error(error.message);}
 export async function recordDocumentAccess(documentId:string,action:'Preview'|'Download'){if(!SB)return;const {supabase}=await import('./supabase');const {error}=await supabase.rpc('record_document_access',{document_id:documentId,access_action:action});if(error)throw new Error(error.message);}
+
+
+// Free visits share the consultation record without entering paid clinic queues.
+export function consultationAppointment(id:string,s:State=state):Appointment|undefined {
+ const paid=s.appointments.find(a=>a.id===id);if(paid)return paid;
+ const b=s.volunteerBookings.find(b=>b.id===id);const v=s.volunteerSessions.find(v=>v.id===b?.sessionId);if(!b||!v)return;
+ const statuses:Record<VolunteerBooking['status'],AppointmentStatus>={Booked:'Confirmed','In Consultation':'In Consultation',Attended:'Completed',Missed:'No Show',Cancelled:'Cancelled'};
+ return {id:b.id,doctorId:v.doctorId,patientId:b.patientId,memberName:b.memberName,type:v.mode,date:v.date,time:v.start,reason:b.reason,status:statuses[b.status],queueNumber:b.token??0,documents:[],createdAt:b.createdAt,clinicName:v.location,clinicAddress:v.location,payment:'cash'};
+}
+export async function callVolunteerPatient(id:string){const a=consultationAppointment(id);if(!a||a.doctorId!==state.sessionUserId)throw new Error('Visit not found');await setVolunteerBookingStatus(id,'In Consultation');ensureConsultation(id);await notifyLabAppointment(a.patientId,"It's your turn",`Token #${a.queueNumber}: ${userById(a.doctorId)?.name} is ready.`, '/patient/free-checkups');}
+const careListeners=new Set<()=>void>();
+export function useCareItems(){const [items,setItems]=useState<import('./care').CareItem[]>([]);const user=useSession();useEffect(()=>{let active=true;const refresh=()=>{void loadCareItems().then(xs=>{if(active)setItems(xs);}).catch(()=>{});};refresh();careListeners.add(refresh);return()=>{active=false;careListeners.delete(refresh);};},[user?.id]);return items;}
+export async function setPrescriptionAlerts(appointmentId:string,index:number,times:string[]){const c=state.consultations.find(c=>c.appointmentId===appointmentId&&c.patientId===state.sessionUserId);if(!c||!c.prescription[index])throw new Error('Prescription not found');if(times.some(t=>!/^([01]\d|2[0-3]):[0-5]\d$/.test(t)))throw new Error('Invalid alert time');const existing=(await loadCareItems()).find(x=>x.ownerId===state.sessionUserId&&x.kind==='consent'&&x.data.alertAppointment===appointmentId&&Number(x.data.alertIndex)===index);return saveCareItem('consent',{title:'Medicine alerts',details:'Personal dose times',status:'Saved',alertAppointment:appointmentId,alertIndex:index,alertTimes:[...new Set(times)].sort().join(',')},undefined,existing?.id);}
+const offlineSearches=new Map<string,number>();
+export async function recordMedicineSearch(query:string){const term=query.trim().toLowerCase().slice(0,80);if(term.length<2)return;if(!SB){offlineSearches.set(term,(offlineSearches.get(term)??0)+1);return;}const {supabase}=await import('./supabase');const {error}=await supabase.rpc('record_medicine_search',{term});if(error)throw error;}
+export async function popularMedicineSearches():Promise<string[]>{if(!SB)return [...offlineSearches].sort((a,b)=>b[1]-a[1]).slice(0,8).map(x=>x[0]);const {supabase}=await import('./supabase');const {data,error}=await supabase.rpc('popular_medicine_searches');if(error)throw error;return (data??[]).map((r:{term:string})=>r.term);}

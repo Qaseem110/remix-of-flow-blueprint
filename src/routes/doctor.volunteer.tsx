@@ -1,5 +1,5 @@
 import { VolunteerCall } from "@/components/app/VolunteerCall";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { HeartHandshake, MapPin, Pencil, Video, X } from "lucide-react";
@@ -110,10 +110,10 @@ function SessionCard({ v, onEdit }: { v: VolunteerSession; onEdit?: () => void }
         {list.map((b) => <li key={b.id} className="flex flex-wrap items-center justify-between gap-2 p-3 text-sm">
           <span className="min-w-0"><b>Token #{b.token}</b> · {name(b)} · <span className="text-muted-foreground">{b.reason}</span></span>
           {v.mode === "online" && b.status === "Booked" && <VolunteerCall bookingId={b.id} name={s.users.find(u => u.id === v.doctorId)?.name ?? "Doctor"} />}
-          {b.status === "Booked" ? <span className="flex gap-1">
+          {["Booked","In Consultation"].includes(b.status) ? <span className="flex flex-wrap gap-1"><Button size="sm" asChild><Link to="/doctor/consultation/$id" params={{id:b.id}}>Open consultation</Link></Button>
             <Button size="sm" variant="secondary" onClick={() => act(() => setVolunteerBookingStatus(b.id, "Attended"))}>Checked</Button>
             <Button size="sm" variant="ghost" onClick={() => act(() => setVolunteerBookingStatus(b.id, "Missed"))}>Absent</Button>
-          </span> : <span className="text-xs text-muted-foreground">{b.status}</span>}
+          </span> : <span className="flex gap-2"><span className="text-xs text-muted-foreground">{b.status}</span>{b.status==="Attended"&&<Button size="sm" variant="outline" asChild><Link to="/doctor/consultation/$id" params={{id:b.id}}>Record</Link></Button>}</span>}
         </li>)}
       </ul>}
     </article>
