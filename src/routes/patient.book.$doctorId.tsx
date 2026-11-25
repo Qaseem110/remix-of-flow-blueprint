@@ -75,10 +75,11 @@ function Book() {
       } else if (forWho !== "main") {
         const m = members.find((x) => x.id === forWho); memberId = m?.id; memberName = m?.name;
       }
-      const a = await bookAppointment({ clinicId: type === "clinic" ? clinicId || undefined : undefined, clinicName: branch ? String(branch.data.title) : d.clinicName, clinicAddress: branch ? String(branch.data.details) : d.clinicAddress, memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment, patientLat: type === "clinic" ? loc?.lat : undefined, patientLng: type === "clinic" ? loc?.lng : undefined });
+      const a = await bookAppointment({clinicLat:branch?Number(branch.data.lat):undefined,clinicLng:branch?Number(branch.data.lng):undefined, clinicId: type === "clinic" ? clinicId || undefined : undefined, clinicName: branch ? String(branch.data.title) : d.clinicName, clinicAddress: branch ? String(branch.data.details) : d.clinicAddress, memberId, memberName, doctorId, patientId: user.id, type, date, reason, documents: docs, followUpOf: search.followUpOf, payment, patientLat: type === "clinic" ? loc?.lat : undefined, patientLng: type === "clinic" ? loc?.lng : undefined });
       navigate({ to: "/patient/appointments/$id", params: { id: a.id }, search: { confirmed: true } });
     } catch (err) { toast.error((err as Error).message); setStep(1); } finally { setBusy(false); }
   };
+  const clinicLat=branch?Number(branch.data.lat):d.clinicLat;const clinicLng=branch?Number(branch.data.lng):d.clinicLng;
   const canNext = [!!type, !!allocation, reason.trim().length > 2 && (forWho !== "new" || newName.trim().length > 1), true][step];
 
   return (
@@ -148,7 +149,7 @@ function Book() {
               <MapPin className="h-5 w-5 text-primary" />
               <div className="flex-1">
                 <p className="font-medium">Your location</p>
-                <p className="text-muted-foreground">{loc ? (d.clinicLat != null && d.clinicLng != null ? (() => { const km = distanceKm(loc, { lat: d.clinicLat, lng: d.clinicLng }); return `About ${km.toFixed(1)} km away, roughly ${travelMinutes(km)} min to reach the clinic.`; })() : "Location marked. The doctor hasn't set the clinic location yet.") : "Mark where you'll travel from so we can tell you when to leave."}</p>
+                <p className="text-muted-foreground">{loc ? (clinicLat != null && clinicLng != null && Number.isFinite(clinicLat) && Number.isFinite(clinicLng) ? (() => { const km = distanceKm(loc, { lat: clinicLat, lng: clinicLng }); return `About ${km.toFixed(1)} km away, roughly ${travelMinutes(km)} min to reach the clinic.`; })() : "Location marked. The doctor hasn't set the clinic location yet.") : "Mark where you'll travel from so we can tell you when to leave."}</p>
               </div>
               <Button type="button" variant="outline" onClick={markLocation}>{loc ? "Update location" : "Mark my location"}</Button>
             </div>

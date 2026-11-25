@@ -33,3 +33,5 @@
 
 - Public tracking numbers use the database sequence; immutable IDs remain for links and files. Past active doctor appointments derive Expired status at hydration using clinic dates, without deleting records. Why: numbering is unique and medical history survives expiration without background jobs.
 - Volunteer free checkups are separate session/booking records (not paid appointments); the database locks the session row to cap spots and assign tokens, and maintains the booked count so patients never read others' bookings. Why: free sessions must not interfere with paid queue allocation.
+
+- Free bookings resolve to virtual visits for the shared consultation console, never paid queue rows; searches expose aggregates only. Why: reuse clinical records without mixing queues or revealing searchers.

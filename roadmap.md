@@ -1,8 +1,8 @@
 # Platform expansion (excluding payments and WhatsApp)
-- [ ] Uploaded Care corrections: clinic address/location/schedule and appointment separation; remove referrals; button navigation and favorites without form.
-- [ ] Patient manual prescription alerts; single volunteer token, complete volunteer consultation and patient details/notices.
-- [ ] Medicine threshold alerts, patient-grouped reservations, required quantities/duplicate prevention, saved-provider state and populated medicine discovery.
-- [ ] Home collection duplicate fields and clear in-lab/home labels; prescription requirement only at booking.
+- [x] Uploaded Care corrections: clinic address/location/schedule and appointment separation; remove referrals; button navigation and favorites without form.
+- [x] Patient manual prescription alerts; single volunteer token, complete volunteer consultation and patient details/notices.
+- [x] Medicine threshold alerts, patient-grouped reservations, required quantities/duplicate prevention, saved-provider state and populated medicine discovery.
+- [x] Home collection duplicate fields and clear in-lab/home labels; prescription requirement only at booking.
 - [x] Clinic-specific availability, booking selection and independent queues with existing queue rules.
 - [x] Support-only complaints; remove waitlist; structured consultation templates and clear referral/reservation actions.
 - [x] Direct saved-provider profiles; prescription gate only on lab booking; unified detailed lab catalogue.

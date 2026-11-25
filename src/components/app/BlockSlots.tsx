@@ -3,15 +3,15 @@ import { toast } from "sonner";
 import { Ban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getSlots, toggleBlockedDay, toggleBlockedSlot, useStore } from "@/lib/store";
+import { clinicAvailability, getSlots, toggleBlockedDay, toggleBlockedSlot, useStore } from "@/lib/store";
 import { cn, fmtTime } from "@/lib/utils";
 
-export function BlockSlots({ doctorId, date, onDate }: { doctorId: string; date: string; onDate: (d: string) => void }) {
-  const slots = useStore((s) => getSlots(doctorId, date, s));
-  const dayOff = useStore((s) => s.availability.find((a) => a.doctorId === doctorId)?.blockedDays?.includes(date) ?? false);
+export function BlockSlots({ doctorId, clinicId, date, onDate }: { doctorId: string; clinicId?:string; date: string; onDate: (d: string) => void }) {
+  const slots = useStore((s) => getSlots(doctorId, date, s,clinicId));
+  const dayOff = useStore((s) => clinicAvailability(doctorId,clinicId,s)?.blockedDays?.includes(date) ?? false);
   const days = Array.from({ length: 7 }, (_, i) => format(addDays(new Date(), i), "yyyy-MM-dd"));
   const toggle = (time: string) => {
-    try { toggleBlockedSlot(doctorId, date, time); } catch (e) { toast.error((e as Error).message); }
+    try { toggleBlockedSlot(doctorId, date, time,clinicId); } catch (e) { toast.error((e as Error).message); }
   };
   return (
     <div>
@@ -27,7 +27,7 @@ export function BlockSlots({ doctorId, date, onDate }: { doctorId: string; date:
         <p className="text-sm text-muted-foreground">Not a working day.</p>
       ) : (
         <>
-          <Button size="sm" variant={dayOff ? "secondary" : "outline"} className="mb-3" onClick={() => { toggleBlockedDay(doctorId, date); toast.success(dayOff ? "Day is open again" : "Whole day marked unavailable"); }}>
+          <Button size="sm" variant={dayOff ? "secondary" : "outline"} className="mb-3" onClick={() => { toggleBlockedDay(doctorId, date,clinicId); toast.success(dayOff ? "Day is open again" : "Whole day marked unavailable"); }}>
             <Ban className="mr-1 h-4 w-4" />{dayOff ? "Make this day available" : "Mark whole day unavailable"}
           </Button>
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

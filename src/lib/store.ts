@@ -243,6 +243,8 @@ export interface Appointment {
   clinicId?: string;
   clinicName?: string;
   clinicAddress?: string;
+  clinicLat?: number;
+  clinicLng?: number;
   trackingNumber?: string;
   doctorId: string;
   patientId: string;
@@ -803,8 +805,10 @@ export function checkLeaveAlert(id: string, pos: { lat: number; lng: number }) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a || a.type !== "clinic" || a.date !== todayStr() || a.leaveAlertAt || !["Confirmed", "Pending"].includes(a.status)) return null;
   const d = state.doctors.find((x) => x.userId === a.doctorId);
-  if (d?.clinicLat == null || d.clinicLng == null) return null;
-  const km = distanceKm(pos, { lat: d.clinicLat, lng: d.clinicLng });
+  const lat = a.clinicId ? a.clinicLat : d?.clinicLat;
+  const lng = a.clinicId ? a.clinicLng : d?.clinicLng;
+  if (lat == null || lng == null) return null;
+  const km = distanceKm(pos, { lat, lng });
   const travel = travelMinutes(km);
   const left = minutesUntilTurn(id);
   if (left == null || km < 0.3 || travel < left) return { km, travel, left, sent: false };
@@ -1040,13 +1044,13 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
   if (!input.date) throw new Error("Choose a date");
   let doctorId: string, patientId: string, memberName: string | undefined;
   if (me.role === "doctor") {
-    const a = state.appointments.find((x) => x.id === input.appointmentId && x.doctorId === me.id);
-    if (!a) throw new Error("Appointment not found");
+    const a = consultationAppointment(input.appointmentId);
+    if (!a || a.doctorId!==me.id) throw new Error("Appointment not found");
     doctorId = me.id; patientId = a.patientId; memberName = a.memberName;
   } else if (me.role === "patient") {
     const c = prescribedConsultations(me.id).find((x) => x.appointmentId === input.appointmentId);
     if (!c) throw new Error("A doctor's prescription is required to book a lab test");
-    doctorId = c.doctorId; patientId = me.id; memberName = state.appointments.find((a) => a.id === c.appointmentId)?.memberName;
+    doctorId = c.doctorId; patientId = me.id; memberName = consultationAppointment(c.appointmentId)?.memberName;
   } else throw new Error("Only doctors and patients can book lab tests");
   if (!input.time) throw new Error("Choose an available lab appointment time");
   const schedule = state.labs.find((l) => l.userId === input.labId)?.schedule;
@@ -1217,17 +1221,19 @@ function patchAvailability(doctorId: string, fn: (a: Availability) => Availabili
   set((s) => ({ ...s, availability: s.availability.map((a) => (a.doctorId === doctorId ? fn(a) : a)) }));
 }
 /** Doctor marks a single slot as unavailable (or available again). Booked slots cannot be blocked. */
-export function toggleBlockedSlot(doctorId: string, date: string, time: string) {
+export function toggleBlockedSlot(doctorId: string, date: string, time: string, clinicId?: string) {
   const key = `${date} ${time}`;
-  const av = state.availability.find((a) => a.doctorId === doctorId);
+  const av = clinicAvailability(doctorId,clinicId);
   const isBlocked = av?.blocked?.includes(key);
-  if (!isBlocked && state.appointments.some((a) => a.doctorId === doctorId && a.date === date && a.time === time && !BLOCKING.includes(a.status))) {
+  if (!isBlocked && state.appointments.some((a) => a.doctorId === doctorId && sameClinic(a,{clinicId}) && a.date === date && a.time === time && !BLOCKING.includes(a.status))) {
     throw new Error("This slot is already booked — cancel or reschedule the appointment first");
   }
+  if(clinicId&&av){void persistAvailability({...av,clinicId,blocked:isBlocked?(av.blocked??[]).filter(k=>k!==key):[...(av.blocked??[]),key]}).catch(e=>void reportSyncError(e.message));return;}
   patchAvailability(doctorId, (a) => ({ ...a, blocked: isBlocked ? (a.blocked ?? []).filter((k) => k !== key) : [...(a.blocked ?? []), key] }));
 }
 /** Doctor marks a whole date as unavailable (leave, holiday) or available again. */
-export function toggleBlockedDay(doctorId: string, date: string) {
+export function toggleBlockedDay(doctorId: string, date: string, clinicId?: string) {
+  if(clinicId){const av=clinicAvailability(doctorId,clinicId);if(!av)return;const list=av.blockedDays??[];void persistAvailability({...av,clinicId,blockedDays:list.includes(date)?list.filter(d=>d!==date):[...list,date]}).catch(e=>void reportSyncError(e.message));return;}
   patchAvailability(doctorId, (a) => {
     const list = a.blockedDays ?? [];
     return { ...a, blockedDays: list.includes(date) ? list.filter((d) => d !== date) : [...list, date] };
@@ -1289,7 +1295,7 @@ export function deleteDocument(docId: string) {
 }
 
 // ---------- Appointments ----------
-export async function bookAppointment(input: { clinicId?: string; clinicName?: string; clinicAddress?: string; memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number; walkIn?: Appointment["walkIn"]; bookedBy?: string }): Promise<Appointment> {
+export async function bookAppointment(input: { clinicLat?: number; clinicLng?: number; clinicId?: string; clinicName?: string; clinicAddress?: string; memberId?: string; memberName?: string; doctorId: string; patientId: string; type: ConsultType; date: string; time?: string; reason: string; documents: DocFile[]; followUpOf?: string; payment?: PaymentMethod; rescheduledFrom?: string; patientLat?: number; patientLng?: number; walkIn?: Appointment["walkIn"]; bookedBy?: string }): Promise<Appointment> {
   const previewState = input.rescheduledFrom ? { ...state, appointments: state.appointments.filter((a) => a.id !== input.rescheduledFrom) } : state;
   const slot = nextBooking(input.doctorId, input.date, previewState, input.clinicId);
   if (!slot) throw new Error("No places available on this day. Choose another date.");
@@ -1538,20 +1544,34 @@ export function ensureConsultation(appointmentId: string): Consultation {
   const a = consultationAppointment(appointmentId);
   if (!a) throw new Error("Appointment not found");
   const c: Consultation = { appointmentId, doctorId: a.doctorId, patientId: a.patientId, symptoms: a.reason, diagnosis: "", privateNotes: "", summary: "", prescription: [], documents: [], followUpRequired: false, followUpTiming: "" };
-  set((s) => ({ ...s, consultations: [...s.consultations, c] }));
+  state = { ...state, consultations: [...state.consultations, c] };
+  emit();
   return c;
 }
 export function saveConsultation(appointmentId: string, p: Partial<Consultation>) {
   ensureConsultation(appointmentId);
   set((s) => ({ ...s, consultations: s.consultations.map((c) => (c.appointmentId === appointmentId ? { ...c, ...p } : c)) }));
 }
+export async function persistConsultation(appointmentId: string, patch: Partial<Consultation>) {
+  const a = consultationAppointment(appointmentId);
+  if (!a || a.doctorId !== state.sessionUserId) throw new Error('Only the treating doctor can save this visit');
+  const c = { ...ensureConsultation(appointmentId), ...patch, appointmentId, doctorId:a.doctorId, patientId:a.patientId };
+  if (SB) {
+    const table=TABLES.find(t=>t.key==='consultations');if(!table)throw new Error('Consultation saving unavailable');
+    await uploadDocs(c,appointmentId,true);
+    const {supabase}=await import('./supabase');const {error}=await supabase.from('consultations').upsert(table.row(c));if(error)throw new Error(error.message);
+  }
+  state={...state,consultations:[...state.consultations.filter(x=>x.appointmentId!==appointmentId),c]};emit();return c;
+}
 export async function completeConsultation(appointmentId: string, p: Partial<Consultation>) {
-  saveConsultation(appointmentId, { ...p, completedAt: now() });
+  if (SB) await persistConsultation(appointmentId, { ...p, completedAt: now() });
+  else saveConsultation(appointmentId, { ...p, completedAt: now() });
   const a = consultationAppointment(appointmentId);
   if (!a) throw new Error("Appointment not found");
   if (state.volunteerBookings.some(b=>b.id===appointmentId)) await setVolunteerBookingStatus(appointmentId,"Attended");
   else patchAppt(appointmentId, { status: "Completed" });
-  const c = state.consultations.find((x) => x.appointmentId === appointmentId)!;
+  const c = state.consultations.find((x) => x.appointmentId === appointmentId);
+  if (!c) throw new Error('Consultation not found');
   notify(a.patientId, "Consultation completed", `Your record from ${userById(a.doctorId)?.name} is ready in Health Records.`, `/patient/records`);
   if (c.followUpRequired) notify(a.patientId, "Follow-up recommended", `${userById(a.doctorId)?.name}: ${c.followUpTiming}. Book from Health Records.`, `/patient/book/${a.doctorId}?followUpOf=${a.id}`);
   notifyApproaching(a.doctorId, a.date);
@@ -1563,12 +1583,13 @@ export function markAllRead(userId: string) {
 }
 /** Simulates scheduled reminders for upcoming appointments (24h & shortly before). */
 export function runReminders(userId: string) {
-  const mine = state.appointments.filter((a) => a.patientId === userId && ["Confirmed", "Waiting"].includes(a.status));
+  const visits=[...state.appointments,...state.volunteerBookings.map(b=>consultationAppointment(b.id)).filter((a):a is Appointment=>!!a)];
+  const mine = visits.filter((a) => a.patientId === userId && ["Confirmed", "Waiting"].includes(a.status));
   mine.forEach((a) => {
     const mins = (slotDateTime(a).getTime() - Date.now()) / 60000;
     const key = (k: string) => state.notifications.some((n) => n.userId === userId && n.title === k && n.body.includes(a.id));
-    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${trackingNumber(a)} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, `/patient/appointments/${a.id}`);
-    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${trackingNumber(a)} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, `/patient/appointments/${a.id}`);
+    if (mins > 0 && mins <= 24 * 60 && !key("Appointment reminder")) notify(userId, "Appointment reminder", `${trackingNumber(a)} with ${userById(a.doctorId)?.name} on ${a.date} at ${fmtTime(a.time)}.`, (a.id.startsWith("VB") ? "/patient/free-checkups" : `/patient/appointments/${a.id}`));
+    if (mins > 0 && mins <= 60 && !key("Starting soon")) notify(userId, "Starting soon", `${trackingNumber(a)} begins at ${fmtTime(a.time)}. ${a.type === "online" ? "Join from your dashboard." : "Please arrive and check in."}`, a.id.startsWith("VB") ? "/patient/free-checkups" : `/patient/appointments/${a.id}`);
   });
 }
 

@@ -43,6 +43,13 @@
       "when": 1795633667114,
       "tag": "0005_care_booking_corrections",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1795633929110,
+      "tag": "0006_volunteer_visit_access",
+      "breakpoints": true
     }
   ]
 }

@@ -19,7 +19,7 @@ import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { VideoRoom } from "@/components/app/widgets";
 import { PatientHistory } from "@/components/app/PatientHistory";
 import { MedicineInput } from "@/components/app/MedicineInput";
-import { consultationAppointment, addConsultationDocs, callVolunteerPatient, callPatient, completeConsultation, ensureConsultation, makeDocs, saveConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
+import { consultationAppointment, addConsultationDocs, callVolunteerPatient, callPatient, completeConsultation, ensureConsultation, makeDocs, persistConsultation, useSession, useStore, type PrescriptionItem } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 import { ConsultationTemplates } from "@/components/app/ConsultationTemplates";
@@ -52,11 +52,12 @@ function Console() {
   const done = a.status === "Completed";
   const upd = (p: Partial<typeof c>) => setC({ ...c, ...p });
   const setRx = (i: number, p: Partial<PrescriptionItem>) => upd({ prescription: c.prescription.map((r, j) => (j === i ? { ...r, ...p } : r)) });
-  const save = () => { saveConsultation(id, c); toast.success("Consultation record saved"); };
+  const save = async () => { try { await persistConsultation(id, c); toast.success("Consultation record saved"); } catch(e) { toast.error((e as Error).message); } };
   const complete = async () => {
     if (!c.diagnosis.trim()) return toast.error("Add a diagnosis before completing");
     if (c.followUpRequired && !c.followUpTiming.trim()) return toast.error("Enter recommended follow-up timing");
-    await completeConsultation(id, { ...c, prescription: c.prescription.filter((r) => r.medicine.trim()) });
+    try { await completeConsultation(id, { ...c, prescription: c.prescription.filter((r) => r.medicine.trim()) }); }
+    catch(e) { toast.error((e as Error).message); return; }
     toast.success("Consultation completed");
     navigate({ to: a.id.startsWith("VB") ? "/doctor/volunteer" : "/doctor" });
   };

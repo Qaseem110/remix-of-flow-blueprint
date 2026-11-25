@@ -34,7 +34,7 @@ function Records() {
   const allDocs = [
     ...records.flatMap((r) => r.c.documents.map((d) => ({ d, doctorId: r.c.doctorId }))),
     ...myAppts.flatMap((a) => a.documents.map((d) => ({ d, doctorId: a.doctorId }))),
-    ...s.labOrders.filter((o) => o.patientId === user.id && mine(o.appointmentId)).flatMap((o) => o.documents.map((d) => ({ d, doctorId: o.doctorId }))),
+    ...s.labOrders.filter((o) => o.patientId === user?.id && mine(o.appointmentId)).flatMap((o) => o.documents.map((d) => ({ d, doctorId: o.doctorId }))),
   ];
   const myDoctors = [...new Set(myAppts.map((a) => a.doctorId))].map((id) => s.users.find((u) => u.id === id)).filter(Boolean) as { id: string; name: string }[];
   const kinds = [...new Set(allDocs.map((x) => x.d.kind))];
