@@ -1,1 +1,0 @@
-DROP INDEX IF EXISTS public.one_booking_per_slot;
