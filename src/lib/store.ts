@@ -3,6 +3,7 @@ import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
 import { labTestCatalogue, testsNeedingPrescription, validateLabTests, type LabTest } from "./lab-tests";
 import { labSlots, validateLabSchedule, type LabSchedule } from "./lab-schedule";
 import { dueDoses } from "./medicine-reminders";
+import { clinicMinutesNow } from "./no-show-grace";
 /**
  * Mock data layer (in-memory). Every exported function mirrors a future
  * backend call so it can be swapped for self-hosted Supabase later.
@@ -1480,10 +1481,17 @@ export function markWaiting(id: string) {
 }
 
 /** Doctor calls the next patient (clinic → In Consultation; online → Ready to Join). */
+/** True once the appointment's booked clinic time (Asia/Karachi) has arrived. */
+export function appointmentTimeReached(a: { date: string; time?: string }, today = todayStr(), nowMin = clinicMinutesNow()): boolean {
+  if (a.date !== today) return a.date < today;
+  return !a.time || timeMinutes(a.time) <= nowMin;
+}
+
 export function callPatient(id: string) {
   const a = state.appointments.find((x) => x.id === id);
   if (!a) return;
   if (a.date < todayStr()) throw new Error("This appointment has ended");
+  if (!appointmentTimeReached(a)) throw new Error(`This appointment starts at ${fmtTime(a.time)}. You can attend it only at its time.`);
   if (a.type === "clinic") {
     patchAppt(id, { status: "In Consultation" });
     notify(a.patientId, "It's your turn", `Please proceed to ${userById(a.doctorId)?.name}'s room.`, `/patient/appointments/${id}`);

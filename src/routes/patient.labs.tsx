@@ -3,12 +3,12 @@ import { ProviderActions } from "@/components/app/ProviderActions";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { MapPin, Phone } from "lucide-react";
+import { FlaskConical, MapPin, Phone, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PageHeader } from "@/components/app/common";
+import { PremiumHero } from "@/components/app/common";
 import { LabOrderCard } from "@/components/app/LabOrderCard";
 import { LabDiscussion } from "@/components/app/LabDiscussion";
 import { LabAppointmentTime } from "@/components/app/LabAppointmentTime";
@@ -53,9 +53,11 @@ function PatientLabs() {
   const docName = (id: string) => s.users.find((u) => u.id === id)?.name ?? "Doctor";
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <PageHeader title="Lab tests" subtitle="Laboratories, test details and appointments." />
+      <PremiumHero eyebrow="HealthSahoolat labs" title="Lab tests" subtitle="Compare laboratories, see test prices and book a time slot." stats={[{ label: "laboratories", value: s.labs.length }, { label: "tests listed", value: s.labs.reduce((n, l) => n + (l.testCatalogue?.length ?? 0), 0) }]}>
+        <div className="relative max-w-2xl rounded-2xl bg-card p-2 shadow-soft"><Search className="pointer-events-none absolute left-5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" /><Input aria-label="Search laboratories" className="h-11 border-0 pl-9 text-foreground shadow-none" placeholder="Search by lab name, city or test" value={q} onChange={(e) => setQ(e.target.value)} /></div>
+      </PremiumHero>
       {user && <section className="space-y-3">
-        <h2 className="text-lg font-semibold">My lab tests</h2>
+        <h2 className="font-display text-xl font-semibold">My lab tests</h2>
         {orders.length === 0 && <p className="text-muted-foreground">No lab tests yet.</p>}
         {orders.map((o) => (
           <LabOrderCard key={o.id} o={o}>
@@ -65,26 +67,26 @@ function PatientLabs() {
         ))}
       </section>}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold">Find a laboratory</h2>
-        <Input placeholder="Search by name, city or test" value={q} onChange={(e) => setQ(e.target.value)} />
+        <h2 className="font-display text-xl font-semibold">Find a laboratory</h2>
         {labs.length === 0 && <p className="text-muted-foreground">No laboratories found.</p>}
         <div className="grid gap-3 sm:grid-cols-2">
           {labs.map((l) => (
-            <article key={l.userId} className="rounded-2xl border bg-card p-5 shadow-soft">
-              <Link className="font-semibold text-primary underline" to="/patient/laboratories/$id" params={{id:l.userId}}>{l.labName}</Link><ProviderActions providerId={l.userId} name={l.labName} />
+            <article key={l.userId} className="relative overflow-hidden rounded-[22px] border bg-card p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lg">
+              <div aria-hidden className="absolute inset-x-0 top-0 h-1.5 bg-linear-to-r from-primary to-accent" />
+              <div className="mb-2 grid grid-cols-[auto_minmax(0,1fr)] items-center gap-3"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-secondary text-primary"><FlaskConical className="h-5 w-5" /></span><Link className="min-w-0 truncate font-display text-lg font-semibold hover:text-primary" to="/patient/laboratories/$id" params={{id:l.userId}}>{l.labName}</Link></div><ProviderActions providerId={l.userId} name={l.labName} />
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
-              {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}{test.prescriptionRequired && <p className="font-medium text-destructive">Prescription required</p>}</li>)}</ul></>}
+              {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 max-h-72 divide-y overflow-y-auto rounded-xl border bg-secondary/30 px-3 text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span className="rounded-full bg-accent px-2 py-0.5 text-xs font-bold text-accent-foreground">{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}{test.prescriptionRequired && <p className="font-medium text-destructive">Prescription required</p>}</li>)}</ul></>}
               <LabServices labId={l.userId} />
-              {user ? <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button> : <Button size="sm" className="mt-3" asChild><Link to="/login">Sign in to book</Link></Button>}
+              {user ? <Button className="mt-4 w-full rounded-full" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button> : <Button variant="outline" className="mt-4 w-full rounded-full" asChild><Link to="/login">Sign in to book</Link></Button>}
             </article>
           ))}
         </div>
       </section>
       {pick && (
-        <section className="space-y-3 rounded-2xl border bg-card p-6 shadow-soft">
-          <h2 className="text-lg font-semibold">Book at {pick.labName}</h2>
+        <section className="space-y-3 rounded-[22px] border-2 border-primary/30 bg-card p-6 shadow-soft">
+          <h2 className="font-display text-xl font-semibold">Book at {pick.labName}</h2>
           {(() => {
             const catalogue = labTestCatalogue(pick);
             const chosen = tests.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);

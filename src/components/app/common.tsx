@@ -131,3 +131,17 @@ export function Stat({ label, value, hint }: { label: string; value: React.React
     </div>
   );
 }
+
+/** Dark-green premium banner used at the top of patient listing pages. */
+export function PremiumHero({ eyebrow, title, subtitle, stats, children }: { eyebrow: string; title: string; subtitle?: string; stats?: { label: string; value: React.ReactNode }[]; children?: React.ReactNode }) {
+  return (
+    <section className="relative mb-6 overflow-hidden rounded-[26px] bg-hero p-6 text-primary-foreground shadow-soft sm:p-8">
+      <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
+      <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-80">{eyebrow}</p>
+      <h1 className="mt-2 font-display text-3xl font-bold sm:text-4xl">{title}</h1>
+      {subtitle && <p className="mt-2 max-w-xl opacity-85">{subtitle}</p>}
+      {children && <div className="relative mt-5">{children}</div>}
+      {stats && stats.length > 0 && <div className="relative mt-5 flex flex-wrap gap-2">{stats.map((x) => <span key={x.label} className="rounded-full bg-primary-foreground/12 px-3 py-1 text-sm backdrop-blur-sm"><b>{x.value}</b> {x.label}</span>)}</div>}
+    </section>
+  );
+}

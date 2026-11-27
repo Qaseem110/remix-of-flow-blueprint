@@ -10,7 +10,7 @@ import { AlertTriangle, ArrowDown, ArrowUp, Coffee, PhoneCall, Play, Undo2, User
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { PageHeader, Stat, StatusBadge, TypeBadge, Initials } from "@/components/app/common";
-import { startBreak, endBreak, callPatient, dayAppointments, inActiveQueue, markNoShow, moveInQueue, returnToQueue, todayStr, useSession, useStore, waitingQueue } from "@/lib/store";
+import { appointmentTimeReached, startBreak, endBreak, callPatient, dayAppointments, inActiveQueue, markNoShow, moveInQueue, returnToQueue, todayStr, useSession, useStore, waitingQueue } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtTime } from "@/lib/utils";
 import { DailyCapacity } from "@/components/app/DailyCapacity";
@@ -59,7 +59,7 @@ function DoctorDashboard() {
   const followUps = s.consultations.filter((c) => c.doctorId === user.id && c.followUpRequired && c.completedAt);
 
   const onBreak = !!clinicAvailability(user.id,clinicId || undefined,s)?.breakStartedAt;
-  const start = (id: string) => { if (onBreak) { toast.error("End your break to continue the queue"); return; } callPatient(id); navigate({ to: "/doctor/consultation/$id", params: { id } }); };
+  const start = (id: string) => { if (onBreak) { toast.error("End your break to continue the queue"); return; } try { callPatient(id); } catch (e) { toast.error((e as Error).message); return; } navigate({ to: "/doctor/consultation/$id", params: { id } }); };
 
   return (
     <div className="mx-auto max-w-6xl">
@@ -101,7 +101,7 @@ function DoctorDashboard() {
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Move up" disabled={i === 0} onClick={() => moveInQueue(a.id, -1)}><ArrowUp className="h-3.5 w-3.5" /></Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7" aria-label="Move down" disabled={i === queue.length - 1} onClick={() => moveInQueue(a.id, 1)}><ArrowDown className="h-3.5 w-3.5" /></Button>
-                  {i === 0 && !current && <Button size="sm" variant="secondary" onClick={() => start(a.id)}><PhoneCall className="mr-1 h-3.5 w-3.5" />Call next</Button>}
+                  {i === 0 && !current && <Button size="sm" variant="secondary" disabled={!appointmentTimeReached(a)} onClick={() => start(a.id)}><PhoneCall className="mr-1 h-3.5 w-3.5" />{appointmentTimeReached(a) ? "Call next" : `At ${fmtTime(a.time)}`}</Button>}
                 </div>
               </div>
             ))}
@@ -128,7 +128,7 @@ function DoctorDashboard() {
                   <p className="text-xs text-muted-foreground">#{a.queueNumber} · {trackingNumber(a)} · <TypeBadge type={a.type} /></p>
                 </div>
                 <StatusBadge status={a.status} />
-                {inActiveQueue(a) && a.status !== "In Consultation" && a.status !== "Ready to Join" && <Button size="sm" onClick={() => start(a.id)}>Start</Button>}
+                {inActiveQueue(a) && a.status !== "In Consultation" && a.status !== "Ready to Join" && <Button size="sm" disabled={!appointmentTimeReached(a)} title={appointmentTimeReached(a) ? undefined : `Starts at ${fmtTime(a.time)}`} onClick={() => start(a.id)}>{appointmentTimeReached(a) ? "Start" : `At ${fmtTime(a.time)}`}</Button>}
                 {(a.status === "Confirmed" || a.status === "Checked-In" || a.status === "Waiting") && <Button size="icon" variant="ghost" title="Mark no-show" onClick={() => markNoShow(a.id)}><UserX className="h-4 w-4" /></Button>}
               </div>
             ))}

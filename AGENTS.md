@@ -35,3 +35,4 @@
 - A floating Back button (`BackButton` in `__root.tsx`) shows on every page except `/`. Why: user wants a way back on every page.
 - Queue lookup is by tracking number only (no phone). Doctors post blogs/photos/videos from Discussions; "My Feed" nav removed. Authors may edit their own posts (DB trigger keeps author/kind/pictures). Why: user requests.
 - Signed-in users never see sign-up links; `/register` shows "already signed in". Why: user request.
+- Doctors/reception cannot start an appointment before its booked time (client check + DB trigger `block_early_consultation`). Why: user wants consultations only at the exact time.

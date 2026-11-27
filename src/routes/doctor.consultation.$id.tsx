@@ -79,7 +79,7 @@ function Console() {
         <div><h1 className="text-2xl font-semibold">{a.memberName ?? patient.name}</h1><p className="text-sm text-muted-foreground">{trackingNumber(a)} · #{a.queueNumber} · {a.date} {fmtTime(a.time)} · <TypeBadge type={a.type} /></p></div>
         <div className="flex items-center gap-2">
           <StatusBadge status={a.status} />
-          {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => a.id.startsWith("VB") ? void callVolunteerPatient(id).catch(e=>toast.error(e.message)) : callPatient(id)}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
+          {!done && !["In Consultation", "Ready to Join"].includes(a.status) && <Button variant="secondary" onClick={() => a.id.startsWith("VB") ? void callVolunteerPatient(id).catch(e=>toast.error(e.message)) : (() => { try { callPatient(id); } catch (e) { toast.error((e as Error).message); } })()}><PhoneCall className="mr-1 h-4 w-4" />{a.type === "online" ? "I'm ready (notify patient)" : "Call patient"}</Button>}
         </div>
       </div>
       <div className="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
