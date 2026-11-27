@@ -15,17 +15,19 @@ type Row = Omit<Post, "likes" | "liked" | "comments"> & { like_count: number; po
 const toPost = (r: Row): Post => ({ ...r, likes: r.like_count, liked: r.post_likes.length > 0, comments: r.post_comments[0]?.count ?? 0 });
 const SELECT = "*, post_likes(user_id), post_comments(count)";
 
-export type PostFilter = { kinds?: PostKind[]; authorId?: string };
-export const postsKey = (f: PostFilter) => ["posts", f.kinds?.join(",") ?? "all", f.authorId ?? ""] as const;
+export type PostFilter = { kinds?: PostKind[]; authorId?: string; q?: string };
+export const postsKey = (f: PostFilter) => ["posts", f.kinds?.join(",") ?? "all", f.authorId ?? "", f.q ?? ""] as const;
 export async function fetchPosts(f: PostFilter): Promise<Post[]> {
   let q = supabase.from("posts").select(SELECT).order("created_at", { ascending: false }).limit(50);
   if (f.kinds) q = q.in("kind", f.kinds);
   if (f.authorId) q = q.eq("author_id", f.authorId);
+  const term = f.q?.replace(/[,()%*\\]/g, " ").trim();
+  if (term) q = q.or(["title", "body", "summary"].map((c) => `${c}.ilike.%${term}%`).join(","));
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toPost);
 }
-export const usePosts = (f: PostFilter) => useQuery({ queryKey: postsKey(f), queryFn: () => fetchPosts(f) });
+export const usePosts = (f: PostFilter, enabled = true) => useQuery({ queryKey: postsKey(f), queryFn: () => fetchPosts(f), enabled });
 
 export async function fetchPost(id: string) {
   const { data, error } = await supabase.from("posts").select(SELECT).eq("id", id).maybeSingle();

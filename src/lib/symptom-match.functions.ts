@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { generateResponse, GatewayError } from "@lovable.dev/ai-gateway";
 import { z } from "zod";
+import { keywordMatch } from "./symptom-keywords";
 
 export type SymptomMatch = { specializations: string[]; doctorIds: string[]; advice: string; urgent: boolean; error?: string };
 
@@ -33,6 +34,8 @@ export const suggestDoctors = createServerFn({ method: "POST" })
       return { specializations: chosen, doctorIds, advice: String(o.advice).slice(0, 400), urgent: !!o.urgent };
     } catch (e) {
       console.error("suggestDoctors failed", e instanceof GatewayError ? `${e.code} ${e.httpStatus}` : e);
-      return { specializations: [], doctorIds: [], advice: "", urgent: false, error: "The assistant is busy right now. Please try again in a moment." };
+      const k = keywordMatch(data.symptoms, specs);
+      const doctorIds = data.doctors.filter((d) => k.specializations.includes(d.specialization)).map((d) => d.id);
+      return { ...k, doctorIds, advice: k.urgent ? "" : "Here are doctors who may help with this. Please consult them for proper advice." };
     }
   });

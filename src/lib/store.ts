@@ -326,7 +326,17 @@ export interface Review {
   rating: number;
   comment: string;
   at: string;
+  /** Detailed tap-only answers (1-5 per aspect). Optional for older reviews. */
+  aspects?: Partial<Record<ReviewAspect, number>>;
+  waitTime?: ReviewWait;
+  recommend?: boolean;
+  tags?: string[];
 }
+export const REVIEW_ASPECTS = ["Listening", "Explanation", "Diagnosis", "Behaviour", "Clinic / call quality", "Value for money"] as const;
+export type ReviewAspect = typeof REVIEW_ASPECTS[number];
+export const REVIEW_WAITS = ["On time", "Under 15 min", "15–30 min", "30–60 min", "Over 1 hour"] as const;
+export type ReviewWait = typeof REVIEW_WAITS[number];
+export const REVIEW_TAGS = ["Gave enough time", "Clear prescription", "Polite staff", "Clean clinic", "Explained tests", "Felt better", "Would visit again", "Rushed visit", "Long wait", "Unclear advice"] as const;
 
 interface State {
   users: User[];
@@ -866,12 +876,15 @@ function notifyApproaching(doctorId: string, date: string) {
 }
 
 // ---------- Auth ----------
-export function addReview(input: { appointmentId: string; rating: number; comment: string }) {
+export function addReview(input: { appointmentId: string; rating: number; comment: string; aspects?: Review["aspects"]; waitTime?: ReviewWait; recommend?: boolean; tags?: string[] }) {
   const a = state.appointments.find((x) => x.id === input.appointmentId);
   if (!a || a.status !== "Completed") throw new Error("You can only review completed appointments");
   if (state.reviews.some((r) => r.appointmentId === a.id)) throw new Error("You already reviewed this visit");
   if (input.rating < 1 || input.rating > 5) throw new Error("Choose 1 to 5 stars");
-  const r: Review = { id: uid("R"), appointmentId: a.id, doctorId: a.doctorId, patientId: a.patientId, rating: input.rating, comment: input.comment.trim(), at: now() };
+  for (const [k, v] of Object.entries(input.aspects ?? {})) if (!(REVIEW_ASPECTS as readonly string[]).includes(k) || !Number.isInteger(v) || v! < 1 || v! > 5) throw new Error("Rate each question from 1 to 5");
+  if (input.waitTime && !(REVIEW_WAITS as readonly string[]).includes(input.waitTime)) throw new Error("Choose a valid waiting time");
+  const tags = [...new Set(input.tags ?? [])].filter((t) => (REVIEW_TAGS as readonly string[]).includes(t));
+  const r: Review = { id: uid("R"), appointmentId: a.id, doctorId: a.doctorId, patientId: a.patientId, rating: input.rating, comment: input.comment.trim().slice(0, 1000), at: now(), aspects: input.aspects, waitTime: input.waitTime, recommend: input.recommend, tags };
   set((s) => ({ ...s, reviews: [r, ...s.reviews] }));
   notify(a.doctorId, "New review", `${input.rating}★ from ${userById(a.patientId)?.name}.`, "/doctor/profile");
   return r;
