@@ -28,3 +28,4 @@
 - Feed/forum: `posts`, `post_likes`, `post_comments` are publicly readable, writes need sign-in; author names set by trigger; pictures in private `feed` bucket shown via signed URLs; doctor search ranks by `doctor_reputation()`. Why: public buckets are blocked in this workspace.
 - Prices use the shared currency constant and formatter in `src/lib/utils.ts`. Why: consistent display.
 - Dashboard nav sits in its own top row, sign-out in the account row and awaits auth teardown. Why: fits every screen.
+- Visual style follows the uploaded HealthSahoolat design (green/gold tokens, Poppins, `BrandLogo` header, dark-green top strip). Why: user-chosen brand look; restyle only, never change flows.

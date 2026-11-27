@@ -1,4 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { BrandLogo } from "@/components/app/BrandLogo";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Stethoscope } from "lucide-react";
@@ -16,12 +17,13 @@ export function AuthFrame({ children, title, subtitle }: { children: React.React
   return (
     <div className="grid min-h-screen md:grid-cols-[1fr_1.1fr]">
       <div className="hidden flex-col justify-between bg-hero p-10 text-primary-foreground md:flex">
-        <Link to="/" className="flex items-center gap-2 font-display text-2xl font-semibold"><Stethoscope className="h-7 w-7" /> Sahoolat</Link>
-        <p className="font-display text-4xl leading-tight">Care that respects your time.</p>
+        <Link to="/" aria-label="HealthSahoolat home" className="self-start rounded-xl bg-card p-2"><BrandLogo className="h-8" /></Link>
+        <div><p className="mb-3 text-xs font-bold uppercase tracking-[0.12em] opacity-75">Healthcare, thoughtfully connected</p><p className="text-4xl font-semibold leading-tight">Find the right doctor.<br />Feel better sooner.</p></div>
         <p className="text-sm opacity-75">Appointments · Queue · Video · Records</p>
       </div>
-      <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-md">
+      <div className="flex items-center justify-center bg-linear-to-br from-secondary via-background to-muted p-4 sm:p-6">
+        <div className="w-full max-w-md rounded-[18px] border bg-card p-6 shadow-soft sm:p-8">
+          <Link to="/" aria-label="HealthSahoolat home" className="mb-6 inline-block md:hidden"><BrandLogo className="h-8" /></Link>
           <h1 className="text-3xl font-semibold">{title}</h1>
           <p className="mb-6 mt-1 text-muted-foreground">{subtitle}</p>
           {children}

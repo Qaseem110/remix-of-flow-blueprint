@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/app/BrandLogo";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -33,7 +34,7 @@ function PostPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6 px-4 py-6">
       <div className="flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold"><Stethoscope className="size-6 text-primary" />Sahoolat</Link>
+        <Link to="/" aria-label="HealthSahoolat home"><BrandLogo className="h-8" /></Link>
         <Button variant="ghost" size="sm" asChild><Link to="/discussions"><ArrowLeft />Discussions</Link></Button>
       </div>
       {post.isLoading ? <p className="text-muted-foreground">Loading…</p> : !post.data ? <p className="text-muted-foreground">This post is unavailable.</p> : <>

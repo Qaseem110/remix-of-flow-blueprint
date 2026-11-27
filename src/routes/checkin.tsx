@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/app/BrandLogo";
 import { trackingNumber } from "@/lib/store";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
@@ -31,7 +32,7 @@ function CheckIn() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-hero p-6">
       <div className="w-full max-w-md rounded-3xl bg-card p-8 shadow-soft">
-        <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold"><Stethoscope className="h-6 w-6 text-primary" /> Clinic check-in</Link>
+        <Link to="/" className="flex items-center gap-3 text-lg font-semibold"><BrandLogo className="h-8" /><span className="hidden border-l pl-3 text-muted-foreground sm:inline">Clinic check-in</span></Link>
         {done && q ? (
           <div className="mt-6 text-center">
             <CheckCircle2 className="mx-auto h-12 w-12 text-success" />

@@ -1,3 +1,4 @@
+import { BrandLogo } from "@/components/app/BrandLogo";
 import { Newspaper, MessagesSquare } from "lucide-react";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical, HeartHandshake } from "lucide-react";
@@ -17,7 +18,7 @@ function AccountSwitcher({ userId, name }: { userId: string; name: string }) {
   const active = useActiveMember();
   return (
     <Select value={active ?? "main"} onValueChange={(v) => setActiveMember(v === "main" ? null : v)}>
-      <SelectTrigger className="h-9 w-44 border-sidebar-border text-sidebar-foreground lg:w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-sidebar-foreground" /><SelectValue /></SelectTrigger>
+      <SelectTrigger className="h-9 w-36 sm:w-44 lg:w-48" aria-label="Switch account"><Users className="mr-1 h-4 w-4 text-primary" /><SelectValue /></SelectTrigger>
       <SelectContent>
         <SelectItem value="main">{name} (Me)</SelectItem>
         {members.map((m) => <SelectItem key={m.id} value={m.id}>{m.name} ({m.relation})</SelectItem>)}
@@ -113,8 +114,8 @@ function SideNav({ role }: { role: Role }) {
     <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
-          className="flex items-center gap-3 whitespace-nowrap rounded-lg px-3 py-2 text-sm text-sidebar-foreground/80 transition hover:bg-sidebar-accent hover:text-sidebar-accent-foreground md:gap-2 md:px-2.5 md:py-1.5"
-          activeProps={{ className: "bg-sidebar-accent !text-sidebar-primary font-semibold" }}>
+          className="flex items-center gap-3 whitespace-nowrap rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 transition hover:bg-secondary hover:text-primary md:gap-2 md:px-2.5 md:py-1.5"
+          activeProps={{ className: "bg-secondary !text-primary" }}>
           <n.icon className="h-4 w-4" />{language === "ur" ? navUrdu[n.label] ?? n.label : n.label}
         </Link>
       ))}
@@ -168,15 +169,13 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
   }
 
   const brand = (
-    <Link to="/" className="flex items-center gap-2 font-display text-xl font-semibold text-sidebar-foreground">
-      <Stethoscope className="h-6 w-6 text-sidebar-primary" /> Sahoolat
-    </Link>
+    <Link to="/" aria-label="HealthSahoolat home"><BrandLogo className="h-8" /></Link>
   );
   const footer = (
-    <div className="border-t border-sidebar-border pt-4">
-      <p className="px-3 text-sm font-medium text-sidebar-foreground">{user.name}</p>
-      <p className="px-3 text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
-      <Button variant="ghost" disabled={signingOut} onClick={signOut} className="mt-3 w-full justify-start gap-3 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground">
+    <div className="border-t pt-4">
+      <p className="px-3 text-sm font-medium">{user.name}</p>
+      <p className="px-3 text-xs capitalize text-muted-foreground">{user.role}</p>
+      <Button variant="outline" disabled={signingOut} onClick={signOut} className="mt-3 w-full justify-start gap-3">
         <LogOut className="h-4 w-4" /> Sign out
       </Button>
     </div>
@@ -184,26 +183,27 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
 
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-30 border-b bg-sidebar">
+      <header className="sticky top-0 z-30 border-b bg-card/95 shadow-soft backdrop-blur">
+        <div className="bg-sidebar text-xs text-sidebar-foreground"><div className="mx-auto flex h-8 max-w-7xl items-center justify-between gap-3 px-4 md:px-8"><span className="truncate">Verified healthcare professionals • Secure consultations</span><span className="hidden shrink-0 capitalize sm:inline">{user.role} dashboard</span></div></div>
         <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center gap-2 px-4 py-3 md:gap-4 md:px-8">
           <Sheet>
             <SheetTrigger asChild><Button variant="ghost" size="icon" className="md:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
-            <SheetContent side="left" className="flex w-64 flex-col gap-6 bg-sidebar p-4">{brand}<SideNav role={role} />{footer}</SheetContent>
+            <SheetContent side="left" className="flex w-64 flex-col gap-6 overflow-y-auto bg-card p-4">{brand}<SideNav role={role} />{footer}</SheetContent>
           </Sheet>
           <div className="hidden shrink-0 sm:block">{brand}</div>
-          <div className="ml-auto flex min-w-0 items-center gap-2 text-sidebar-foreground">
+          <div className="ml-auto flex min-w-0 items-center gap-2">
             {role === "patient" && <AccountSwitcher userId={user.id} name={user.name} />}
             <Notifications userId={user.id} />
-            <div className="hidden items-center gap-3 border-l border-sidebar-border pl-3 lg:flex">
+            <div className="hidden items-center gap-3 border-l pl-3 lg:flex">
               <div className="text-right">
-                <p className="text-sm font-medium text-sidebar-foreground">{user.name}</p>
-                <p className="text-xs capitalize text-sidebar-foreground/60">{user.role}</p>
+                <p className="text-sm font-semibold text-secondary-foreground">{user.name}</p>
+                <p className="text-xs capitalize text-muted-foreground">{user.role}</p>
               </div>
             </div>
-            <Button variant="ghost" disabled={signingOut} onClick={signOut} className="shrink-0 gap-2 text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"><LogOut className="h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
+            <Button variant="outline" size="sm" disabled={signingOut} onClick={signOut} className="shrink-0 gap-2 rounded-[11px] font-semibold"><LogOut className="h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
           </div>
         </div>
-        <div className="hidden border-t border-sidebar-border md:block"><div className="mx-auto max-w-7xl overflow-x-auto px-4 py-2 md:px-8"><SideNav role={role} /></div></div>
+        <div className="hidden border-t md:block"><div className="mx-auto max-w-7xl overflow-x-auto px-4 py-2 md:px-8"><SideNav role={role} /></div></div>
       </header>
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-7xl">{children}</div>
