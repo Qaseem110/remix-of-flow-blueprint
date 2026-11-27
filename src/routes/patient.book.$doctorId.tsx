@@ -3,14 +3,15 @@ import type { CareItem } from "@/lib/care";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { Banknote, Building2, Check, CreditCard, Upload, Video } from "lucide-react";
+import { BadgeCheck, Banknote, Briefcase, Building2, Check, Clock, CreditCard, GraduationCap, Languages, Upload, Video } from "lucide-react";
+import { RatingSummary } from "@/components/app/Reviews";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Avatar, DocList } from "@/components/app/common";
 import { BookingDatePicker } from "@/components/app/widgets";
-import { bookAppointment, nextBooking, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
+import { weekdayShifts, bookAppointment, nextBooking, ensureFamilyMember, useActiveMember, readAndMakeDocs, nextAvailableDate, todayStr, useSession, useStore, type ConsultType, type DocFile, type PaymentMethod } from "@/lib/store";
 import { cn, fmtPrice, fmtTime } from "@/lib/utils";
 import { meta } from "@/lib/meta";
 import { distanceKm, travelMinutes } from "@/lib/geo";
@@ -37,6 +38,7 @@ function Book() {
   const u = useStore((s) => s.users.find((x) => x.id === doctorId));
   const d = useStore((s) => s.doctors.find((x) => x.userId === doctorId));
   const allowed = useStore((s) => s.settings.allowedFileTypes);
+  const av = useStore((s) => s.availability.find((x) => x.doctorId === doctorId));
   const [clinicId, setClinicId] = useState("");
   const [branch, setBranch] = useState<CareItem>();
   const [step, setStep] = useState(0);
@@ -82,21 +84,52 @@ function Book() {
   const clinicLat=branch?Number(branch.data.lat):d.clinicLat;const clinicLng=branch?Number(branch.data.lng):d.clinicLng;
   const canNext = [!!type, !!allocation, reason.trim().length > 2 && (forWho !== "new" || newName.trim().length > 1), true][step];
 
+  const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const facts: [typeof GraduationCap, string, string][] = [
+    [GraduationCap, "Qualification", d.qualification || "—"],
+    [Briefcase, "Experience", `${d.experience} years`],
+    [BadgeCheck, "PMDC / licence", d.licenseNumber || "—"],
+    [Languages, "Languages", d.languages.join(", ") || "—"],
+    [MapPin, "Clinic", [d.clinicName, d.clinicAddress, d.city].filter(Boolean).join(", ") || "—"],
+  ];
   return (
-    <div className="mx-auto max-w-3xl">
-      <div className="mb-6 flex items-center gap-4">
-        <Avatar name={u.name} src={d.avatar} />
-        <div><h1 className="text-2xl font-semibold">{search.followUpOf ? "Book follow-up" : "Book appointment"}</h1><p className="text-muted-foreground">{u.name} · {d.specialization} · {fmtPrice(d.fee)}</p></div>
-      </div>
-      <ol className="mb-6 flex gap-2">
+    <div className="mx-auto max-w-6xl">
+      <section className="relative overflow-hidden rounded-[28px] bg-hero p-6 text-primary-foreground shadow-soft sm:p-8">
+        <div aria-hidden className="absolute -right-16 -top-16 h-56 w-56 rounded-full bg-accent/25 blur-3xl" />
+        <div className="relative grid gap-5 sm:grid-cols-[auto_minmax(0,1fr)_auto] sm:items-center">
+          <Avatar name={u.name} src={d.avatar} className="h-24 w-24 text-3xl ring-4 ring-primary-foreground/30" />
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] opacity-75">{search.followUpOf ? "Book follow-up" : "Book appointment"}</p>
+            <h1 className="mt-1 truncate font-display text-3xl font-bold sm:text-4xl">{u.name}</h1>
+            <p className="opacity-90">{d.specialization}{d.qualification ? ` · ${d.qualification}` : ""}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-xs font-semibold">
+              {d.verification === "Approved" && <span className="flex items-center gap-1 rounded-full bg-primary-foreground/15 px-3 py-1"><BadgeCheck className="h-3.5 w-3.5" />Verified</span>}
+              <span className="rounded-full bg-primary-foreground/15 px-3 py-1">{d.experience} yrs experience</span>
+              {d.online && <span className="flex items-center gap-1 rounded-full bg-primary-foreground/15 px-3 py-1"><Video className="h-3.5 w-3.5" />Online</span>}
+              {d.clinic && <span className="flex items-center gap-1 rounded-full bg-primary-foreground/15 px-3 py-1"><Building2 className="h-3.5 w-3.5" />In-clinic</span>}
+            </div>
+            <RatingSummary doctorId={doctorId} className="mt-2" />
+          </div>
+          <div className="rounded-2xl bg-card p-4 text-center text-foreground shadow-soft">
+            <p className="text-xs text-muted-foreground">Consultation fee</p>
+            <p className="font-display text-2xl font-bold text-primary">{fmtPrice(d.fee)}</p>
+          </div>
+        </div>
+      </section>
+      <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_340px]">
+      <div className="min-w-0">
+      <ol className="mb-5 grid grid-cols-4 gap-2">
         {STEPS.map((s, i) => (
-          <li key={s} className="flex-1">
-            <div className={cn("h-1.5 rounded-full", i <= step ? "bg-primary" : "bg-muted")} />
-            <p className={cn("mt-1.5 text-xs", i === step ? "font-semibold text-foreground" : "text-muted-foreground")}>{s}</p>
+          <li key={s} className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className={cn("grid h-7 w-7 shrink-0 place-items-center rounded-full text-xs font-bold", i < step ? "bg-primary text-primary-foreground" : i === step ? "bg-sidebar text-primary-foreground ring-4 ring-primary/20" : "bg-muted text-muted-foreground")}>{i < step ? <Check className="h-3.5 w-3.5" /> : i + 1}</span>
+              <div className={cn("h-1 flex-1 rounded-full", i < step ? "bg-primary" : "bg-muted")} />
+            </div>
+            <p className={cn("mt-1.5 truncate text-xs", i === step ? "font-semibold text-foreground" : "text-muted-foreground")}>{s}</p>
           </li>
         ))}
       </ol>
-      <div className="rounded-2xl border bg-card p-6 shadow-soft">
+      <div className="rounded-[22px] border bg-card p-5 shadow-soft sm:p-6">
         {step === 0 && (
           <div className="grid gap-4 sm:grid-cols-2">
             {([["online", "Online Consultation", "Video/audio from anywhere", Video, d.online], ["clinic", "In-Clinic Consultation", `${d.clinicName}, ${d.city}`, Building2, d.clinic]] as const).map(([v, t, sub, Icon, ok]) => (
@@ -169,6 +202,25 @@ function Book() {
           <Button variant="ghost" disabled={step === 0} onClick={() => setStep(step - 1)}>Back</Button>
           {step < 3 ? <Button disabled={!canNext} onClick={() => setStep(step + 1)}>Continue</Button> : <Button disabled={busy || !allocation} onClick={confirm}><Check className="mr-1 h-4 w-4" />{busy ? "Booking…" : "Confirm appointment"}</Button>}
         </div>
+      </div>
+      </div>
+      <aside className="space-y-4 lg:sticky lg:top-4 lg:self-start">
+        <div className="rounded-[22px] border bg-card p-5 shadow-soft">
+          <h2 className="font-bold text-secondary-foreground">About the doctor</h2>
+          <p className="mt-2 text-sm text-muted-foreground">{d.about || "No description yet."}</p>
+          <div className="mt-4 space-y-3">{facts.map(([Icon, k, v]) => <div key={k} className="grid grid-cols-[auto_minmax(0,1fr)] gap-3 text-sm"><Icon className="mt-0.5 h-4 w-4 text-primary" /><div className="min-w-0"><p className="text-xs text-muted-foreground">{k}</p><p className="break-words font-medium">{v}</p></div></div>)}</div>
+          {d.services.length > 0 && <div className="mt-4 flex flex-wrap gap-1.5">{d.services.map((x) => <span key={x} className="rounded-full bg-secondary px-2.5 py-1 text-xs text-secondary-foreground">{x}</span>)}</div>}
+        </div>
+        {av && <div className="rounded-[22px] border bg-card p-5 shadow-soft">
+          <h2 className="flex items-center gap-2 font-bold text-secondary-foreground"><Clock className="h-4 w-4 text-primary" />Weekly timings</h2>
+          <div className="mt-3 space-y-1.5 text-sm">{DAYS.map((day, i) => { const sh = weekdayShifts(av, i); return <div key={day} className="grid grid-cols-[3rem_minmax(0,1fr)] gap-2"><span className="text-muted-foreground">{day}</span><span className={sh.length ? "font-medium" : "text-muted-foreground"}>{sh.length ? sh.map((x) => `${fmtTime(x.start)}–${fmtTime(x.end)}`).join(" / ") : "Off"}</span></div>; })}</div>
+        </div>}
+        {allocation && step > 0 && <div className="rounded-[22px] border border-primary/30 bg-secondary p-5 shadow-soft">
+          <p className="text-xs text-muted-foreground">Your place on {date}</p>
+          <p className="font-display text-3xl font-bold text-primary">#{allocation.queueNumber}</p>
+          <p className="text-sm">Estimated time {fmtTime(allocation.time)}</p>
+        </div>}
+      </aside>
       </div>
     </div>
   );

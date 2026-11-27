@@ -4,7 +4,8 @@ import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
-import { HeartHandshake, MapPin, Video } from "lucide-react";
+import { HeartHandshake, MapPin, SlidersHorizontal, Video } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,13 +24,32 @@ function FreeCheckups() {
   const s = useStore((x) => x);
   const [mode, setMode] = useState("all");
   const [q, setQ] = useState("");
+  const [spec, setSpec] = useState("all");
+  const [city, setCity] = useState("all");
+  const [date, setDate] = useState("");
+  const [part, setPart] = useState("all");
+  const [openOnly, setOpenOnly] = useState(false);
+  const [sort, setSort] = useState("soon");
   const doctor = (id: string) => ({ u: s.users.find((u) => u.id === id), d: s.doctors.find((d) => d.userId === id) });
   const term = q.trim().toLowerCase();
-  const sessions = s.volunteerSessions.filter((v) => isVolunteerSessionUpcoming(v) && (mode === "all" || v.mode === mode)).filter((v) => {
-    if (!term) return true;
+  const upcoming = s.volunteerSessions.filter((v) => isVolunteerSessionUpcoming(v));
+  const specs = [...new Set(upcoming.map((v) => doctor(v.doctorId).d?.specialization).filter((x): x is string => !!x))].sort();
+  const cities = [...new Set(upcoming.map((v) => v.city).filter((x): x is string => !!x))].sort();
+  const hour = (t: string) => Number(t.slice(0, 2));
+  const sessions = upcoming.filter((v) => mode === "all" || v.mode === mode).filter((v) => {
     const { u, d } = doctor(v.doctorId);
+    if (spec !== "all" && d?.specialization !== spec) return false;
+    if (city !== "all" && v.city !== city) return false;
+    if (date && v.date !== date) return false;
+    if (part === "morning" && hour(v.start) >= 12) return false;
+    if (part === "afternoon" && (hour(v.start) < 12 || hour(v.start) >= 17)) return false;
+    if (part === "evening" && hour(v.start) < 17) return false;
+    if (openOnly && volunteerSpotsLeft(v, s) <= 0) return false;
+    if (!term) return true;
     return [u?.name, d?.specialization, v.city, v.location, v.focus].some((x) => x?.toLowerCase().includes(term));
-  }).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
+  }).sort((a, b) => sort === "spots" ? volunteerSpotsLeft(b, s) - volunteerSpotsLeft(a, s) : `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
+  const activeFilters = [mode !== "all", spec !== "all", city !== "all", !!date, part !== "all", openOnly, !!term].filter(Boolean).length;
+  const reset = () => { setMode("all"); setSpec("all"); setCity("all"); setDate(""); setPart("all"); setOpenOnly(false); setQ(""); setSort("soon"); };
   const mine = s.volunteerBookings.filter((b) => b.patientId === user?.id && b.status !== "Cancelled");
   return (
     <div className="mx-auto max-w-5xl">
@@ -49,12 +69,29 @@ function FreeCheckups() {
           </article>;
         })}</div>
       </section>}
-      <div className="mb-4 flex flex-wrap gap-2">
-        <Input className="max-w-xs" placeholder="Search doctor, speciality, city…" value={q} onChange={(e) => setQ(e.target.value)} />
-        <Select value={mode} onValueChange={setMode}><SelectTrigger className="w-40" aria-label="Where"><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="all">All</SelectItem><SelectItem value="clinic">In clinic</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent></Select>
+      <div className="mb-5 rounded-2xl border bg-card p-4 shadow-soft">
+        <div className="mb-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+          <p className="flex items-center gap-2 text-sm font-bold"><SlidersHorizontal className="h-4 w-4 text-primary" />Filters{activeFilters ? ` (${activeFilters})` : ""}</p>
+          {activeFilters > 0 && <Button size="sm" variant="ghost" onClick={reset}>Clear all</Button>}
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <Input className="sm:col-span-2" placeholder="Search doctor, speciality, focus, place…" value={q} onChange={(e) => setQ(e.target.value)} aria-label="Search" />
+          <Select value={mode} onValueChange={setMode}><SelectTrigger aria-label="Where"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">Online & in clinic</SelectItem><SelectItem value="clinic">In clinic</SelectItem><SelectItem value="online">Online</SelectItem></SelectContent></Select>
+          <Select value={spec} onValueChange={setSpec}><SelectTrigger aria-label="Speciality"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All specialities</SelectItem>{specs.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+          <Select value={city} onValueChange={setCity}><SelectTrigger aria-label="City"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">All cities</SelectItem>{cities.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>
+          <Input type="date" value={date} onChange={(e) => setDate(e.target.value)} aria-label="Date" />
+          <Select value={part} onValueChange={setPart}><SelectTrigger aria-label="Time of day"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="all">Any time</SelectItem><SelectItem value="morning">Morning (before 12 PM)</SelectItem><SelectItem value="afternoon">Afternoon (12–5 PM)</SelectItem><SelectItem value="evening">Evening (after 5 PM)</SelectItem></SelectContent></Select>
+          <Select value={sort} onValueChange={setSort}><SelectTrigger aria-label="Sort"><SelectValue /></SelectTrigger>
+            <SelectContent><SelectItem value="soon">Soonest first</SelectItem><SelectItem value="spots">Most spots left</SelectItem></SelectContent></Select>
+        </div>
+        <label className="mt-3 flex items-center gap-2 text-sm"><Checkbox checked={openOnly} onCheckedChange={(v) => setOpenOnly(!!v)} />Only show sessions with free spots</label>
+        <p className="mt-2 text-xs text-muted-foreground">{sessions.length} session{sessions.length === 1 ? "" : "s"} found</p>
       </div>
-      {sessions.length === 0 && <p className="text-sm text-muted-foreground">No free checkup sessions available right now.</p>}
+      {sessions.length === 0 && <p className="text-sm text-muted-foreground">No free checkup sessions match these filters.</p>}
       <div className="grid gap-4 md:grid-cols-2">{sessions.map((v) => <SessionOffer key={v.id} v={v} name={doctor(v.doctorId).u?.name ?? "Doctor"} spec={doctor(v.doctorId).d?.specialization} />)}</div>
     </div>
   );

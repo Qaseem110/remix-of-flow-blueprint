@@ -11,7 +11,8 @@ import { deletePost, KIND_LABEL, setLike, useFeedViewer, useImageUrls, videoEmbe
 export function PostImages({ paths }: { paths: string[] }) {
   const urls = useImageUrls(paths);
   if (!urls.length) return null;
-  return <div className={`grid gap-2 ${urls.length > 1 ? "grid-cols-2" : ""}`}>{urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer"><img src={u} alt="" loading="lazy" className="max-h-96 w-full rounded-xl border object-cover" /></a>)}</div>;
+  if (urls.length === 1) return <a href={urls[0]} target="_blank" rel="noreferrer" className="block w-full max-w-md overflow-hidden rounded-2xl border"><img src={urls[0]} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover transition hover:scale-[1.02]" /></a>;
+  return <div className="grid max-w-xl grid-cols-2 gap-2 sm:grid-cols-3">{urls.map((u) => <a key={u} href={u} target="_blank" rel="noreferrer" className="block overflow-hidden rounded-xl border"><img src={u} alt="" loading="lazy" className="aspect-square w-full object-cover transition hover:scale-105" /></a>)}</div>;
 }
 
 export function PostVideo({ url }: { url: string }) {
@@ -65,20 +66,22 @@ export function PostCard({ post, full = false }: { post: Post; full?: boolean })
     try { await deletePost(post.id); await qc.invalidateQueries({ queryKey: ["posts"] }); toast.success("Deleted"); } catch (e) { toast.error((e as Error).message); }
   };
   return (
-    <article className="space-y-3 rounded-2xl border bg-card p-5 shadow-soft">
-      <header className="flex items-start justify-between gap-3">
-        <div>
-          <p className="font-semibold">{post.author_name || "Member"} <span className="text-xs font-normal capitalize text-muted-foreground">· {post.author_role}</span></p>
-          <p className="text-xs text-muted-foreground">{when(post.created_at)}</p>
+    <article className="group/card relative space-y-4 overflow-hidden rounded-[22px] border bg-card p-5 shadow-soft transition hover:shadow-lg sm:p-6">
+      <span aria-hidden className="absolute inset-x-0 top-0 h-1 bg-linear-to-r from-primary via-accent to-primary opacity-80" />
+      <header className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-full text-sm font-bold text-primary-foreground ${post.author_role === "doctor" ? "bg-sidebar ring-2 ring-accent" : "bg-primary"}`}>{(post.author_name || "M").split(" ").map((w) => w[0]).slice(0, 2).join("").toUpperCase()}</span>
+        <div className="min-w-0">
+          <p className="truncate font-semibold text-secondary-foreground">{post.author_name || "Member"}</p>
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground"><span className={`rounded-full px-2 py-0.5 font-semibold capitalize ${post.author_role === "doctor" ? "bg-accent/20 text-accent-foreground" : "bg-muted"}`}>{post.author_role === "doctor" ? "✓ Doctor" : post.author_role}</span><span className="truncate">{when(post.created_at)}</span></p>
         </div>
-        <Badge variant="secondary">{KIND_LABEL[post.kind]}</Badge>
+        <Badge variant="secondary" className="shrink-0 rounded-full">{KIND_LABEL[post.kind]}</Badge>
       </header>
-      {full ? <h1 className="font-display text-3xl font-semibold">{post.title}</h1> : <Link to="/feed/$postId" params={{ postId: post.id }} className="block font-display text-xl font-semibold hover:text-primary">{post.title}</Link>}
+      {full ? <h1 className="font-display text-3xl font-bold text-secondary-foreground">{post.title}</h1> : <Link to="/feed/$postId" params={{ postId: post.id }} className="block font-display text-xl font-bold leading-snug text-secondary-foreground hover:text-primary">{post.title}</Link>}
       {post.kind === "video" && post.video_url && <PostVideo url={post.video_url} />}
-      {short && <p className="whitespace-pre-wrap text-sm leading-relaxed">{short}</p>}
+      {short && <p className="whitespace-pre-wrap text-[15px] leading-relaxed text-foreground/85">{short}</p>}
       {full && post.kind === "video" && post.body && <p className="whitespace-pre-wrap text-sm leading-relaxed">{post.body}</p>}
       <PostImages paths={full ? post.images : post.images.slice(0, 4)} />
-      <footer className="flex flex-wrap items-center gap-1 border-t pt-2">
+      <footer className="-mx-2 flex flex-wrap items-center gap-1 rounded-xl bg-muted/50 px-2 py-1">
         <LikeButton post={post} />
         <Button variant="ghost" size="sm" asChild><Link to="/feed/$postId" params={{ postId: post.id }}><MessageCircle />{post.comments}</Link></Button>
         <ShareMenu post={post} />
@@ -89,7 +92,7 @@ export function PostCard({ post, full = false }: { post: Post; full?: boolean })
 }
 
 export function PostList({ posts, loading, empty }: { posts?: Post[]; loading: boolean; empty: string }) {
-  if (loading) return <p className="py-8 text-center text-muted-foreground">Loading…</p>;
-  if (!posts?.length) return <p className="py-8 text-center text-muted-foreground">{empty}</p>;
-  return <div className="space-y-4">{posts.map((p) => <PostCard key={p.id} post={p} />)}</div>;
+  if (loading) return <div className="space-y-4">{[0, 1].map((i) => <div key={i} className="h-44 animate-pulse rounded-[22px] border bg-muted/60" />)}</div>;
+  if (!posts?.length) return <p className="rounded-[22px] border border-dashed py-12 text-center text-muted-foreground">{empty}</p>;
+  return <div className="space-y-5">{posts.map((p) => <PostCard key={p.id} post={p} />)}</div>;
 }

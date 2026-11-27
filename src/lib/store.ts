@@ -1441,6 +1441,22 @@ export async function kioskQueueStatus(id: string): Promise<KioskQueue | null> {
   return (data as KioskQueue | null) ?? null;
 }
 
+/** Look up queue position by tracking number or phone without checking in. */
+export async function lookupQueue(method: "appointmentId" | "phone", value: string): Promise<KioskQueue & { date?: string; time?: string }> {
+  if (!SB) {
+    const v = value.trim();
+    const a = state.appointments.find((x) => method === "appointmentId" ? (x.trackingNumber === v || x.id === v) : userById(x.patientId)?.phone.replace(/ /g, "") === v.replace(/ /g, ""));
+    if (!a) throw new Error("No matching appointment found");
+    const q = await kioskQueueStatus(a.id);
+    if (!q) throw new Error("No matching appointment found");
+    return { ...q, date: a.date, time: a.time };
+  }
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.rpc("kiosk_queue_lookup", { method, value });
+  if (error) throw new Error(error.message);
+  return data as unknown as KioskQueue & { date?: string; time?: string };
+}
+
 /** Clinic kiosk check-in; works without signing in (server function). */
 export async function kioskCheckIn(method: "appointmentId" | "phone", value: string): Promise<{ id: string; appointment?: Appointment }> {
   if (!SB) { const a = checkIn(method, value); return { id: a.id, appointment: a }; }

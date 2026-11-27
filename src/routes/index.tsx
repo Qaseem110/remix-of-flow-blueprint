@@ -32,7 +32,6 @@ const navLinks = [
   { to: "/patient/labs", label: "Lab Tests" },
   { to: "/patient/free-checkups", label: "Free Consultancy", highlight: true },
   { to: "/discussions", label: "Discussions" },
-  { to: "/checkin", label: "Clinic check-in" },
 ] as const;
 
 const carePaths = [
@@ -141,7 +140,7 @@ function Landing() {
           <div className="min-w-0">
             <Eyebrow>Live queue</Eyebrow>
             <h2 className="text-3xl font-bold text-secondary-foreground sm:text-4xl">Track your appointment queue</h2>
-            <p className="mt-3 text-muted-foreground">Already booked? Enter your tracking number or phone right here to check in and see your live queue position.</p>
+            <p className="mt-3 text-muted-foreground">Already booked? Enter your tracking number or phone to see your live queue position. Your arrival is marked by the clinic.</p>
             <div className="mt-6 rounded-[18px] border bg-card p-5 shadow-soft"><QueueTracker /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -235,7 +234,7 @@ function Landing() {
       <footer className="bg-sidebar text-sidebar-foreground">
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
           <div><div className="inline-block rounded-lg bg-card p-2"><BrandLogo className="h-7" /></div><p className="mt-3 text-sm opacity-80">Live Better, Feel Better.</p></div>
-          <div className="space-y-2 text-sm"><p className="font-bold">Patients</p><Link to="/patient/doctors" className="block opacity-80 hover:opacity-100">Find doctors</Link><Link to="/patient/labs" search={{ lab: undefined, book: false }} className="block opacity-80 hover:opacity-100">Lab tests</Link><Link to="/checkin" className="block opacity-80 hover:opacity-100">Clinic check-in</Link></div>
+          <div className="space-y-2 text-sm"><p className="font-bold">Patients</p><Link to="/patient/doctors" className="block opacity-80 hover:opacity-100">Find doctors</Link><Link to="/patient/labs" search={{ lab: undefined, book: false }} className="block opacity-80 hover:opacity-100">Lab tests</Link></div>
           <div className="space-y-2 text-sm"><p className="font-bold">Providers</p><Link to="/register" search={{ role: "doctor" }} className="block opacity-80 hover:opacity-100">For doctors</Link><Link to="/register" search={{ role: "lab" }} className="block opacity-80 hover:opacity-100">For laboratories</Link><Link to="/register" search={{ role: "pharmacy" }} className="block opacity-80 hover:opacity-100">For pharmacies</Link></div>
           <div className="space-y-2 text-sm"><p className="font-bold">Community</p><Link to="/discussions" className="block opacity-80 hover:opacity-100">Discussions</Link><Link to="/login" className="block opacity-80 hover:opacity-100">Sign in</Link></div>
         </div>

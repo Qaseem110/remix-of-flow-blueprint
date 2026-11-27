@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { MapPin, Star, Video, Building2 } from "lucide-react";
+import { MapPin, Star, Video, Building2, Sparkles, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,13 +11,27 @@ import { useReputation } from "@/lib/feed";
 import { meta } from "@/lib/meta";
 import { fmtPrice } from "@/lib/utils";
 
+type Search = { problem?: string; need?: string; ids?: string; advice?: string };
+const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+
 export const Route = createFileRoute("/patient/doctors/")({
+  validateSearch: (s: Record<string, unknown>): Search => {
+    const o: Search = {};
+    const p = str(s["problem"]), n = str(s["need"]), i = str(s["ids"]), a = str(s["advice"]);
+    if (p) o.problem = p; if (n) o.need = n; if (i) o.ids = i; if (a) o.advice = a;
+    return o;
+  },
   head: () => meta("Find a doctor", "Search doctors by name, specialization, location, consultation type and date."),
   component: FindDoctor,
 });
 
 function FindDoctor() {
   const s = useStore((s) => s);
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const need = useMemo(() => (search.need ?? "").split("|").filter(Boolean).map((x) => x.toLowerCase()), [search.need]);
+  const needIds = useMemo(() => (search.ids ?? "").split("|").filter(Boolean), [search.ids]);
+  const aiActive = !!search.problem && (need.length > 0 || needIds.length > 0);
   const [q, setQ] = useState("");
   const [spec, setSpec] = useState("all");
   const [city, setCity] = useState("all");
@@ -32,6 +46,7 @@ function FindDoctor() {
 
   const list = useMemo(() => docs.filter((d) => {
     const u = s.users.find((x) => x.id === d.userId)!;
+    if (aiActive && !needIds.includes(d.userId) && !need.includes(d.specialization.toLowerCase())) return false;
     if (q && !u.name.toLowerCase().includes(q.toLowerCase())) return false;
     if (spec !== "all" && d.specialization !== spec) return false;
     if (city !== "all" && d.city !== city) return false;
@@ -39,11 +54,22 @@ function FindDoctor() {
     if (clinic && !d.clinic) return false;
     if (date && !getSlots(d.userId, date, s).some((x) => x.available)) return false;
     return true;
-  }).sort((a, b) => (rep?.get(b.userId)?.score ?? 0) - (rep?.get(a.userId)?.score ?? 0) || ratingOf(b.userId) - ratingOf(a.userId)), [docs, q, spec, city, online, clinic, date, s, rep]);
+  }).sort((a, b) => (rep?.get(b.userId)?.score ?? 0) - (rep?.get(a.userId)?.score ?? 0) || ratingOf(b.userId) - ratingOf(a.userId)), [docs, q, spec, city, online, clinic, date, s, rep, aiActive, need, needIds]);
 
   return (
     <div className="mx-auto max-w-6xl">
       <PageHeader title="Find a doctor" subtitle={`${list.length} doctors available`} />
+      {aiActive && (
+        <div className="mb-4 grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3 rounded-2xl border border-primary/30 bg-linear-to-r from-secondary to-card p-4 shadow-soft">
+          <div className="min-w-0">
+            <p className="flex items-center gap-2 text-sm font-bold text-secondary-foreground"><Sparkles className="h-4 w-4 shrink-0 text-primary" /><span className="truncate">Doctors for “{search.problem}”</span></p>
+            {need.length > 0 && <p className="mt-1 text-sm text-muted-foreground">Relevant specialities: {(search.need ?? "").split("|").join(", ")}</p>}
+            {search.advice && <p className="mt-1 text-xs text-muted-foreground">{search.advice}</p>}
+            <p className="mt-1 text-[11px] text-muted-foreground">A suggestion, not a diagnosis.</p>
+          </div>
+          <Button size="sm" variant="outline" className="shrink-0" onClick={() => navigate({ to: ".", search: {} })}><X className="h-4 w-4" />Show all</Button>
+        </div>
+      )}
       <div className="mb-6 grid gap-3 rounded-2xl border bg-card p-4 shadow-soft md:grid-cols-6">
         <Input placeholder="Doctor name" value={q} onChange={(e) => setQ(e.target.value)} className="md:col-span-2" />
         <Select value={spec} onValueChange={setSpec}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All specializations</SelectItem>{specs.map((x) => <SelectItem key={x} value={x}>{x}</SelectItem>)}</SelectContent></Select>

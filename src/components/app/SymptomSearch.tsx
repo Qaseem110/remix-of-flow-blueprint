@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useMutation } from "@tanstack/react-query";
 import { AlertTriangle, FileText, Image as ImageIcon, MessagesSquare, PlayCircle, Search, Sparkles, Stethoscope } from "lucide-react";
@@ -54,7 +54,14 @@ export function SymptomSearch() {
   const [target, setTarget] = useState<Target>("doctors");
   const [postQuery, setPostQuery] = useState<{ kind: PostKind; q: string } | null>(null);
   const run = useServerFn(suggestDoctors);
-  const m = useMutation({ mutationFn: (symptoms: string) => run({ data: { symptoms, doctors: docs.map((d) => ({ id: d.userId, specialization: d.specialization })) } }) });
+  const navigate = useNavigate();
+  const m = useMutation({
+    mutationFn: (symptoms: string) => run({ data: { symptoms, doctors: docs.map((d) => ({ id: d.userId, specialization: d.specialization })) } }),
+    onSuccess: (res, symptoms) => {
+      if (res.error || res.urgent || (!res.specializations.length && !res.doctorIds.length)) return;
+      void navigate({ to: "/patient/doctors", search: { problem: symptoms, need: res.specializations.join("|"), ids: res.doctorIds.join("|"), advice: res.advice ?? "" } });
+    },
+  });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const t = text.trim(); if (t.length < 3) return;

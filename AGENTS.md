@@ -30,3 +30,5 @@
 - Dashboard nav sits in its own top row, sign-out in the account row and awaits auth teardown. Why: fits every screen.
 - Visual style follows the uploaded HealthSahoolat design (green/gold tokens, Poppins, `BrandLogo` header, dark-green top strip). Why: user-chosen brand look; restyle only, never change flows.
 - Signed-out visitors may browse patient listing pages (doctors, labs, free checkups, provider pages) via `GuestShell` in AppShell; booking and records stay sign-in only. App images are bundled files in src/assets, not CDN pointers. Why: public browsing and the Vercel deploy.
+- Patients never check themselves in; homepage/`/checkin` only look up queue status via `kiosk_queue_lookup`. Arrival is marked by doctor/receptionist. Why: user wants attendance controlled by clinic staff.
+- AI symptom search sends patients to `/patient/doctors` filtered by suggested specialities (search params), not an inline pick. Why: user wants the doctors page to show relevant doctors.

@@ -6,7 +6,7 @@ import { CalendarDays, CheckCircle2, MapPin, Upload, Video } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { DocList, StatusBadge, TypeBadge } from "@/components/app/common";
 import { CancelDialog, QueueCard, RescheduleDialog } from "@/components/app/widgets";
-import { addAppointmentDocs, canJoin, checkIn, readAndMakeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
+import { addAppointmentDocs, canJoin, readAndMakeDocs, slotDateTime, todayStr, useStore } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { LeaveAlert } from "@/components/app/LeaveAlert";
 import { ReviewForm } from "@/components/app/Reviews";
@@ -69,7 +69,7 @@ function ApptDetail() {
               ? <Button onClick={() => navigate({ to: "/patient/consultation/$id", params: { id: a.id } })}><Video className="mr-1 h-4 w-4" /> Join Consultation</Button>
               : <Button disabled><Video className="mr-1 h-4 w-4" /> Join opens shortly before start</Button>)}
             {a.type === "clinic" && a.status === "Confirmed" && a.date === todayStr() && (
-              <Button onClick={() => { try { checkIn("appointmentId", a.id); toast.success("Checked in — you're in the queue"); } catch (e) { toast.error((e as Error).message); } }}>I've arrived — Check in</Button>
+              <p className="text-sm text-muted-foreground">The clinic will mark your arrival when you reach.</p>
             )}
             {changeable && <RescheduleDialog appt={a} onDone={(nid) => navigate({ to: "/patient/appointments/$id", params: { id: nid } })} trigger={<Button variant="secondary">Reschedule</Button>} />}
             {changeable && <CancelDialog appt={a} by="patient" trigger={<Button variant="ghost" className="text-destructive">Cancel</Button>} />}
