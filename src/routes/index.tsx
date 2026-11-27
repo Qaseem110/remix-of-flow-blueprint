@@ -27,9 +27,9 @@ const features = [
 function Landing() {
   return (
     <div className="min-h-screen">
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-5">
-        <Link to="/" className="flex items-center gap-2 font-display text-2xl font-semibold"><Stethoscope className="h-7 w-7 text-primary" /> Sahoolat</Link>
-        <nav className="flex items-center gap-2">
+      <header className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 px-4 py-5 sm:px-6">
+        <Link to="/" className="flex shrink-0 items-center gap-2 whitespace-nowrap font-display text-2xl font-semibold"><Stethoscope className="h-7 w-7 shrink-0 text-primary" /> Sahoolat</Link>
+        <nav className="flex flex-wrap items-center gap-1 sm:gap-2">
           <Button variant="ghost" asChild><Link to="/discussions">Discussions</Link></Button>
           <Button variant="ghost" asChild><Link to="/checkin">Clinic check-in</Link></Button>
           <Button variant="ghost" asChild><Link to="/login">Sign in</Link></Button>

@@ -155,5 +155,5 @@
   html, body { overflow-x: hidden; }
   img, video, iframe { max-width: 100%; }
   table { max-width: 100%; }
-  h1, h2, h3, h4, p, a, span, td { overflow-wrap: anywhere; }
+  p, td { overflow-wrap: break-word; }
 }
