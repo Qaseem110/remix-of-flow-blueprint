@@ -1430,3 +1430,9 @@ DROP POLICY IF EXISTS feed_public_read ON storage.objects;
 CREATE POLICY feed_published_read ON storage.objects FOR SELECT TO anon, authenticated
   USING (bucket_id = 'feed' AND ((storage.foldername(name))[1] = (auth.uid())::text
     OR EXISTS (SELECT 1 FROM public.posts p WHERE storage.objects.name = ANY (p.images))));
+-- Public browsing: visitors may list free checkups and provider names; booking needs sign-in.
+GRANT SELECT ON public.volunteer_sessions TO anon;
+DROP POLICY IF EXISTS "Visitors see volunteer sessions" ON public.volunteer_sessions;
+CREATE POLICY "Visitors see volunteer sessions" ON public.volunteer_sessions FOR SELECT TO anon USING (true);
+DROP POLICY IF EXISTS "profiles public providers" ON public.profiles;
+CREATE POLICY "profiles public providers" ON public.profiles FOR SELECT TO anon USING (role IN ('lab','pharmacy'));

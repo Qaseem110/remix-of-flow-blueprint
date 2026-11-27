@@ -78,6 +78,13 @@
       "when": 1795803219140,
       "tag": "0010_book_until_shift_end",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1795804562645,
+      "tag": "0011_public_browse_listings",
+      "breakpoints": true
     }
   ]
 }

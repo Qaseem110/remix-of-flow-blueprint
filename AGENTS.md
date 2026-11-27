@@ -29,3 +29,4 @@
 - Prices use the shared currency constant and formatter in `src/lib/utils.ts`. Why: consistent display.
 - Dashboard nav sits in its own top row, sign-out in the account row and awaits auth teardown. Why: fits every screen.
 - Visual style follows the uploaded HealthSahoolat design (green/gold tokens, Poppins, `BrandLogo` header, dark-green top strip). Why: user-chosen brand look; restyle only, never change flows.
+- Signed-out visitors may browse patient listing pages (doctors, labs, free checkups, provider pages) via `GuestShell` in AppShell; booking and records stay sign-in only. App images are bundled files in src/assets, not CDN pointers. Why: public browsing and the Vercel deploy.

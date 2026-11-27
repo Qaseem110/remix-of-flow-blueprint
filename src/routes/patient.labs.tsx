@@ -50,11 +50,10 @@ function PatientLabs() {
     catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
   const docName = (id: string) => s.users.find((u) => u.id === id)?.name ?? "Doctor";
-  if (!user) return null;
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <PageHeader title="Lab tests" subtitle="Laboratories, test details and appointments." />
-      <section className="space-y-3">
+      {user && <section className="space-y-3">
         <h2 className="text-lg font-semibold">My lab tests</h2>
         {orders.length === 0 && <p className="text-muted-foreground">No lab tests yet.</p>}
         {orders.map((o) => (
@@ -63,7 +62,7 @@ function PatientLabs() {
             <LabDiscussion orderId={o.id} />
           </LabOrderCard>
         ))}
-      </section>
+      </section>}
       <section className="space-y-3">
         <h2 className="text-lg font-semibold">Find a laboratory</h2>
         <Input placeholder="Search by name, city or test" value={q} onChange={(e) => setQ(e.target.value)} />
@@ -77,7 +76,7 @@ function PatientLabs() {
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
               {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}</li>)}</ul></>}
               <LabServices labId={l.userId} />
-              <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button>
+              {user ? <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button> : <Button size="sm" className="mt-3" asChild><Link to="/login">Sign in to book</Link></Button>}
             </article>
           ))}
         </div>

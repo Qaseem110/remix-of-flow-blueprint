@@ -4,12 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { FeedTabs } from "@/components/feed/FeedTabs";
 import { BrandLogo } from "@/components/app/BrandLogo";
-import heroImg from "@/assets/hs/hero-doctor.jpg.asset.json";
-import consultImg from "@/assets/hs/consult.jpg.asset.json";
-import labImg from "@/assets/hs/lab.jpg.asset.json";
-import onlineImg from "@/assets/hs/online.jpg.asset.json";
-import adviceImg from "@/assets/hs/advice.jpg.asset.json";
-import emergencyImg from "@/assets/hs/emergency.jpg.asset.json";
+import heroImg from "@/assets/hs/hero-doctor.jpg";
+import consultImg from "@/assets/hs/consult.jpg";
+import labImg from "@/assets/hs/lab.jpg";
+import onlineImg from "@/assets/hs/online.jpg";
+import adviceImg from "@/assets/hs/advice.jpg";
+import emergencyImg from "@/assets/hs/emergency.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -34,11 +34,11 @@ const navLinks = [
 ] as const;
 
 const carePaths = [
-  { n: "01", img: onlineImg.url, title: "Online Consultation", body: "Video consultations with verified doctors from home.", to: "/patient/doctors" },
-  { n: "02", img: consultImg.url, title: "In-Clinic Appointments", body: "Pick a day, get your queue number and estimated time.", to: "/patient/doctors" },
-  { n: "03", img: labImg.url, title: "Laboratory Tests", body: "Book lab tests and home sample collection.", to: "/patient/labs" },
-  { n: "04", img: emergencyImg.url, title: "Free Checkups", body: "Free sessions held by volunteer doctors.", to: "/patient/free-checkups" },
-  { n: "05", img: adviceImg.url, title: "Health Discussions", body: "Ask questions and read advice from doctors.", to: "/discussions" },
+  { n: "01", img: onlineImg, title: "Online Consultation", body: "Video consultations with verified doctors from home.", to: "/patient/doctors" },
+  { n: "02", img: consultImg, title: "In-Clinic Appointments", body: "Pick a day, get your queue number and estimated time.", to: "/patient/doctors" },
+  { n: "03", img: labImg, title: "Laboratory Tests", body: "Book lab tests and home sample collection.", to: "/patient/labs" },
+  { n: "04", img: emergencyImg, title: "Free Checkups", body: "Free sessions held by volunteer doctors.", to: "/patient/free-checkups" },
+  { n: "05", img: adviceImg, title: "Health Discussions", body: "Ask questions and read advice from doctors.", to: "/discussions" },
 ] as const;
 
 const specialties = [
@@ -118,7 +118,7 @@ function Landing() {
             </div>
           </div>
           <div className="relative mx-auto w-full max-w-md lg:max-w-none">
-            <img src={heroImg.url} alt="Doctor in a white coat" width={504} height={504} className="ml-auto aspect-[4/5] w-full max-w-[410px] rounded-[35px_35px_18px_18px] object-cover shadow-soft" />
+            <img src={heroImg} alt="Doctor in a white coat" width={504} height={504} className="ml-auto aspect-[4/5] w-full max-w-[410px] rounded-[35px_35px_18px_18px] object-cover shadow-soft" />
             <div className="absolute left-0 top-10 hidden rounded-[14px] border bg-card p-3 shadow-soft sm:block">
               <p className="text-sm font-bold text-secondary-foreground">Verified doctors</p>
               <p className="text-xs text-muted-foreground">Online & in-clinic</p>
@@ -208,7 +208,7 @@ function Landing() {
         <h2 className="text-3xl font-semibold text-secondary-foreground sm:text-4xl">Care that feels more human.</h2>
         <p className="mt-2 max-w-2xl text-muted-foreground">From the first search to the consultation, every step is designed to feel clear, calm and trustworthy.</p>
         <div className="mt-8 grid gap-4 md:grid-cols-3">
-          {[{ img: consultImg.url, t: "In-person visits", s: "Your queue number and time before you arrive." }, { img: onlineImg.url, t: "Online consultations", s: "Talk to your doctor by video from home." }, { img: adviceImg.url, t: "Healthy living advice", s: "Blogs and videos from our doctors." }].map((c) => (
+          {[{ img: consultImg, t: "In-person visits", s: "Your queue number and time before you arrive." }, { img: onlineImg, t: "Online consultations", s: "Talk to your doctor by video from home." }, { img: adviceImg, t: "Healthy living advice", s: "Blogs and videos from our doctors." }].map((c) => (
             <article key={c.t} className="relative overflow-hidden rounded-[18px]">
               <img src={c.img} alt={c.t} loading="lazy" width={504} height={504} className="aspect-[4/3] w-full object-cover" />
               <div className="absolute inset-x-3 bottom-3 rounded-[14px] bg-card/95 p-3 backdrop-blur">

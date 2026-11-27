@@ -1,6 +1,6 @@
 import { BrandLogo } from "@/components/app/BrandLogo";
 import { Newspaper, MessagesSquare } from "lucide-react";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical, HeartHandshake } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
@@ -123,8 +123,42 @@ function SideNav({ role }: { role: Role }) {
   );
 }
 
+/** Patient pages that visitors may browse without signing in; booking still needs an account. */
+const PUBLIC_PATIENT_PAGES = [/^\/patient\/doctors(\/[^/]+)?\/?$/, /^\/patient\/labs\/?$/, /^\/patient\/laboratories\/[^/]+\/?$/, /^\/patient\/free-checkups\/?$/, /^\/patient\/stores\/[^/]+\/?$/];
+
+function GuestShell({ children }: { children: ReactNode }) {
+  const links = [
+    { to: "/patient/doctors", label: "Doctors" },
+    { to: "/patient/labs", label: "Lab Tests" },
+    { to: "/patient/free-checkups", label: "Free Consultancy" },
+    { to: "/discussions", label: "Discussions" },
+  ] as const;
+  return (
+    <div className="flex min-h-screen flex-col">
+      <header className="sticky top-0 z-30 border-b bg-card/95 shadow-soft backdrop-blur">
+        <div className="bg-sidebar text-xs text-sidebar-foreground"><div className="mx-auto flex h-8 max-w-7xl items-center px-4 md:px-8"><span className="truncate">Verified healthcare professionals • Secure consultations</span></div></div>
+        <div className="mx-auto flex min-h-16 w-full max-w-7xl items-center gap-3 px-4 py-3 md:px-8">
+          <Link to="/" aria-label="HealthSahoolat home"><BrandLogo className="h-8" /></Link>
+          <nav className="hidden items-center gap-1 lg:flex">{links.map((l) => <Link key={l.to} to={l.to} className="rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 hover:bg-secondary hover:text-primary" activeProps={{ className: "bg-secondary !text-primary" }}>{l.label}</Link>)}</nav>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" asChild className="rounded-[11px] font-semibold"><Link to="/login">Sign in</Link></Button>
+            <Button size="sm" asChild className="hidden rounded-[11px] font-semibold sm:inline-flex"><Link to="/register">Register</Link></Button>
+            <Sheet>
+              <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
+              <SheetContent side="left" className="flex w-64 flex-col gap-2 bg-card p-4"><BrandLogo className="mb-4 h-8" />{links.map((l) => <Link key={l.to} to={l.to} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">{l.label}</Link>)}<Link to="/register" className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">Register</Link></SheetContent>
+            </Sheet>
+          </div>
+        </div>
+      </header>
+      <main className="flex-1 p-4 md:p-8"><div className="mx-auto w-full max-w-7xl">{children}</div></main>
+    </div>
+  );
+}
+
 export function AppShell({ role, children }: { role: Role; children: ReactNode }) {
   const user = useSession();
+  const pathname = useLocation({ select: (l) => l.pathname });
+  const guestAllowed = role === "patient" && PUBLIC_PATIENT_PAGES.some((r) => r.test(pathname));
   const navigate = useNavigate();
   const ready = useReady();
   const queryClient = useQueryClient();
@@ -155,6 +189,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
 
   if (!mounted) return null;
   if (!ready) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
+  if (!user && guestAllowed) return <GuestShell>{children}</GuestShell>;
   if (!user || user.role !== role) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">

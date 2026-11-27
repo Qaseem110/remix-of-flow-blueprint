@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { DocList } from "@/components/app/common";
 import { VolunteerCall } from "@/components/app/VolunteerCall";
 import { createFileRoute } from "@tanstack/react-router";
@@ -22,7 +23,6 @@ function FreeCheckups() {
   const s = useStore((x) => x);
   const [mode, setMode] = useState("all");
   const [q, setQ] = useState("");
-  if (!user) return null;
   const doctor = (id: string) => ({ u: s.users.find((u) => u.id === id), d: s.doctors.find((d) => d.userId === id) });
   const term = q.trim().toLowerCase();
   const sessions = s.volunteerSessions.filter((v) => isVolunteerSessionUpcoming(v) && (mode === "all" || v.mode === mode)).filter((v) => {
@@ -30,7 +30,7 @@ function FreeCheckups() {
     const { u, d } = doctor(v.doctorId);
     return [u?.name, d?.specialization, v.city, v.location, v.focus].some((x) => x?.toLowerCase().includes(term));
   }).sort((a, b) => `${a.date}${a.start}`.localeCompare(`${b.date}${b.start}`));
-  const mine = s.volunteerBookings.filter((b) => b.patientId === user.id && b.status !== "Cancelled");
+  const mine = s.volunteerBookings.filter((b) => b.patientId === user?.id && b.status !== "Cancelled");
   return (
     <div className="mx-auto max-w-5xl">
       <PageHeader title="Free checkups" subtitle="Volunteer doctors offering free consultations." />
@@ -43,7 +43,7 @@ function FreeCheckups() {
             <p className="font-display text-2xl font-semibold text-primary">Token #{b.token}</p>
             <p className="text-sm">Booking: {b.id} · Reason: {b.reason}</p><p className="text-sm">Session: {fmtTime(v.start)}–{fmtTime(v.end)}</p><p className="font-medium">{doctor(v.doctorId).u?.name} · {v.date}, {fmtTime(v.start)}</p>
             <p className="text-sm text-muted-foreground">{v.status === "Cancelled" ? "Cancelled by doctor" : v.mode === "online" ? "Online" : `${v.location}${v.city ? `, ${v.city}` : ""}`} · {b.memberName ?? "Me"} · {b.status}</p>
-            {v.mode === "online" && v.status === "Open" && ["Booked","In Consultation"].includes(b.status) && <VolunteerCall bookingId={b.id} name={b.memberName ?? user.name} />}
+            {v.mode === "online" && v.status === "Open" && ["Booked","In Consultation"].includes(b.status) && <VolunteerCall bookingId={b.id} name={b.memberName ?? user?.name ?? ""} />}
             {s.consultations.filter(c=>c.appointmentId===b.id&&c.completedAt).map(c=><section key={c.appointmentId} className="mt-3 space-y-2 border-t pt-3"><h3 className="font-semibold">Consultation record</h3><p>{c.diagnosis}</p><p>{c.summary}</p>{c.prescription.map((r,i)=><p key={i}>{r.medicine} · {r.dosage} · {r.frequency} · {r.duration}</p>)}<DocList docs={c.documents}/>{c.followUpRequired&&<p>Follow-up: {c.followUpTiming}</p>}</section>)}
             {b.status === "Booked" && v.status === "Open" && <Button size="sm" variant="ghost" className="mt-2 text-destructive" onClick={() => setVolunteerBookingStatus(b.id, "Cancelled").then(() => toast.success("Booking cancelled"), (e) => toast.error(e.message))}>Cancel booking</Button>}
           </article>;
@@ -81,7 +81,8 @@ function SessionOffer({ v, name, spec }: { v: VolunteerSession; name: string; sp
       {v.notes && <p className="text-sm text-muted-foreground">{v.notes}</p>}
       <p className="mt-1 text-sm font-medium">{left > 0 ? `${left} free spots left` : "Full"}</p>
       {booked&&<p className="mt-3 font-medium text-primary">Already booked</p>}
-      {left > 0 && !booked && <div className="mt-3 space-y-2">
+      {left > 0 && !booked && !s.sessionUserId && <Button asChild className="mt-3 w-full"><Link to="/login">Sign in to book</Link></Button>}
+      {left > 0 && !booked && !!s.sessionUserId && <div className="mt-3 space-y-2">
         <Input placeholder="Reason for visit" value={reason} onChange={(e) => setReason(e.target.value)} />
         <Input placeholder="Patient name (only if for someone else)" value={forOther} onChange={(e) => setForOther(e.target.value)} />
         <Button onClick={book} disabled={busy} className="w-full">Book free spot</Button>
