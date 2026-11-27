@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { FeedTabs } from "@/components/feed/FeedTabs";
 import { BrandLogo } from "@/components/app/BrandLogo";
+import { SymptomSearch } from "@/components/app/SymptomSearch";
 import heroImg from "@/assets/hs/hero-doctor.jpg";
 import consultImg from "@/assets/hs/consult.jpg";
 import labImg from "@/assets/hs/lab.jpg";
@@ -111,6 +112,7 @@ function Landing() {
               </div>
               <Button asChild className="mt-3 h-12 w-full rounded-[11px] bg-sidebar text-base font-bold text-primary-foreground hover:bg-primary"><Link to="/register">Get started <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
             </div>
+            <SymptomSearch />
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5 text-primary" />Verified professionals</span>
               <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-primary" />Secure patient data</span>
