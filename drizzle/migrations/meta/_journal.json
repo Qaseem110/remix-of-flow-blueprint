@@ -92,6 +92,13 @@
       "when": 1795806736574,
       "tag": "0012_fix_kiosk_checkin",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795807048637,
+      "tag": "0013_kiosk_queue_status",
+      "breakpoints": true
     }
   ]
 }

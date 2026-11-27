@@ -823,6 +823,7 @@ export type Database = {
         Args: { method: string; value: string }
         Returns: string
       }
+      kiosk_queue_status: { Args: { appt_id: string }; Returns: Json }
       lab_slot_usage: {
         Args: { target_date: string; target_lab: string }
         Returns: {

@@ -1431,6 +1431,16 @@ export function checkIn(method: "appointmentId" | "phone", value: string): Appoi
   return state.appointments.find((x) => x.id === a!.id)!;
 }
 
+export type KioskQueue = { myNumber: number; currentNumber: number; ahead: number; status: string; doctorName?: string };
+/** Live queue position for a checked-in appointment; works signed-out. */
+export async function kioskQueueStatus(id: string): Promise<KioskQueue | null> {
+  if (!SB) { const q = queueInfo(id); const a = state.appointments.find((x) => x.id === id); return q && a ? { myNumber: q.myNumber, currentNumber: q.currentNumber, ahead: q.ahead, status: a.status, doctorName: userById(a.doctorId)?.name } : null; }
+  const { supabase } = await import("./supabase");
+  const { data, error } = await supabase.rpc("kiosk_queue_status", { appt_id: id });
+  if (error) throw new Error(error.message);
+  return (data as KioskQueue | null) ?? null;
+}
+
 /** Clinic kiosk check-in; works without signing in (server function). */
 export async function kioskCheckIn(method: "appointmentId" | "phone", value: string): Promise<{ id: string; appointment?: Appointment }> {
   if (!SB) { const a = checkIn(method, value); return { id: a.id, appointment: a }; }
