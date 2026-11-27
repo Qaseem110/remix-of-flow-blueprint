@@ -71,6 +71,13 @@
       "when": 1795801294651,
       "tag": "0009_tighten_feed_reads",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795803219140,
+      "tag": "0010_book_until_shift_end",
+      "breakpoints": true
     }
   ]
 }

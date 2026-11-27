@@ -563,6 +563,10 @@ BEGIN
    IF NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text||' '||candidate)) AND (day+candidate::time) AT TIME ZONE 'Asia/Karachi'>now()
       AND (SELECT count(*) FROM public.appointments WHERE doctor_id=new.doctor_id AND data->>'date'=day::text AND data->>'time'=candidate AND data->>'status' NOT IN ('Cancelled','Rescheduled','No Show'))<per_slot THEN chosen:=candidate; EXIT; END IF;
   END LOOP;
+  IF chosen IS NULL AND day=(now() AT TIME ZONE 'Asia/Karachi')::date THEN
+   candidate := to_char(date_trunc('minute', now() AT TIME ZONE 'Asia/Karachi') + interval '1 minute', 'HH24:MI');
+   IF candidate>shift->>'start' AND candidate<shift->>'end' AND NOT (coalesce(av->'blocked','[]'::jsonb) ? (day::text||' '||candidate)) THEN chosen:=candidate; END IF;
+  END IF;
   IF chosen IS NOT NULL THEN EXIT; END IF;
  END LOOP;
  IF chosen IS NULL THEN RAISE EXCEPTION 'No places available on this day. Choose another date.'; END IF;

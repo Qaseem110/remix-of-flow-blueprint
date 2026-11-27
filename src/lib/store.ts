@@ -718,6 +718,12 @@ export function getSlots(doctorId: string, date: string, s: State = state, clini
     out.push({ time, available: usedInShift < shiftCap && bookedToday.length < capacity && !booked && !blocked && `${date} ${time}` > localNow, blocked, booked });
     cur = addMinutes(cur, interval);
   }
+  // Planned slots may all be past while the shift is still running: offer the next minute.
+  const nowTime = localNow.slice(11);
+  const late = format(addMinutes(parse(`${date} ${nowTime}`, "yyyy-MM-dd HH:mm", new Date()), 1), "HH:mm");
+  if (localNow.slice(0, 10) === date && !dayOff && usedInShift < shiftCap && bookedToday.length < capacity
+    && late > shift.start && late < shift.end && !out.some((x) => x.available && x.time >= shift.start && x.time < shift.end)
+    && !(av.blocked?.includes(`${date} ${late}`) ?? false)) out.push({ time: late, available: true });
   }
   return out;
 }
