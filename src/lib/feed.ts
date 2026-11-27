@@ -6,13 +6,13 @@ export type PostKind = "blog" | "photo" | "video" | "forum";
 export type Post = {
   id: string; author_id: string; author_name: string; author_role: string; kind: PostKind;
   title: string; body: string; summary: string; video_url: string | null; images: string[]; created_at: string;
-  likes: string[]; comments: number;
+  likes: number; liked: boolean; comments: number;
 };
 export type Comment = { id: string; post_id: string; author_id: string; author_name: string; author_role: string; body: string; created_at: string };
 export const KIND_LABEL: Record<PostKind, string> = { blog: "Blog", photo: "Photos", video: "Video", forum: "Discussion" };
 
-type Row = Omit<Post, "likes" | "comments"> & { post_likes: { user_id: string }[]; post_comments: { count: number }[] };
-const toPost = (r: Row): Post => ({ ...r, likes: r.post_likes.map((l) => l.user_id), comments: r.post_comments[0]?.count ?? 0 });
+type Row = Omit<Post, "likes" | "liked" | "comments"> & { like_count: number; post_likes: { user_id: string }[]; post_comments: { count: number }[] };
+const toPost = (r: Row): Post => ({ ...r, likes: r.like_count, liked: r.post_likes.length > 0, comments: r.post_comments[0]?.count ?? 0 });
 const SELECT = "*, post_likes(user_id), post_comments(count)";
 
 export type PostFilter = { kinds?: PostKind[]; authorId?: string };

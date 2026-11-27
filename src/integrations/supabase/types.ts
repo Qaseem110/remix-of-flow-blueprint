@@ -559,6 +559,7 @@ export type Database = {
           id: string
           images: string[]
           kind: string
+          like_count: number
           summary: string
           title: string
           video_url: string | null
@@ -572,6 +573,7 @@ export type Database = {
           id?: string
           images?: string[]
           kind: string
+          like_count?: number
           summary?: string
           title?: string
           video_url?: string | null
@@ -585,6 +587,7 @@ export type Database = {
           id?: string
           images?: string[]
           kind?: string
+          like_count?: number
           summary?: string
           title?: string
           video_url?: string | null
@@ -835,6 +838,7 @@ export type Database = {
           term: string
         }[]
       }
+      post_author_active: { Args: { author: string }; Returns: boolean }
       queue_doctor_start_alerts: { Args: never; Returns: number }
       queue_doctor_summary: {
         Args: { target_doctor: string }

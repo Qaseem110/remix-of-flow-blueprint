@@ -43,14 +43,14 @@ export function LikeButton({ post }: { post: Post }) {
   const viewer = useFeedViewer();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
-  const liked = !!viewer && post.likes.includes(viewer.id);
+  const liked = !!viewer && post.liked;
   const toggle = async () => {
     if (!viewer) { toast.info("Sign in to like posts"); return; }
     setBusy(true);
     try { await setLike(post.id, viewer.id, !liked); await Promise.all([qc.invalidateQueries({ queryKey: ["posts"] }), qc.invalidateQueries({ queryKey: ["post", post.id] }), qc.invalidateQueries({ queryKey: ["doctor-reputation"] })]); }
     catch (e) { toast.error((e as Error).message); } finally { setBusy(false); }
   };
-  return <Button variant="ghost" size="sm" disabled={busy} onClick={toggle} aria-pressed={liked} className={liked ? "text-primary" : ""}><Heart className={liked ? "fill-current" : ""} />{post.likes.length}</Button>;
+  return <Button variant="ghost" size="sm" disabled={busy} onClick={toggle} aria-pressed={liked} className={liked ? "text-primary" : ""}><Heart className={liked ? "fill-current" : ""} />{post.likes}</Button>;
 }
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-PK", { timeZone: "Asia/Karachi", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
