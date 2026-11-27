@@ -111,7 +111,7 @@ function SideNav({ role }: { role: Role }) {
   const [language, setLanguage] = useState("en");
   useEffect(() => { const read = () => setLanguage(localStorage.getItem("sahoolat-language") ?? "en"); read(); window.addEventListener("sahoolat-preferences", read); return () => window.removeEventListener("sahoolat-preferences", read); }, []);
   return (
-    <nav className="flex flex-col gap-1 md:flex-row md:items-center md:gap-0.5">
+    <nav className="flex flex-col gap-1 md:flex-row md:flex-wrap md:items-center md:gap-0.5">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
           className="flex items-center gap-3 whitespace-nowrap rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 transition hover:bg-secondary hover:text-primary md:gap-2 md:px-2.5 md:py-1.5"
@@ -238,7 +238,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
             <Button variant="outline" size="sm" disabled={signingOut} onClick={signOut} className="shrink-0 gap-2 rounded-[11px] font-semibold"><LogOut className="h-4 w-4" />{signingOut ? "Signing out…" : "Sign out"}</Button>
           </div>
         </div>
-        <div className="hidden border-t md:block"><div className="mx-auto max-w-7xl overflow-x-auto px-4 py-2 md:px-8"><SideNav role={role} /></div></div>
+        <div className="hidden border-t md:block"><div className="mx-auto max-w-7xl px-4 py-2 md:px-8"><SideNav role={role} /></div></div>
       </header>
       <main className="flex-1 p-4 md:p-8">
         <div className="mx-auto w-full max-w-7xl">{children}</div>

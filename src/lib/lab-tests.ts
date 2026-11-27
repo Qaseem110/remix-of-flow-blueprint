@@ -5,6 +5,8 @@ export interface LabTest {
   turnaround: string;
   sample?: string;
   preparation?: string;
+  /** Set by the laboratory: this test can only be booked against a doctor's prescription. */
+  prescriptionRequired?: boolean;
 }
 
 export function validateLabTests(tests: LabTest[]) {
@@ -22,4 +24,9 @@ export function validateLabTests(tests: LabTest[]) {
 
 export function labTestCatalogue(lab: { testCatalogue?: LabTest[]; tests?: string }): LabTest[] {
   return lab.testCatalogue ?? (lab.tests ?? "").split(/[,\n]/).map((name) => name.trim()).filter(Boolean).map((name) => ({ name, price: 0, details: "", turnaround: "" }));
+}
+/** Catalogue tests named in a comma/newline list that the lab marked as needing a prescription. */
+export function testsNeedingPrescription(catalogue: LabTest[], tests: string): string[] {
+  const wanted = new Set(tests.split(/[,\n]/).map((t) => t.trim().toLowerCase()).filter(Boolean));
+  return catalogue.filter((t) => t.prescriptionRequired && wanted.has(t.name.trim().toLowerCase())).map((t) => t.name);
 }

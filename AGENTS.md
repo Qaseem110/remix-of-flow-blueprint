@@ -20,7 +20,7 @@
 - Tracking numbers use a DB sequence; past active appointments derive Expired at hydration. Why: unique numbers, history kept without jobs.
 - Volunteer checkups are separate session/booking rows; DB locks session to cap spots/tokens; they resolve to virtual visits for the consultation console. Why: never mix with paid queues.
 - Reception accounts are created only by the doctor's server function; access limited by DB policies. Walk-in messages go to a pending outbox. Why: no self-granted staff roles.
-- Lab orders reference a prescribing appointment; results under `lab/<orderId>/` are permanent. Lab catalogues live in lab JSON with validated entries; lab schedules use shared helpers and DB capacity checks. Why: prescriptions required, no overbooking.
+- Lab orders need a prescribing appointment only for catalogue tests the lab marks `prescriptionRequired` (DB `lab_tests_need_rx`); otherwise patients self-book with empty doctor/appointment ids. Results under `lab/<orderId>/` are permanent. Lab catalogues live in lab JSON with validated entries; lab schedules use shared helpers and DB capacity checks. Why: labs decide which tests need prescriptions, no overbooking.
 - Care workflows use store operations over RLS-protected records; audits are DB triggers; authorization uses user_roles. Why: don't trust UI roles.
 - Reception attendance/day cancellation are RPCs; doctor summaries and doctor-start alerts are SQL schedules. Why: notices must not need an open dashboard.
 - Uploads (doctor attachments, call recordings) use awaited storage-and-metadata operations; doctor-side full history needs server-verified PIN. Why: survive refresh, keep gate.

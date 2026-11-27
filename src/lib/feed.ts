@@ -22,7 +22,12 @@ export async function fetchPosts(f: PostFilter): Promise<Post[]> {
   if (f.kinds) q = q.in("kind", f.kinds);
   if (f.authorId) q = q.eq("author_id", f.authorId);
   const term = f.q?.replace(/[,()%*\\]/g, " ").trim();
-  if (term) q = q.or(["title", "body", "summary"].map((c) => `${c}.ilike.%${term}%`).join(","));
+  if (term) {
+    // Match any meaningful word so a problem like "sir dard bukhar" finds related posts.
+    const words = [...new Set(term.split(/\s+/).filter((w) => w.length >= 3))].slice(0, 6);
+    const parts = words.length ? words : [term];
+    q = q.or(parts.flatMap((w) => ["title", "body", "summary"].map((c) => `${c}.ilike.%${w}%`)).join(","));
+  }
   const { data, error } = await q;
   if (error) throw new Error(error.message);
   return (data as Row[]).map(toPost);

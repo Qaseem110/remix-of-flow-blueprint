@@ -6,6 +6,7 @@ import { FeedTabs } from "@/components/feed/FeedTabs";
 import { BrandLogo } from "@/components/app/BrandLogo";
 import { QueueTracker } from "@/components/app/QueueTracker";
 import { SymptomSearch } from "@/components/app/SymptomSearch";
+import { useSession } from "@/lib/store";
 import heroImg from "@/assets/hs/hero-doctor.jpg";
 import consultImg from "@/assets/hs/consult.jpg";
 import labImg from "@/assets/hs/lab.jpg";
@@ -64,13 +65,19 @@ function Eyebrow({ children, light = false }: { children: string; light?: boolea
   return <p className={`mb-3 text-xs font-bold uppercase tracking-[0.12em] ${light ? "text-primary-foreground/75" : "text-primary"}`}>{children}</p>;
 }
 
+function AccountLink({ className }: { className: string }) {
+  const user = useSession();
+  if (!user) return <Link to="/login" className={className}>Sign in</Link>;
+  return <Link to={user.role === "patient" ? "/patient" : user.role === "doctor" ? "/doctor" : user.role === "pharmacy" ? "/pharmacy" : user.role === "receptionist" ? "/reception" : user.role === "lab" ? "/lab" : "/admin"} className={className}>My dashboard</Link>;
+}
+
 function Landing() {
   return (
     <div className="min-h-screen bg-background">
       <div className="bg-sidebar text-xs text-sidebar-foreground">
         <div className="mx-auto flex h-9 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6">
           <span className="truncate">Verified healthcare professionals • Secure consultations</span>
-          <Link to="/login" className="hidden shrink-0 hover:underline sm:inline">Sign in</Link>
+          <AccountLink className="hidden shrink-0 hover:underline sm:inline" />
         </div>
       </div>
 
@@ -91,7 +98,7 @@ function Landing() {
                 <BrandLogo className="mb-4 h-8" />
                 {navLinks.map((l) => <Link key={l.to} to={l.to} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">{l.label}</Link>)}
                 <Link to="/register" search={{ role: "doctor" }} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">For Doctors</Link>
-                <Link to="/login" className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">Sign in</Link>
+                <AccountLink className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary" />
               </SheetContent>
             </Sheet>
           </div>
@@ -236,7 +243,7 @@ function Landing() {
           <div><div className="inline-block rounded-lg bg-card p-2"><BrandLogo className="h-7" /></div><p className="mt-3 text-sm opacity-80">Live Better, Feel Better.</p></div>
           <div className="space-y-2 text-sm"><p className="font-bold">Patients</p><Link to="/patient/doctors" className="block opacity-80 hover:opacity-100">Find doctors</Link><Link to="/patient/labs" search={{ lab: undefined, book: false }} className="block opacity-80 hover:opacity-100">Lab tests</Link></div>
           <div className="space-y-2 text-sm"><p className="font-bold">Providers</p><Link to="/register" search={{ role: "doctor" }} className="block opacity-80 hover:opacity-100">For doctors</Link><Link to="/register" search={{ role: "lab" }} className="block opacity-80 hover:opacity-100">For laboratories</Link><Link to="/register" search={{ role: "pharmacy" }} className="block opacity-80 hover:opacity-100">For pharmacies</Link></div>
-          <div className="space-y-2 text-sm"><p className="font-bold">Community</p><Link to="/discussions" className="block opacity-80 hover:opacity-100">Discussions</Link><Link to="/login" className="block opacity-80 hover:opacity-100">Sign in</Link></div>
+          <div className="space-y-2 text-sm"><p className="font-bold">Community</p><Link to="/discussions" className="block opacity-80 hover:opacity-100">Discussions</Link><AccountLink className="block opacity-80 hover:opacity-100" /></div>
         </div>
         <p className="border-t border-sidebar-border px-4 py-4 text-center text-xs opacity-70">© {new Date().getFullYear()} HealthSahoolat</p>
       </footer>

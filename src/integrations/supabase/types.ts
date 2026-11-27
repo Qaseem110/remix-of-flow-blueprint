@@ -836,6 +836,10 @@ export type Database = {
           duration: number
         }[]
       }
+      lab_tests_need_rx: {
+        Args: { target_lab: string; tests: string }
+        Returns: boolean
+      }
       popular_medicine_searches: {
         Args: never
         Returns: {

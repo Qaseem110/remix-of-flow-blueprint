@@ -28,7 +28,7 @@ export function LabOrderCard({ o, children }: { o: LabOrder; children?: ReactNod
           {o.token && <p className="font-display text-2xl font-semibold text-primary">Token #{o.token}</p>}
           <p className="flex items-center gap-2 font-semibold"><FlaskConical className="h-4 w-4 text-primary" />{o.tests}</p>
           <p className="text-sm text-muted-foreground">{trackingNumber(o)} · {o.date} · {o.time ? fmtTime(o.time) : "Time awaiting laboratory"} · {lab?.labName ?? "Laboratory"}{lab?.city ? `, ${lab.city}` : ""}</p>
-          <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })}) · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
+          <p className="text-sm text-muted-foreground">Patient: {o.memberName ?? patient?.name ?? "—"} · {o.appointmentId ? <>Prescribed by {doctor?.name ?? "doctor"} ({trackingNumber({ id: o.appointmentId })})</> : "No prescription"} · {o.orderedBy === "doctor" ? "Sent by doctor" : "Booked by patient"}</p>
           {o.notes && <p className="mt-1 text-sm">Note: {o.notes}</p>}
           {o.sampleStage && <p className="mt-1 text-sm">Processing: {o.sampleStage}</p>}
           {o.reviewedBy && <p className="text-sm">Reviewed by: {o.reviewedBy}</p>}

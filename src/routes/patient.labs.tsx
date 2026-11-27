@@ -15,10 +15,11 @@ import { LabAppointmentTime } from "@/components/app/LabAppointmentTime";
 import { createLabOrder, memberOf, prescribedConsultations, setLabOrderStatus, useActiveMember, useSession, useStore, type Lab } from "@/lib/store";
 import { meta } from "@/lib/meta";
 import { fmtPrice } from "@/lib/utils";
+import { labTestCatalogue, testsNeedingPrescription } from "@/lib/lab-tests";
 
 export const Route = createFileRoute("/patient/labs")({
   validateSearch: (s: Record<string, unknown>) => ({ lab: typeof s.lab === "string" ? s.lab : undefined, book: s.book === true }),
-  head: () => meta("Lab tests", "Find a laboratory and book prescribed tests."),
+  head: () => meta("Lab tests", "Find a laboratory and book lab tests."),
   component: PatientLabs,
 });
 
@@ -28,7 +29,7 @@ function PatientLabs() {
   const s = useStore((x) => x);
   const member = useActiveMember();
   const mine = (apptId: string) => memberOf(s.appointments.find((a) => a.id === apptId)) === member;
-  const orders = s.labOrders.filter((o) => o.patientId === user?.id && mine(o.appointmentId)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  const orders = s.labOrders.filter((o) => o.patientId === user?.id && (o.appointmentId ? mine(o.appointmentId) : member === null)).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const rx = prescribedConsultations(user?.id ?? "", s).filter((c) => mine(c.appointmentId));
   const [q, setQ] = useState("");
   const labs = s.labs.filter((l) => (!search.lab || l.userId === search.lab) && (!q || `${l.labName} ${l.city} ${l.tests ?? ""}`.toLowerCase().includes(q.toLowerCase())));
@@ -74,7 +75,7 @@ function PatientLabs() {
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><MapPin className="h-4 w-4" />{l.address}, {l.city}</p>
               <p className="flex items-center gap-1 text-sm text-muted-foreground"><Phone className="h-4 w-4" />{l.phone}{l.hours ? ` · ${l.hours}` : ""}</p>
               {l.tests && <p className="mt-1 line-clamp-2 text-sm">{l.tests}</p>}
-              {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}</li>)}</ul></>}
+              {!!l.testCatalogue?.length && <><h3 className="mt-3 font-medium text-primary">In-lab tests</h3><ul className="mt-3 divide-y text-sm">{l.testCatalogue.map((test) => <li key={test.name} className="space-y-1 py-2"><p className="flex flex-wrap justify-between gap-2 font-medium"><span>{test.name}</span><span>{fmtPrice(test.price)}</span></p><p>{test.details}</p><p className="text-muted-foreground">Report ready in: {test.turnaround}</p>{test.sample && <p>Sample: {test.sample}</p>}{test.preparation && <p>Preparation: {test.preparation}</p>}{test.prescriptionRequired && <p className="font-medium text-destructive">Prescription required</p>}</li>)}</ul></>}
               <LabServices labId={l.userId} />
               {user ? <Button size="sm" className="mt-3" onClick={() => { setPick(l); setTime(""); setDate(""); }}>Book test</Button> : <Button size="sm" className="mt-3" asChild><Link to="/login">Sign in to book</Link></Button>}
             </article>
@@ -84,18 +85,26 @@ function PatientLabs() {
       {pick && (
         <section className="space-y-3 rounded-2xl border bg-card p-6 shadow-soft">
           <h2 className="text-lg font-semibold">Book at {pick.labName}</h2>
-          {rx.length === 0 ? <p className="text-sm text-destructive">You need a doctor's prescription first. Tests can only be booked against a completed consultation.</p> : (
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="sm:col-span-2"><Label>Doctor's prescription</Label>
-                <Select value={appt} onValueChange={chooseRx}><SelectTrigger><SelectValue placeholder="Select prescription" /></SelectTrigger>
-                  <SelectContent>{rx.map((c) => <SelectItem key={c.appointmentId} value={c.appointmentId}>{docName(c.doctorId)} · {c.appointmentId} · {c.diagnosis || "Consultation"}</SelectItem>)}</SelectContent></Select>
+          {(() => {
+            const catalogue = labTestCatalogue(pick);
+            const chosen = tests.split(/[,\n]/).map((t) => t.trim()).filter(Boolean);
+            const toggle = (name: string) => setTests((chosen.some((c) => c.toLowerCase() === name.toLowerCase()) ? chosen.filter((c) => c.toLowerCase() !== name.toLowerCase()) : [...chosen, name]).join(", "));
+            const needRx = testsNeedingPrescription(catalogue, tests);
+            return (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {catalogue.length > 0 && <div className="sm:col-span-2"><Label>Choose tests</Label><div className="mt-2 flex flex-wrap gap-2">{catalogue.map((t) => { const on = chosen.some((c) => c.toLowerCase() === t.name.toLowerCase()); return <button type="button" key={t.name} onClick={() => toggle(t.name)} className={`rounded-full border px-3 py-1.5 text-sm ${on ? "border-primary bg-primary text-primary-foreground" : "bg-background hover:bg-muted"}`}>{t.name}{t.price > 0 ? ` · ${fmtPrice(t.price)}` : ""}{t.prescriptionRequired ? " · Rx" : ""}</button>; })}</div></div>}
+                <div className="sm:col-span-2"><Label>Tests</Label><Input value={tests} onChange={(e) => setTests(e.target.value)} placeholder="e.g. CBC, LFT" /></div>
+                <div className="sm:col-span-2"><Label>Doctor's prescription {needRx.length ? "(required)" : "(optional)"}</Label>
+                  {rx.length === 0 ? <p className={`text-sm ${needRx.length ? "text-destructive" : "text-muted-foreground"}`}>{needRx.length ? `The lab needs a doctor's prescription for: ${needRx.join(", ")}. Remove these tests or consult a doctor first.` : "No prescription needed for these tests."}</p> : (
+                    <Select value={appt || "none"} onValueChange={(v) => v === "none" ? setAppt("") : chooseRx(v)}><SelectTrigger><SelectValue placeholder="Select prescription" /></SelectTrigger>
+                      <SelectContent>{!needRx.length && <SelectItem value="none">No prescription</SelectItem>}{rx.map((c) => <SelectItem key={c.appointmentId} value={c.appointmentId}>{docName(c.doctorId)} · {c.appointmentId} · {c.diagnosis || "Consultation"}</SelectItem>)}</SelectContent></Select>)}
+                  {needRx.length > 0 && rx.length > 0 && <p className="mt-1 text-sm text-destructive">Prescription required for: {needRx.join(", ")}</p>}
+                </div>
+                <LabAppointmentTime labId={pick.userId} date={date} time={time} onDate={setDate} onTime={setTime} />
+                <div className="flex gap-2 sm:col-span-2"><Button disabled={busy || !tests.trim() || (needRx.length > 0 && !appt) || !date || !time} onClick={book}>Confirm booking</Button><Button variant="ghost" onClick={() => setPick(null)}>Close</Button></div>
               </div>
-              <div><Label>Tests</Label><Input value={tests} onChange={(e) => setTests(e.target.value)} placeholder="e.g. CBC, LFT" /></div>
-              <LabAppointmentTime labId={pick.userId} date={date} time={time} onDate={setDate} onTime={setTime} />
-              <div className="flex gap-2 sm:col-span-2"><Button disabled={busy || !appt || !date || !time} onClick={book}>Confirm booking</Button><Button variant="ghost" onClick={() => setPick(null)}>Close</Button></div>
-            </div>
-          )}
-          {rx.length===0&&<Button variant="ghost" onClick={()=>setPick(null)}>Close</Button>}
+            );
+          })()}
         </section>
       )}
     </div>

@@ -1,6 +1,6 @@
 import { sameClinic, clinicKey } from "./clinic";
 import { appointmentStatus, clinicDate } from "./appointment-lifecycle";
-import { validateLabTests, type LabTest } from "./lab-tests";
+import { labTestCatalogue, testsNeedingPrescription, validateLabTests, type LabTest } from "./lab-tests";
 import { labSlots, validateLabSchedule, type LabSchedule } from "./lab-schedule";
 import { dueDoses } from "./medicine-reminders";
 /**
@@ -1067,9 +1067,16 @@ export async function createLabOrder(input: { labId: string; appointmentId: stri
     if (!a || a.doctorId!==me.id) throw new Error("Appointment not found");
     doctorId = me.id; patientId = a.patientId; memberName = a.memberName;
   } else if (me.role === "patient") {
-    const c = prescribedConsultations(me.id).find((x) => x.appointmentId === input.appointmentId);
-    if (!c) throw new Error("A doctor's prescription is required to book a lab test");
-    doctorId = c.doctorId; patientId = me.id; memberName = consultationAppointment(c.appointmentId)?.memberName;
+    const lab = state.labs.find((l) => l.userId === input.labId);
+    const needRx = testsNeedingPrescription(lab ? labTestCatalogue(lab) : [], input.tests);
+    if (!input.appointmentId) {
+      if (needRx.length) throw new Error(`A doctor's prescription is required for: ${needRx.join(", ")}`);
+      doctorId = ""; patientId = me.id;
+    } else {
+      const c = prescribedConsultations(me.id).find((x) => x.appointmentId === input.appointmentId);
+      if (!c) throw new Error("Prescription not found");
+      doctorId = c.doctorId; patientId = me.id; memberName = consultationAppointment(c.appointmentId)?.memberName;
+    }
   } else throw new Error("Only doctors and patients can book lab tests");
   if (!input.time) throw new Error("Choose an available lab appointment time");
   const schedule = state.labs.find((l) => l.userId === input.labId)?.schedule;

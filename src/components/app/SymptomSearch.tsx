@@ -6,7 +6,7 @@ import { AlertTriangle, FileText, Image as ImageIcon, MessagesSquare, PlayCircle
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useStore, visibleDoctors } from "@/lib/store";
-import { KIND_LABEL, usePosts, type PostKind } from "@/lib/feed";
+import type { PostKind } from "@/lib/feed";
 import { suggestDoctors } from "@/lib/symptom-match.functions";
 
 type Target = "doctors" | PostKind;
@@ -34,41 +34,27 @@ function PremiumLoader({ label }: { label: string }) {
   );
 }
 
-function PostResults({ kind, q }: { kind: PostKind; q: string }) {
-  const r = usePosts({ kinds: [kind], q });
-  if (r.isLoading) return <PremiumLoader label={`Searching ${KIND_LABEL[kind].toLowerCase()} posts…`} />;
-  const posts = (r.data ?? []).slice(0, 6);
-  return (
-    <div className="mt-3 space-y-2 text-sm">
-      {posts.length ? (
-        <ul className="grid gap-1">{posts.map((p) => <li key={p.id}><Link to="/feed/$postId" params={{ postId: p.id }} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 hover:border-primary"><span className="min-w-0 truncate font-semibold">{p.title}</span><span className="shrink-0 text-xs text-muted-foreground">{p.author_name}</span></Link></li>)}</ul>
-      ) : <p className="text-muted-foreground">Nothing found for “{q}” yet. <Link to="/discussions" className="font-semibold text-primary">See all discussions</Link></p>}
-    </div>
-  );
-}
-
 export function SymptomSearch() {
   const s = useStore((s) => s);
   const docs = visibleDoctors(s);
   const [text, setText] = useState("");
   const [target, setTarget] = useState<Target>("doctors");
-  const [postQuery, setPostQuery] = useState<{ kind: PostKind; q: string } | null>(null);
   const run = useServerFn(suggestDoctors);
   const navigate = useNavigate();
   const m = useMutation({
     mutationFn: (symptoms: string) => run({ data: { symptoms, doctors: docs.map((d) => ({ id: d.userId, specialization: d.specialization })) } }),
     onSuccess: (res, symptoms) => {
-      if (res.error || res.urgent || (!res.specializations.length && !res.doctorIds.length)) return;
-      void navigate({ to: "/patient/doctors", search: { problem: symptoms, need: res.specializations.join("|"), ids: res.doctorIds.join("|"), advice: res.advice ?? "" } });
+      if (res.urgent) return;
+      void navigate({ to: "/patient/doctors", search: { problem: symptoms, need: res.specializations.join("|"), ids: res.doctorIds.join("|"), advice: res.error ? "" : res.advice ?? "" } });
     },
   });
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const t = text.trim(); if (t.length < 3) return;
-    if (target === "doctors") { setPostQuery(null); m.mutate(t); } else { m.reset(); setPostQuery({ kind: target, q: t }); }
+    if (target === "doctors") m.mutate(t);
+    else void navigate({ to: "/discussions", search: { kind: target, q: t } });
   };
   const r = m.data;
-  const matched = r ? docs.filter((d) => r.doctorIds.includes(d.userId)).slice(0, 6) : [];
   return (
     <div className="mt-7 rounded-[18px] border bg-card p-4 shadow-soft">
       <p className="flex items-center gap-2 text-sm font-bold text-secondary-foreground"><Sparkles className="h-4 w-4 text-primary" />Describe your problem — what would you like to see?</p>
@@ -82,21 +68,10 @@ export function SymptomSearch() {
         <Button type="submit" disabled={m.isPending || text.trim().length < 3} className="h-11 shrink-0"><Search className="h-4 w-4" /><span className="hidden sm:inline">Search</span></Button>
       </form>
       {m.isPending && <PremiumLoader label="Finding the right doctors for you…" />}
-      {postQuery && <PostResults kind={postQuery.kind} q={postQuery.q} />}
-      {r?.error && <p className="mt-3 text-sm text-destructive">{r.error}</p>}
-      {r && !r.error && !m.isPending && (
+      {r?.urgent && !m.isPending && (
         <div className="mt-3 space-y-2 text-sm">
-          {r.urgent && <p className="flex gap-2 rounded-lg bg-destructive/10 p-2 font-semibold text-destructive"><AlertTriangle className="h-4 w-4 shrink-0" />This may be an emergency. Please go to the nearest hospital now.</p>}
-          {r.advice && <p className="text-muted-foreground">{r.advice}</p>}
-          {r.specializations.length > 0 && <p><span className="font-semibold">Suggested:</span> {r.specializations.join(", ")}</p>}
-          {matched.length > 0 ? (
-            <ul className="grid gap-1">
-              {matched.map((d) => { const u = s.users.find((x) => x.id === d.userId); return (
-                <li key={d.userId}><Link to="/patient/doctors/$id" params={{ id: d.userId }} className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 rounded-lg border px-3 py-2 hover:border-primary"><span className="min-w-0 truncate font-semibold">{u?.name ?? "Doctor"}</span><span className="shrink-0 text-xs text-muted-foreground">{d.specialization}</span></Link></li>
-              ); })}
-            </ul>
-          ) : <p className="text-muted-foreground">No matching doctor is listed yet. <Link to="/patient/doctors" className="font-semibold text-primary">Browse all doctors</Link></p>}
-          <p className="text-[11px] text-muted-foreground">This is a suggestion, not a diagnosis.</p>
+          <p className="flex gap-2 rounded-lg bg-destructive/10 p-2 font-semibold text-destructive"><AlertTriangle className="h-4 w-4 shrink-0" />This may be an emergency. Please go to the nearest hospital now.</p>
+          <Link to="/patient/doctors" search={{ problem: text.trim(), need: r.specializations.join("|"), ids: r.doctorIds.join("|"), advice: r.advice ?? "" }} className="font-semibold text-primary">See related doctors</Link>
         </div>
       )}
     </div>

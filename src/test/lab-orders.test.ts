@@ -13,10 +13,10 @@ const asPatient = async () => {
 };
 
 describe("laboratory tests", () => {
-  it("patient cannot book a lab test without a doctor's prescription", async () => {
+  it("patient cannot attach an appointment that has no prescription", async () => {
     const me = await asPatient();
     const noRx = getState().appointments.find((a) => a.patientId === me && !getState().consultations.some((c) => c.appointmentId === a.id))!;
-    await expect(createLabOrder({ labId, appointmentId: noRx.id, tests: "CBC", date: "2026-12-01" })).rejects.toThrow("prescription is required");
+    await expect(createLabOrder({ labId, appointmentId: noRx.id, tests: "CBC", date: "2026-12-01" })).rejects.toThrow("Prescription not found");
   });
   it("lab reports uploaded by the lab cannot be deleted and reach the patient", async () => {
     const me = await asPatient();
