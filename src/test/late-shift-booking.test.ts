@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { getSlots, type State } from "@/lib/store";
+import { getSlots } from "@/lib/store";
+type State = NonNullable<Parameters<typeof getSlots>[2]>;
 
 afterEach(() => vi.useRealTimers());
 describe("same-day booking while shift is open", () => {
