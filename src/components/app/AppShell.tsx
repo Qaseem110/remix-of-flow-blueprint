@@ -189,7 +189,7 @@ export function AppShell({ role, children }: { role: Role; children: ReactNode }
 
   if (!mounted) return null;
   if (!ready) return <div className="flex min-h-screen items-center justify-center text-muted-foreground">Loading…</div>;
-  if (!user && guestAllowed) return <GuestShell>{children}</GuestShell>;
+  if (guestAllowed && (!user || user.role !== role)) return <GuestShell>{children}</GuestShell>;
   if (!user || user.role !== role) {
     return (
       <div className="flex min-h-screen items-center justify-center p-6">
