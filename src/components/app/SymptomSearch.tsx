@@ -18,7 +18,7 @@ export function SymptomSearch() {
   const r = m.data;
   const matched = r ? docs.filter((d) => r.doctorIds.includes(d.userId)).slice(0, 6) : [];
   return (
-    <div className="mt-4 rounded-[18px] border bg-card p-4 shadow-soft">
+    <div className="mt-7 rounded-[18px] border bg-card p-4 shadow-soft">
       <p className="flex items-center gap-2 text-sm font-bold text-secondary-foreground"><Stethoscope className="h-4 w-4 text-primary" />Not sure which doctor? Describe your problem</p>
       <form onSubmit={submit} className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] gap-2">
         <Input aria-label="Describe your illness" value={text} maxLength={500} onChange={(e) => setText(e.target.value)} placeholder="e.g. sir dard aur bukhar, skin rash, knee pain…" className="h-11 min-w-0" />

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { FeedTabs } from "@/components/feed/FeedTabs";
 import { BrandLogo } from "@/components/app/BrandLogo";
+import { QueueTracker } from "@/components/app/QueueTracker";
 import { SymptomSearch } from "@/components/app/SymptomSearch";
 import heroImg from "@/assets/hs/hero-doctor.jpg";
 import consultImg from "@/assets/hs/consult.jpg";
@@ -104,7 +105,8 @@ function Landing() {
             <Eyebrow>Healthcare, thoughtfully connected</Eyebrow>
             <h1 className="text-4xl font-medium leading-[1.08] tracking-tight text-secondary-foreground sm:text-5xl lg:text-[52px]">Find the right doctor.<br /><span className="text-primary">Feel better sooner.</span></h1>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-[17px]">HealthSahoolat brings trusted doctors, video consultations, in-clinic appointments, laboratory testing and personal health records together in one place.</p>
-            <div className="mt-7 rounded-[18px] border bg-card p-4 shadow-soft">
+            <SymptomSearch />
+            <div className="mt-4 rounded-[18px] border bg-card p-4 shadow-soft">
               <div className="grid gap-2 sm:grid-cols-3">
                 <Link to="/patient/doctors" className="flex items-center gap-2 rounded-[11px] border px-3 py-3 text-sm font-semibold hover:border-primary hover:text-primary"><Stethoscope className="h-4 w-4 shrink-0 text-primary" />Find doctors</Link>
                 <Link to="/patient/labs" search={{ lab: undefined, book: false }} className="flex items-center gap-2 rounded-[11px] border px-3 py-3 text-sm font-semibold hover:border-primary hover:text-primary"><FlaskConical className="h-4 w-4 shrink-0 text-primary" />Lab tests</Link>
@@ -112,7 +114,6 @@ function Landing() {
               </div>
               <Button asChild className="mt-3 h-12 w-full rounded-[11px] bg-sidebar text-base font-bold text-primary-foreground hover:bg-primary"><Link to="/register">Get started <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
             </div>
-            <SymptomSearch />
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5 text-primary" />Verified professionals</span>
               <span className="flex items-center gap-1"><ShieldCheck className="h-3.5 w-3.5 text-primary" />Secure patient data</span>
@@ -140,8 +141,8 @@ function Landing() {
           <div className="min-w-0">
             <Eyebrow>Live queue</Eyebrow>
             <h2 className="text-3xl font-bold text-secondary-foreground sm:text-4xl">Track your appointment queue</h2>
-            <p className="mt-3 text-muted-foreground">Already booked? Check in at the clinic with your tracking number and follow your doctor's live queue.</p>
-            <Button asChild size="lg" className="mt-6 rounded-full bg-sidebar px-7 font-bold text-primary-foreground hover:bg-primary"><Link to="/checkin">Track queue <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
+            <p className="mt-3 text-muted-foreground">Already booked? Enter your tracking number or phone right here to check in and see your live queue position.</p>
+            <div className="mt-6 rounded-[18px] border bg-card p-5 shadow-soft"><QueueTracker /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             {features.map((f) => (
@@ -223,11 +224,11 @@ function Landing() {
       </section>
 
       <section className="border-t bg-card">
-        <div className="mx-auto max-w-4xl px-4 py-14 sm:px-6">
+        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6">
           <Eyebrow>Community</Eyebrow>
           <h2 className="mb-1 text-3xl font-semibold text-secondary-foreground">From our doctors & community</h2>
           <p className="mb-6 text-muted-foreground">Blogs, pictures, videos and open discussions. <Link to="/discussions" className="font-semibold text-primary underline">Join a discussion</Link></p>
-          <FeedTabs />
+          <FeedTabs compact />
         </div>
       </section>
 
