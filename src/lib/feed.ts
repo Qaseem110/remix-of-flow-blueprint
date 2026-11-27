@@ -102,6 +102,11 @@ export async function createPost(p: PostInput) {
   err(error);
   return (data as { id: string }).id;
 }
+export async function updatePost(id: string, p: PostInput) {
+  validatePost(p);
+  const { error } = await supabase.from("posts").update({ title: p.title, body: p.body, summary: p.summary, video_url: p.kind === "video" ? p.video_url?.trim() : null }).eq("id", id);
+  err(error);
+}
 export async function deletePost(id: string) { const { error } = await supabase.from("posts").delete().eq("id", id); err(error); }
 export async function setLike(postId: string, userId: string, liked: boolean) {
   const { error } = liked ? await supabase.from("post_likes").insert({ post_id: postId, user_id: userId }) : await supabase.from("post_likes").delete().eq("post_id", postId).eq("user_id", userId);

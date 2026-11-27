@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { ArrowRight, Bone, Brain, CalendarCheck, Eye, FlaskConical, HeartPulse, ListOrdered, Menu, ShieldCheck, Smile, Stethoscope, Users, Video, Wind, BadgeCheck, Headphones } from "lucide-react";
+import { ArrowRight, Bone, Brain, CalendarCheck, Eye, FlaskConical, HeartPulse, ListOrdered, Menu, ShieldCheck, Smile, Stethoscope, Users, Video, Wind, BadgeCheck, Headphones, Baby, Sparkles, Ear, Flower2, BrainCircuit, Activity, Droplet, Bean, Soup, Ribbon, Droplets, Apple, Accessibility, Scissors, Syringe, Thermometer, ShieldPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { FeedTabs } from "@/components/feed/FeedTabs";
@@ -44,14 +44,30 @@ const carePaths = [
 ] as const;
 
 const specialties = [
-  { icon: HeartPulse, title: "Heart & circulation", sub: "Cardiology · Vascular care" },
-  { icon: Brain, title: "Brain & nerves", sub: "Neurology · Neurosurgery" },
-  { icon: Wind, title: "Lungs & breathing", sub: "Pulmonology · Respiratory care" },
-  { icon: Bone, title: "Bones & joints", sub: "Orthopedics · Spine care" },
-  { icon: Eye, title: "Eyes & vision", sub: "Ophthalmology" },
-  { icon: Smile, title: "Dental care", sub: "Dentistry" },
-  { icon: Users, title: "Child & family", sub: "Pediatrics · General physician" },
-  { icon: Stethoscope, title: "Everyday health", sub: "General physician" },
+  { icon: HeartPulse, title: "Cardiology", sub: "Heart" },
+  { icon: Brain, title: "Neurology", sub: "Brain & nerves" },
+  { icon: Wind, title: "Pulmonology", sub: "Lungs" },
+  { icon: Bone, title: "Orthopedics", sub: "Bones & joints" },
+  { icon: Eye, title: "Ophthalmology", sub: "Eyes" },
+  { icon: Smile, title: "Dentistry", sub: "Teeth" },
+  { icon: Baby, title: "Pediatrics", sub: "Children" },
+  { icon: Stethoscope, title: "General Practice", sub: "Everyday health" },
+  { icon: Sparkles, title: "Dermatology", sub: "Skin & hair" },
+  { icon: Ear, title: "ENT", sub: "Ear, nose, throat" },
+  { icon: Flower2, title: "Gynecology", sub: "Women's health" },
+  { icon: BrainCircuit, title: "Psychiatry", sub: "Mental health" },
+  { icon: Activity, title: "Internal Medicine", sub: "Adult medicine" },
+  { icon: Droplet, title: "Endocrinology", sub: "Diabetes & thyroid" },
+  { icon: Bean, title: "Nephrology", sub: "Kidneys" },
+  { icon: Soup, title: "Gastroenterology", sub: "Stomach & liver" },
+  { icon: Ribbon, title: "Oncology", sub: "Cancer care" },
+  { icon: Droplets, title: "Urology", sub: "Urinary tract" },
+  { icon: Apple, title: "Nutrition", sub: "Diet & weight" },
+  { icon: Accessibility, title: "Physiotherapy", sub: "Rehab & pain" },
+  { icon: Scissors, title: "General Surgery", sub: "Operations" },
+  { icon: Syringe, title: "Rheumatology", sub: "Arthritis" },
+  { icon: Thermometer, title: "Infectious Disease", sub: "Fever & infection" },
+  { icon: ShieldPlus, title: "Allergy", sub: "Allergy & immunity" },
 ];
 
 const features = [
@@ -69,6 +85,30 @@ function AccountLink({ className }: { className: string }) {
   const user = useSession();
   if (!user) return <Link to="/login" className={className}>Sign in</Link>;
   return <Link to={user.role === "patient" ? "/patient" : user.role === "doctor" ? "/doctor" : user.role === "pharmacy" ? "/pharmacy" : user.role === "receptionist" ? "/reception" : user.role === "lab" ? "/lab" : "/admin"} className={className}>My dashboard</Link>;
+}
+
+function SignupButtons() {
+  const user = useSession();
+  if (user) return <Button size="sm" asChild className="rounded-[11px] bg-sidebar font-bold text-primary-foreground hover:bg-primary"><AccountLink className="" /></Button>;
+  return <>
+    <Button variant="outline" size="sm" asChild className="hidden rounded-[11px] font-bold sm:inline-flex"><Link to="/register" search={{ role: "doctor" }}>For Doctors</Link></Button>
+    <Button size="sm" asChild className="rounded-[11px] bg-sidebar font-bold text-primary-foreground hover:bg-primary"><Link to="/register">For Patient</Link></Button>
+  </>;
+}
+function SignupLink() {
+  const user = useSession();
+  if (user) return null;
+  return <Link to="/register" search={{ role: "doctor" }} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">For Doctors</Link>;
+}
+
+function GetStarted() {
+  const user = useSession();
+  return <Button asChild className="mt-3 h-12 w-full rounded-[11px] bg-sidebar text-base font-bold text-primary-foreground hover:bg-primary">{user ? <AccountLink className="" /> : <Link to="/register">Get started <ArrowRight className="ml-1 h-4 w-4" /></Link>}</Button>;
+}
+function ProviderLinks() {
+  const user = useSession();
+  if (user) return null;
+  return <div className="space-y-2 text-sm"><p className="font-bold">Providers</p><Link to="/register" search={{ role: "doctor" }} className="block opacity-80 hover:opacity-100">For doctors</Link><Link to="/register" search={{ role: "lab" }} className="block opacity-80 hover:opacity-100">For laboratories</Link><Link to="/register" search={{ role: "pharmacy" }} className="block opacity-80 hover:opacity-100">For pharmacies</Link></div>;
 }
 
 function Landing() {
@@ -90,14 +130,13 @@ function Landing() {
             ))}
           </nav>
           <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" asChild className="hidden rounded-[11px] font-bold sm:inline-flex"><Link to="/register" search={{ role: "doctor" }}>For Doctors</Link></Button>
-            <Button size="sm" asChild className="rounded-[11px] bg-sidebar font-bold text-primary-foreground hover:bg-primary"><Link to="/register">For Patient</Link></Button>
+            <SignupButtons />
             <Sheet>
               <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
               <SheetContent side="right" className="flex w-72 flex-col gap-2 p-6">
                 <BrandLogo className="mb-4 h-8" />
                 {navLinks.map((l) => <Link key={l.to} to={l.to} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">{l.label}</Link>)}
-                <Link to="/register" search={{ role: "doctor" }} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">For Doctors</Link>
+                <SignupLink />
                 <AccountLink className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary" />
               </SheetContent>
             </Sheet>
@@ -118,7 +157,7 @@ function Landing() {
                 <Link to="/patient/labs" search={{ lab: undefined, book: false }} className="flex items-center gap-2 rounded-[11px] border px-3 py-3 text-sm font-semibold hover:border-primary hover:text-primary"><FlaskConical className="h-4 w-4 shrink-0 text-primary" />Lab tests</Link>
                 <Link to="/patient/free-checkups" className="flex items-center gap-2 rounded-[11px] border px-3 py-3 text-sm font-semibold hover:border-primary hover:text-primary"><HeartPulse className="h-4 w-4 shrink-0 text-primary" />Free checkups</Link>
               </div>
-              <Button asChild className="mt-3 h-12 w-full rounded-[11px] bg-sidebar text-base font-bold text-primary-foreground hover:bg-primary"><Link to="/register">Get started <ArrowRight className="ml-1 h-4 w-4" /></Link></Button>
+              <GetStarted />
             </div>
             <div className="mt-4 flex flex-wrap gap-x-5 gap-y-2 text-xs text-muted-foreground">
               <span className="flex items-center gap-1"><BadgeCheck className="h-3.5 w-3.5 text-primary" />Verified professionals</span>
@@ -147,7 +186,7 @@ function Landing() {
           <div className="min-w-0">
             <Eyebrow>Live queue</Eyebrow>
             <h2 className="text-3xl font-bold text-secondary-foreground sm:text-4xl">Track your appointment queue</h2>
-            <p className="mt-3 text-muted-foreground">Already booked? Enter your tracking number or phone to see your live queue position. Your arrival is marked by the clinic.</p>
+            <p className="mt-3 text-muted-foreground">Already booked? Enter your tracking number to see your live queue position. Your arrival is marked by the clinic.</p>
             <div className="mt-6 rounded-[18px] border bg-card p-5 shadow-soft"><QueueTracker /></div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -192,12 +231,11 @@ function Landing() {
           </div>
           <Link to="/patient/doctors" className="text-sm font-bold text-primary hover:underline">Browse all doctors</Link>
         </div>
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mt-8 grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
           {specialties.map((s) => (
-            <Link key={s.title} to="/patient/doctors" className="rounded-[18px] border bg-card p-5 transition hover:border-primary hover:shadow-soft">
-              <span className="grid h-12 w-12 place-items-center rounded-xl bg-secondary text-primary"><s.icon className="h-6 w-6" /></span>
-              <h3 className="mt-4 font-semibold text-secondary-foreground">{s.title}</h3>
-              <p className="mt-1 text-xs text-muted-foreground">{s.sub}</p>
+            <Link key={s.title} to="/patient/doctors" search={{ need: s.title }} className="flex min-w-0 items-center gap-2.5 rounded-[14px] border bg-card p-3 transition hover:border-primary hover:shadow-soft">
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-secondary text-primary"><s.icon className="h-4.5 w-4.5" /></span>
+              <span className="min-w-0"><span className="block truncate text-sm font-semibold text-secondary-foreground">{s.title}</span><span className="block truncate text-[11px] text-muted-foreground">{s.sub}</span></span>
             </Link>
           ))}
         </div>
@@ -242,7 +280,7 @@ function Landing() {
         <div className="mx-auto grid max-w-7xl gap-6 px-4 py-10 sm:grid-cols-2 sm:px-6 lg:grid-cols-4">
           <div><div className="inline-block rounded-lg bg-card p-2"><BrandLogo className="h-7" /></div><p className="mt-3 text-sm opacity-80">Live Better, Feel Better.</p></div>
           <div className="space-y-2 text-sm"><p className="font-bold">Patients</p><Link to="/patient/doctors" className="block opacity-80 hover:opacity-100">Find doctors</Link><Link to="/patient/labs" search={{ lab: undefined, book: false }} className="block opacity-80 hover:opacity-100">Lab tests</Link></div>
-          <div className="space-y-2 text-sm"><p className="font-bold">Providers</p><Link to="/register" search={{ role: "doctor" }} className="block opacity-80 hover:opacity-100">For doctors</Link><Link to="/register" search={{ role: "lab" }} className="block opacity-80 hover:opacity-100">For laboratories</Link><Link to="/register" search={{ role: "pharmacy" }} className="block opacity-80 hover:opacity-100">For pharmacies</Link></div>
+          <ProviderLinks />
           <div className="space-y-2 text-sm"><p className="font-bold">Community</p><Link to="/discussions" className="block opacity-80 hover:opacity-100">Discussions</Link><AccountLink className="block opacity-80 hover:opacity-100" /></div>
         </div>
         <p className="border-t border-sidebar-border px-4 py-4 text-center text-xs opacity-70">© {new Date().getFullYear()} HealthSahoolat</p>

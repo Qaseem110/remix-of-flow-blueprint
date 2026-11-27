@@ -3,7 +3,6 @@ import { toast } from "sonner";
 import { Clock, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { lookupQueue, type KioskQueue } from "@/lib/store";
 import { fmtTime } from "@/lib/utils";
 
@@ -12,7 +11,7 @@ type Found = KioskQueue & { date?: string; time?: string };
 /** Live queue status lookup (no check-in — arrival is marked by the doctor or receptionist). */
 export function QueueTracker() {
   const [value, setValue] = useState("");
-  const [key, setKey] = useState<{ method: "appointmentId" | "phone"; value: string } | null>(null);
+  const [key, setKey] = useState<{ method: "appointmentId"; value: string } | null>(null);
   const [q, setQ] = useState<Found | null>(null);
   const [busy, setBusy] = useState(false);
   useEffect(() => {
@@ -24,7 +23,7 @@ export function QueueTracker() {
     return () => { live = false; clearInterval(t); };
   }, [key]);
 
-  const submit = (method: "appointmentId" | "phone") => async (e: React.FormEvent) => {
+  const submit = (method: "appointmentId") => async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true); setKey({ method, value: value.trim() }); setBusy(false);
   };
@@ -47,13 +46,6 @@ export function QueueTracker() {
     );
   }
   return (
-    <Tabs defaultValue="appointmentId">
-      <TabsList className="grid w-full grid-cols-2">
-        <TabsTrigger value="appointmentId">Tracking number</TabsTrigger>
-        <TabsTrigger value="phone">Phone number</TabsTrigger>
-      </TabsList>
-      <TabsContent value="appointmentId"><form onSubmit={submit("appointmentId")} className="mt-4 space-y-3"><Input aria-label="Tracking number" inputMode="numeric" pattern="[0-9]+" placeholder="e.g. 100001" value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg" disabled={busy || (!!key && !q)}>{key && !q ? "Loading…" : "Show my queue status"}</Button></form></TabsContent>
-      <TabsContent value="phone"><form onSubmit={submit("phone")} className="mt-4 space-y-3"><Input aria-label="Phone number" type="tel" placeholder="03xx xxxxxxx" value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg" disabled={busy || (!!key && !q)}>{key && !q ? "Loading…" : "Show my queue status"}</Button></form></TabsContent>
-    </Tabs>
+    <form onSubmit={submit("appointmentId")} className="space-y-3"><Input aria-label="Tracking number" inputMode="numeric" pattern="[0-9]+" placeholder="Tracking number, e.g. 100001" value={value} onChange={(e) => setValue(e.target.value)} required className="h-12 text-lg" /><Button className="w-full" size="lg" disabled={busy || (!!key && !q)}>{key && !q ? "Loading…" : "Show my queue status"}</Button></form>
   );
 }

@@ -1,5 +1,5 @@
 import { BrandLogo } from "@/components/app/BrandLogo";
-import { Newspaper, MessagesSquare } from "lucide-react";
+import { MessagesSquare } from "lucide-react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 import { Bell, CalendarDays, ClipboardList, HeartPulse, LayoutDashboard, LogOut, Search, Settings, ShieldCheck, Stethoscope, User, Users, Clock, Menu, Pill, Store , FolderOpen, FlaskConical, HeartHandshake } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
@@ -49,7 +49,6 @@ const NAV: Record<Role, { to: string; label: string; icon: typeof LayoutDashboar
     { to: "/doctor/labs", label: "Lab Reports", icon: FlaskConical },
     { to: "/doctor/reception", label: "Reception", icon: Users },
     { to: "/doctor/volunteer", label: "Volunteer", icon: HeartHandshake },
-    { to: "/doctor/feed", label: "My Feed", icon: Newspaper },
     { to: "/discussions", label: "Discussions", icon: MessagesSquare },
     { to: "/doctor/profile", label: "Profile", icon: User },
   ],
@@ -111,22 +110,25 @@ function SideNav({ role }: { role: Role }) {
   const [language, setLanguage] = useState("en");
   useEffect(() => { const read = () => setLanguage(localStorage.getItem("sahoolat-language") ?? "en"); read(); window.addEventListener("sahoolat-preferences", read); return () => window.removeEventListener("sahoolat-preferences", read); }, []);
   return (
-    <nav className="flex flex-col gap-1 md:flex-row md:flex-wrap md:items-center md:gap-0.5">
+    <nav className="flex flex-col gap-1 md:flex-row md:flex-nowrap md:items-center md:gap-0 md:overflow-x-auto md:[scrollbar-width:none]">
       {NAV[role].map((n) => (
         <Link key={n.to} to={n.to} activeOptions={{ exact: n.to.split("/").length === 2 }}
-          className="flex items-center gap-3 whitespace-nowrap rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 transition hover:bg-secondary hover:text-primary md:gap-2 md:px-2.5 md:py-1.5"
+          className="flex items-center gap-3 whitespace-nowrap rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 transition hover:bg-secondary hover:text-primary md:shrink-0 md:gap-1.5 md:px-2 md:py-1.5 md:text-[13px]"
           activeProps={{ className: "bg-secondary !text-primary" }}>
-          <n.icon className="h-4 w-4" />{language === "ur" ? navUrdu[n.label] ?? n.label : n.label}
+          <n.icon className="h-4 w-4 shrink-0 md:hidden xl:block" />{language === "ur" ? navUrdu[n.label] ?? n.label : n.label}
         </Link>
       ))}
     </nav>
   );
 }
 
+export const dashboardPath = (role: Role) => role === "patient" ? "/patient" : role === "doctor" ? "/doctor" : role === "pharmacy" ? "/pharmacy" : role === "receptionist" ? "/reception" : role === "lab" ? "/lab" : "/admin";
+
 /** Patient pages that visitors may browse without signing in; booking still needs an account. */
 const PUBLIC_PATIENT_PAGES = [/^\/patient\/doctors(\/[^/]+)?\/?$/, /^\/patient\/labs\/?$/, /^\/patient\/laboratories\/[^/]+\/?$/, /^\/patient\/free-checkups\/?$/, /^\/patient\/stores\/[^/]+\/?$/];
 
 function GuestShell({ children }: { children: ReactNode }) {
+  const user = useSession();
   const links = [
     { to: "/patient/doctors", label: "Doctors" },
     { to: "/patient/labs", label: "Lab Tests" },
@@ -141,11 +143,12 @@ function GuestShell({ children }: { children: ReactNode }) {
           <Link to="/" aria-label="HealthSahoolat home"><BrandLogo className="h-8" /></Link>
           <nav className="hidden items-center gap-1 lg:flex">{links.map((l) => <Link key={l.to} to={l.to} className="rounded-[10px] px-3 py-2 text-sm font-semibold text-foreground/75 hover:bg-secondary hover:text-primary" activeProps={{ className: "bg-secondary !text-primary" }}>{l.label}</Link>)}</nav>
           <div className="ml-auto flex items-center gap-2">
+            {user ? <Button size="sm" asChild className="rounded-[11px] font-semibold"><Link to={dashboardPath(user.role)}>My dashboard</Link></Button> : <>
             <Button variant="outline" size="sm" asChild className="rounded-[11px] font-semibold"><Link to="/login">Sign in</Link></Button>
-            <Button size="sm" asChild className="hidden rounded-[11px] font-semibold sm:inline-flex"><Link to="/register">Register</Link></Button>
+            <Button size="sm" asChild className="hidden rounded-[11px] font-semibold sm:inline-flex"><Link to="/register">Register</Link></Button></>}
             <Sheet>
               <SheetTrigger asChild><Button variant="ghost" size="icon" className="lg:hidden" aria-label="Menu"><Menu className="h-5 w-5" /></Button></SheetTrigger>
-              <SheetContent side="left" className="flex w-64 flex-col gap-2 bg-card p-4"><BrandLogo className="mb-4 h-8" />{links.map((l) => <Link key={l.to} to={l.to} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">{l.label}</Link>)}<Link to="/register" className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">Register</Link></SheetContent>
+              <SheetContent side="left" className="flex w-64 flex-col gap-2 bg-card p-4"><BrandLogo className="mb-4 h-8" />{links.map((l) => <Link key={l.to} to={l.to} className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">{l.label}</Link>)}{!user && <Link to="/register" className="rounded-lg px-3 py-2 font-semibold hover:bg-secondary">Register</Link>}</SheetContent>
             </Sheet>
           </div>
         </div>

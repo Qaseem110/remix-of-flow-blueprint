@@ -32,3 +32,6 @@
 - Signed-out visitors may browse patient listing pages (doctors, labs, free checkups, provider pages) via `GuestShell` in AppShell; booking and records stay sign-in only. App images are bundled files in src/assets, not CDN pointers. Why: public browsing and the Vercel deploy.
 - Patients never check themselves in; homepage/`/checkin` only look up queue status via `kiosk_queue_lookup`. Arrival is marked by doctor/receptionist. Why: user wants attendance controlled by clinic staff.
 - AI symptom search sends patients to `/patient/doctors` filtered by suggested specialities (search params), not an inline pick. Why: user wants the doctors page to show relevant doctors.
+- A floating Back button (`BackButton` in `__root.tsx`) shows on every page except `/`. Why: user wants a way back on every page.
+- Queue lookup is by tracking number only (no phone). Doctors post blogs/photos/videos from Discussions; "My Feed" nav removed. Authors may edit their own posts (DB trigger keeps author/kind/pictures). Why: user requests.
+- Signed-in users never see sign-up links; `/register` shows "already signed in". Why: user request.

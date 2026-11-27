@@ -16,6 +16,7 @@ import { loadCareItems, saveCareItem, loadActivity, useSession, useStore, useAct
 import { fmtPrice, fmtTime } from '@/lib/utils';
 import type { CareItem, CareKind } from '@/lib/care';
 import { AccountPreferences } from './AccountPreferences';
+import { ActivityLog } from './ActivityLog';
 
 const labels: Record<CareKind,string>={favorite:'Favorites',waitlist:'Appointment waitlist',template:'Consultation templates',referral:'Referrals',branch:'Clinics',complaint:'Help & complaints',credential:'Credentials & renewal',reservation:'Medicine reservations',home_collection:'Tests & home sample collection',package:'Test packages',consent:'Privacy & consent'};
 const kinds: Record<string,CareKind[]>={patient:['favorite','reservation','complaint','consent'],doctor:['template','branch','credential','complaint'],lab:['home_collection','credential','complaint'],pharmacy:['reservation','credential','complaint'],admin:['complaint','credential','consent'],receptionist:['complaint']};
@@ -55,5 +56,5 @@ export function CareWorkspace(){
  {(user.role==='admin'||(item.kind==='reservation'&&user.id===item.recipientId)||(item.kind==='waitlist'&&user.id===item.recipientId))&&<div className="flex flex-wrap gap-2"><Input aria-label={`Response to ${item.data.title}`} placeholder="Response / pickup time / available date" value={reply[item.id]??''} onChange={(e)=>setReply({...reply,[item.id]:e.target.value})}/>{(item.kind==='credential'?['Approved','Rejected']:item.kind==='reservation'?['Confirmed','Unavailable']:item.kind==='waitlist'?['Offered']:['In progress','Resolved']).map((status)=><Button key={status} variant="outline" size="sm" onClick={()=>void update(item,status)}>{status}</Button>)}</div>}
  {item.ownerId===user.id&&<Button size="sm" variant="ghost" onClick={()=>void update(item,'Archived')}><Archive/>Archive</Button>}
  </article>)}</section>
- <section className="border-t pt-5"><h2 className="mb-3 text-lg font-semibold">Recent account activity</h2><ul className="divide-y text-sm">{activity.map((a)=><li key={a.id} className="break-words py-2">{a.action} · {a.resource} · {new Date(a.created_at).toLocaleString('en-US',{hour12:true})}</li>)}</ul>{!activity.length&&<p className="text-muted-foreground">No activity recorded yet.</p>}</section></div>;
+ <ActivityLog activity={activity} me={user.id} /></div>;
 }

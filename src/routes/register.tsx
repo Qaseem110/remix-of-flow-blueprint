@@ -1,3 +1,5 @@
+import { useSession } from "@/lib/store";
+import { dashboardPath } from "@/components/app/AppShell";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -13,13 +15,27 @@ import { AuthFrame } from "./login";
 export const Route = createFileRoute("/register")({
   validateSearch: (s: Record<string, unknown>) => ({ role: s.role === "doctor" || s.role === "pharmacy" || s.role === "lab" ? s.role : undefined }) as { role?: "doctor" | "pharmacy" | "lab" },
   head: () => ({ meta: [{ title: "Create account — Sahoolat" }, { name: "description", content: "Register as a patient, doctor, medical store or laboratory on Sahoolat." }, { property: "og:title", content: "Create account — Sahoolat" }, { property: "og:description", content: "Register as a patient or doctor." }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary_large_image" }] }),
-  component: Register,
+  component: RegisterGate,
 });
 
 export const SPECIALIZATIONS = ["General Practice", "Cardiology", "Dermatology", "Pediatrics", "Orthopedics", "Neurology", "Gynecology", "ENT", "Ophthalmology", "Psychiatry", "Dentistry", "Internal Medicine"];
 
 function F({ id, label, ...p }: { id: string; label: string } & React.ComponentProps<typeof Input>) {
   return <div><Label htmlFor={id}>{label}</Label><Input id={id} name={id} {...p} /></div>;
+}
+
+function RegisterGate() {
+  const user = useSession();
+  if (user) return (
+    <div className="flex min-h-screen items-center justify-center p-6">
+      <div className="max-w-sm text-center">
+        <h1 className="text-2xl font-semibold">You're already signed in</h1>
+        <p className="mt-2 text-muted-foreground">Sign out first if you want to create a different account.</p>
+        <Button asChild className="mt-6"><Link to={dashboardPath(user.role)}>Go to my dashboard</Link></Button>
+      </div>
+    </div>
+  );
+  return <Register />;
 }
 
 function Register() {

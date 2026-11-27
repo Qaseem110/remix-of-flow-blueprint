@@ -1,12 +1,16 @@
 import { Link } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { Heart, MessageCircle, Share2, Trash2, PlayCircle, ExternalLink } from "lucide-react";
+import { Heart, MessageCircle, Share2, Trash2, Pencil, PlayCircle, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { deletePost, KIND_LABEL, setLike, useFeedViewer, useImageUrls, videoEmbed, type Post } from "@/lib/feed";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { deletePost, updatePost, KIND_LABEL, setLike, useFeedViewer, useImageUrls, videoEmbed, type Post } from "@/lib/feed";
 
 export function PostImages({ paths }: { paths: string[] }) {
   const urls = useImageUrls(paths);
@@ -56,9 +60,43 @@ export function LikeButton({ post }: { post: Post }) {
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-PK", { timeZone: "Asia/Karachi", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 
+function EditPost({ post, open, onOpenChange }: { post: Post; open: boolean; onOpenChange: (o: boolean) => void }) {
+  const qc = useQueryClient();
+  const [title, setTitle] = useState(post.title);
+  const [body, setBody] = useState(post.body);
+  const [summary, setSummary] = useState(post.summary);
+  const [video, setVideo] = useState(post.video_url ?? "");
+  const [busy, setBusy] = useState(false);
+  const save = async (e: React.FormEvent) => {
+    e.preventDefault(); setBusy(true);
+    try {
+      await updatePost(post.id, { kind: post.kind, title, body, summary, video_url: video, images: post.images });
+      await Promise.all([qc.invalidateQueries({ queryKey: ["posts"] }), qc.invalidateQueries({ queryKey: ["post", post.id] })]);
+      toast.success("Post updated"); onOpenChange(false);
+    } catch (er) { toast.error((er as Error).message); } finally { setBusy(false); }
+  };
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogHeader><DialogTitle>Edit {KIND_LABEL[post.kind].toLowerCase()}</DialogTitle></DialogHeader>
+        <form onSubmit={save} className="space-y-3">
+          <div><Label htmlFor="edit-title">Title *</Label><Input id="edit-title" value={title} onChange={(e) => setTitle(e.target.value)} maxLength={200} /></div>
+          {post.kind === "video" && <>
+            <div><Label htmlFor="edit-video">Video link *</Label><Input id="edit-video" value={video} onChange={(e) => setVideo(e.target.value)} /></div>
+            <div><Label htmlFor="edit-summary">Video summary *</Label><Textarea id="edit-summary" value={summary} onChange={(e) => setSummary(e.target.value)} maxLength={2000} /></div>
+          </>}
+          <div><Label htmlFor="edit-body">{post.kind === "blog" ? "Blog *" : post.kind === "forum" ? "Details *" : post.kind === "photo" ? "Caption" : "More details"}</Label><Textarea id="edit-body" rows={post.kind === "blog" ? 8 : 4} value={body} onChange={(e) => setBody(e.target.value)} maxLength={20000} /></div>
+          <Button type="submit" disabled={busy}>{busy ? "Saving…" : "Save changes"}</Button>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export function PostCard({ post, full = false }: { post: Post; full?: boolean }) {
   const viewer = useFeedViewer();
   const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
   const text = post.kind === "video" ? post.summary : post.body;
   const short = !full && text.length > 280 ? `${text.slice(0, 280)}…` : text;
   const remove = async () => {
@@ -85,8 +123,10 @@ export function PostCard({ post, full = false }: { post: Post; full?: boolean })
         <LikeButton post={post} />
         <Button variant="ghost" size="sm" asChild><Link to="/feed/$postId" params={{ postId: post.id }}><MessageCircle />{post.comments}</Link></Button>
         <ShareMenu post={post} />
-        {viewer && (viewer.id === post.author_id || viewer.role === "admin") && <Button variant="ghost" size="sm" className="ml-auto text-destructive" onClick={remove}><Trash2 />Delete</Button>}
+        {viewer?.id === post.author_id && <Button variant="ghost" size="sm" className="ml-auto" onClick={() => setEditing(true)}><Pencil />Edit</Button>}
+        {viewer && (viewer.id === post.author_id || viewer.role === "admin") && <Button variant="ghost" size="sm" className={viewer.id === post.author_id ? "text-destructive" : "ml-auto text-destructive"} onClick={remove}><Trash2 />Delete</Button>}
       </footer>
+      {editing && <EditPost post={post} open={editing} onOpenChange={setEditing} />}
     </article>
   );
 }
